@@ -1,0 +1,26 @@
+{
+  "name": "Tedit Code Editor",
+  "short_name": "Tedit",
+  "version": "0.0.0",
+  "manifest_version": 2,
+  "minimum_chrome_version": "31",
+  "description": "An offline enabled development environment that works directly on js-git databases",
+  "offline_enabled": true,
+  "app": {
+    "background": {
+      "scripts": ["background.js"]
+    }
+  },
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    {"fileSystem": ["write", "retainEntries", "directory"]},
+    "http://*/*",
+    "https://*/*",
+    {"socket": [ "tcp-connect", "tcp-listen" ]}
+  ],
+  "icons": {
+    "196": "icons/icon-196.png",
+    "128": "icons/icon-128.png"
+  }
+}
