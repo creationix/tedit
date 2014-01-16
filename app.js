@@ -1,4 +1,4 @@
-/*global ace, domBuilder*/
+/*global ace, domBuilder, chrome*/
 
 var $ = {};
 document.body.textContent = "";
@@ -6,7 +6,7 @@ document.body.setAttribute("class", "splitview horizontal");
 document.body.appendChild(domBuilder([
   [".tree$tree"],
   [".slider$slider"],
-  [".titlebar$titlebar"],
+  [".titlebar$titlebar", "welcome.jk"],
   [".main$main",
     [".editor$editor"]
   ]
@@ -31,6 +31,9 @@ document.body.appendChild(domBuilder([
     }
     else if (evt.keyCode === 189) { // "-"
       if (index > 0) index--;
+    }
+    else if (evt.keyCode === 82 && evt.shiftKey) { // "r"
+      chrome.runtime.reload();
     }
     else {
       return;

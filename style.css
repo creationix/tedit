@@ -308,6 +308,9 @@ body, .tree, .titlebar, .main, .editor {
   width: auto;
   background-color: #444;
   color: #fff;
+  line-height: 30px;
+  text-align: center;
+  font-size: 16px;
 }
 .ace_editor {
   font-size: inherit !important;
