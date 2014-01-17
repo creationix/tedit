@@ -145,6 +145,7 @@
   box-sizing: border-box;
 }
 body {
+  background-color: #000;
   margin: 0;
   font-family: sans-serif;
 }
