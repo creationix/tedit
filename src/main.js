@@ -1,11 +1,8 @@
 /*global define*/
 define(function () {
   "use strict";
-
-  var $ = require('elements');
+  require('window-keys');
   require('slider');
   require('tree');
   require('editor');
-  require('window-keys');
-  console.log("In Main", $);
 });

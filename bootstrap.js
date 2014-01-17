@@ -5,11 +5,10 @@
   var pending = {};
   window.define = define;
   window.require = getModule;
+  window.requireAsync = load;
   document.body.textContent = "";
 
-  load("main", function () {
-    console.log("Main loaded");
-  });
+  load("main");
 
   function load(name, callback) {
     // Check for cached modules
@@ -29,8 +28,7 @@
       });
     }
     modules[name] = def.fn.apply(null, def.deps.map(getModule));
-    console.log("EXEC", name);
-    callback(null, modules[name]);
+    if (callback) callback(null, modules[name]);
 
     function onDepLoad() {
       if (!--left) return load(name, callback);
@@ -58,7 +56,6 @@
     var script = document.head.getElementsByTagName("script")[0];
     document.head.removeChild(script);
     var name = script.name;
-    console.log("DEFINE", name);
     var deps = mine(fn.toString()).map(pullName);
     defs[name] = {
       deps: deps,
