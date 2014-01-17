@@ -87,7 +87,7 @@ define("encoders", function () {
   function hashAs(type, body) {
     return sha1(frame(type, encodeAs(type, body)));
   }
-  
+
   function hashBlob(body) {
     return sha1(frame("blob", encodeBlob(body)));
   }
@@ -131,19 +131,29 @@ define("encoders", function () {
     if (type !== "object") {
       throw new TypeError("Tree body must be array or object");
     }
+    var tree = {}, i, l, entry;
     // If array form is passed in, convert to object form.
     if (Array.isArray(body)) {
-      var array = body;
-      body = {};
-      for (var i = 0, l = array.length; i < l; i++) {
-        var entry = array[i];
-        body[entry.name] = {
+      for (i = 0, l = body.length; i < l; i++) {
+        entry = body[i];
+        tree[entry.name] = {
           mode: entry.mode,
           hash: entry.hash
         };
       }
     }
-    return body;
+    else {
+      var names = Object.keys(body);
+      for (i = 0, l = names.length; i < l; i++) {
+        var name = names[i];
+        entry = body[name];
+        tree[name] = {
+          mode: entry.mode,
+          hash: entry.hash
+        };
+      }
+    }
+    return tree;
   }
 
   function encodeTree(body) {
