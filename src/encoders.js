@@ -87,6 +87,7 @@ define("encoders", function () {
   function hashAs(type, body) {
     return sha1(frame(type, encodeAs(type, body)));
   }
+  
   function hashBlob(body) {
     return sha1(frame("blob", encodeBlob(body)));
   }
