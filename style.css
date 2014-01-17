@@ -223,39 +223,6 @@ body {
   color: #EED1B3;
 }
 
-.splitview,
-.splitview > * {
-  position: absolute;
-  overflow: hidden;
-}
-.splitview > .slider {
-  background-color: #888;
-  z-index: 10;
-}
-.splitview.horizontal > .slider {
-  width: 8px;
-  border-left: 1px solid #bbb;
-  border-right: 1px solid #444;
-  top: 0;
-  bottom: 0;
-}
-.splitview.vertical > .slider {
-  height: 8px;
-  border-top: 1px solid #bbb;
-  border-bottom: 1px solid #444;
-  left: 0;
-  right: 0;
-}
-.splitview.horizontal > .slider {
-  cursor: ew-resize;
-}
-.splitview.vertical > .slider {
-  cursor: ns-resize;
-}
-.splitview > .slider:hover {
-  background-color: #CF7EA9;
-  border-color: #DF8EB9;
-}
 ::-webkit-scrollbar {
   background: none;
 }

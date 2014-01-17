@@ -11,12 +11,12 @@ define("slider", function () {
   var innerWidth;
 
   onResize();
-  console.log({size:size})
   slide(size);
+  var gutter = document.querySelector(".ace_gutter");
 
   window.addEventListener("resize", onResize);
-  $.slider.addEventListener("mousedown", onStart, true);
-  $.slider.addEventListener("touchstart", onStart, true);
+  gutter.addEventListener("mousedown", onStart, true);
+  gutter.addEventListener("touchstart", onStart, true);
 
   function onResize() {
     innerWidth = window.innerWidth;
@@ -67,17 +67,14 @@ define("slider", function () {
     isTouch = null;
   }
 
-  function slide(x, w) {
-    if (w === undefined) w = 8;
+  function slide(x) {
     size = x;
     if (size < 0) size = 0;
     if (size > innerWidth - width) size = innerWidth - width;
     prefs.set("slider", size);
-    $.slider.style.left = size + "px";
-    $.slider.style.width = w + "px";
     $.tree.style.width = size + "px";
-    $.titlebar.style.left = (size + w) + "px";
-    $.main.style.left = (size + w) + "px";
+    $.titlebar.style.left = size + "px";
+    $.main.style.left = size + "px";
   }
 
   return {
