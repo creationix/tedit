@@ -1,5 +1,11 @@
 /*global define*/
-define("main", ["elements", "slider", "tree", "editor", "window-keys"], function ($) {
+define(function () {
   "use strict";
+
+  var $ = require('elements');
+  require('slider');
+  require('tree');
+  require('editor');
+  require('window-keys');
   console.log("In Main", $);
 });

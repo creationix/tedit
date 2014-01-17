@@ -1,6 +1,13 @@
 /*global define, Text*/
-define("dombuilder", [], function () {
+define(function () {
   "use strict";
+
+  var CLASS_MATCH = /\.[^.#$]+/g,
+      ID_MATCH = /#[^.#$]+/,
+      REF_MATCH = /\$[^.#$]+/,
+      TAG_MATCH = /^[^.#$]+/;
+  
+  return domBuilder;
   
   function domBuilder(json, refs) {
   
@@ -75,15 +82,8 @@ define("dombuilder", [], function () {
     }
   }
   
-  var CLASS_MATCH = /\.[^.#$]+/g,
-      ID_MATCH = /#[^.#$]+/,
-      REF_MATCH = /\$[^.#$]+/,
-      TAG_MATCH = /^[^.#$]+/;
-  
   function stripFirst(part) {
     return part.substr(1);
   }
-  
-  return domBuilder;
 
 });

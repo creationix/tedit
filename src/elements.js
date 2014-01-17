@@ -1,7 +1,9 @@
 /*global define*/
-define("elements", ["dombuilder"], function (domBuilder) {
+define(function () {
   "use strict";
+
   // Create the main UI
+  var domBuilder = require('dombuilder');
   var $ = {};
   document.body.setAttribute("class", "splitview horizontal");
   document.body.appendChild(domBuilder([

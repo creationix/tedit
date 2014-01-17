@@ -1,6 +1,7 @@
 /*global define, chrome*/
-define("window-keys", [], function () {
+define(function () {
   "use strict";
+
   var zooms = [
     25, 33, 50, 67, 75, 90, 100, 110, 120, 125, 150, 175, 200, 250, 300, 400, 500
   ];

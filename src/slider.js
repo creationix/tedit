@@ -1,6 +1,8 @@
 /*global define*/
-define("slider", ["elements"], function ($) {
-  
+define(function () {
+  "use strict";
+
+  var $ = require("elements");
   var position = null;
   var isTouch = false;
   var size = 200;
