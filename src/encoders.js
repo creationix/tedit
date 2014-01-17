@@ -87,10 +87,13 @@ define("encoders", function () {
     if (type === "string") {
       return binary.encodeUtf8(body);
     }
-    if (body && type === "object" && typeof body.length === "number") {
-      return binary.toRaw(body);
+    if (body && type === "object") {
+      if (body.constructor.name === "ArrayBuffer") body = new Uint8Array(body);
+      if (typeof body.length === "number") {
+        return binary.toRaw(body);
+      }
     }
-    throw new TypeError("Blob body must be raw string or byte array");
+    throw new TypeError("Blob body must be raw string, ArrayBuffer or byte array");
   }
 
   function encodeTree(body) {

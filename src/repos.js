@@ -4,7 +4,7 @@ define("repos", function () {
   var prefs = require('prefs');
   var fileSystem = chrome.fileSystem;
   var repo = {};
-  var refs = {};
+  var root;
 
   var ignores = {
     ".git": true,
@@ -56,7 +56,7 @@ define("repos", function () {
       callback(null, hash);
     };
     entry.file(function (file) {
-      reader.readAsBinaryString(file);
+      reader.readAsArrayBuffer(file);
     });
   }
 
