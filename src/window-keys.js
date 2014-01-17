@@ -15,26 +15,34 @@ define("window-keys", function () {
 
   window.addEventListener("keydown", function (evt) {
     if (!evt.ctrlKey) return;
-    if (evt.keyCode === 48) { // "+"
-      index = zooms.indexOf(100);
-    }
-    else if (evt.keyCode === 187) { // "+"
-      if (index < zooms.length - 1) index++;
-    }
-    else if (evt.keyCode === 189) { // "-"
-      if (index > 0) index--;
-    }
-    else if (evt.keyCode === 82 && evt.shiftKey) { // "r"
-      chrome.runtime.reload();
-    }
-    else {
-      return;
-    }
+    // Ctrl-0
+    if (evt.keyCode === 48) reset();
+    // Ctrl-"+"
+    else if (evt.keyCode === 187) bigger();
+    // Ctrl-"-"
+    else if (evt.keyCode === 189) smaller();
+    // Ctrl-Shift-R
+    else if (evt.keyCode === 82 && evt.shiftKey) chrome.runtime.reload();
+    // Ignore and let rest of app handle it.
+    else return;
     evt.preventDefault();
     evt.stopPropagation();
-    prefs.set("zoomIndex", index);
-    zoom();
   }, true);
+
+  function bigger() {
+    if (index < zooms.length - 1) index++;
+    zoom();
+  }
+
+  function smaller() {
+    if (index > 0) index--;
+    zoom();
+  }
+
+  function reset() {
+    index = zooms.indexOf(100);
+    zoom();
+  }
 
   function zoom() {
     var size = original * zooms[index] / 100;
@@ -42,8 +50,15 @@ define("window-keys", function () {
       if (size === oldSize) return;
       slider.size = Math.round(slider.size / oldSize * size);
     }
+    prefs.set("zoomIndex", index);
     editor.setFontSize(size);
     document.body.style.fontSize = size + "px";
     oldSize = size;
   }
+
+  return {
+    bigger: bigger,
+    smaller: smaller,
+    reset: reset
+  };
 });
