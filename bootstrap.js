@@ -1,5 +1,6 @@
 // Tiny AMD loader that auto-loads src/main.js
 (function () {
+  "use strict";
   var modules = {};
   var defs = {};
   var ready = {};
