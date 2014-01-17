@@ -4,6 +4,7 @@ define("window-keys", function () {
 
   var prefs = require('prefs');
   var editor = require('editor');
+  var tree = require('tree');
   var slider = require('slider');
   var zooms = [
     25, 33, 50, 67, 75, 90, 100, 110, 120, 125, 150, 175, 200, 250, 300, 400, 500
@@ -11,18 +12,20 @@ define("window-keys", function () {
   var original = 16;
   var index = prefs.get("zoomIndex", zooms.indexOf(100));
   var oldSize;
+  var oldSlider;
   zoom();
 
   window.addEventListener("keydown", function (evt) {
-    if (!evt.ctrlKey) return;
+    // Ctrl-T
+    if (evt.altKey && evt.keyCode === 84) toggle();
     // Ctrl-0
-    if (evt.keyCode === 48) reset();
+    else if (evt.ctrlKey && evt.keyCode === 48) reset();
     // Ctrl-"+"
-    else if (evt.keyCode === 187) bigger();
+    else if (evt.ctrlKey && evt.keyCode === 187) bigger();
     // Ctrl-"-"
-    else if (evt.keyCode === 189) smaller();
+    else if (evt.ctrlKey && evt.keyCode === 189) smaller();
     // Ctrl-Shift-R
-    else if (evt.keyCode === 82 && evt.shiftKey) chrome.runtime.reload();
+    else if (evt.ctrlKey && evt.shiftKey && evt.keyCode === 82) chrome.runtime.reload();
     // Ignore and let rest of app handle it.
     else return;
     evt.preventDefault();
@@ -44,6 +47,22 @@ define("window-keys", function () {
     zoom();
   }
 
+  function toggle() {
+    if (slider.size) hide();
+    else show();
+  }
+
+  function hide() {
+    oldSlider = slider.size;
+    slider.size = 0;
+    editor.focus();
+  }
+
+  function show() {
+    slider.size = oldSlider || 200;
+    tree.focus();
+  }
+
   function zoom() {
     var size = original * zooms[index] / 100;
     if (oldSize !== undefined) {
@@ -59,6 +78,9 @@ define("window-keys", function () {
   return {
     bigger: bigger,
     smaller: smaller,
-    reset: reset
+    reset: reset,
+    toggle: toggle,
+    show: show,
+    hide: hide
   };
 });
