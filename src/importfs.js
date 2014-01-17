@@ -2,6 +2,7 @@
 define("importfs", function () {
   "use strict";
 
+  var modes = require('modes');
   var ignores = importEntry.ignores = [".git"];
 
   return importEntry;
@@ -39,7 +40,7 @@ define("importfs", function () {
           if (ignores.indexOf(result.name) >= 0) continue;
           var entry = entries[index++] = {
             name: result.name,
-            mode: result.isDirectory ? "d" : "f"
+            mode: result.isDirectory ? modes.tree : modes.blob
           };
           left++;
           importEntry(repo, result, onImporter(entry));
