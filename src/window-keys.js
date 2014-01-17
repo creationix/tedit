@@ -38,12 +38,6 @@ define("window-keys", function () {
 
   function zoom() {
     var size = original * zooms[index] / 100;
-    console.log({
-      original: original,
-      index: index,
-      size: size,
-      oldSize: oldSize
-    })
     if (oldSize !== undefined) {
       if (size === oldSize) return;
       slider.size = Math.round(slider.size / oldSize * size);

@@ -9,7 +9,6 @@ define("prefs", function () {
   function init(callback) {
     storage.get("prefs", function (items) {
       prefs = items.prefs || {};
-      console.log({init:prefs})
       callback();
     });
   }
