@@ -7,10 +7,9 @@ define("slider", function () {
   var position = null;
   var isTouch = false;
   var size = prefs.get("slider", 200);
-  var width = 8;
   var innerWidth;
 
-  onResize();
+  innerWidth = window.innerWidth;
   slide(size);
   var gutter = document.querySelector(".ace_gutter");
 
@@ -20,6 +19,7 @@ define("slider", function () {
 
   function onResize() {
     innerWidth = window.innerWidth;
+    slide(size);
   }
 
   function onStart(evt) {
@@ -70,7 +70,7 @@ define("slider", function () {
   function slide(x) {
     size = x;
     if (size < 0) size = 0;
-    if (size > innerWidth - width) size = innerWidth - width;
+    if (size > innerWidth - 42) size = innerWidth - 42;
     prefs.set("slider", size);
     $.tree.style.width = size + "px";
     $.titlebar.style.left = size + "px";
