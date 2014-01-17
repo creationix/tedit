@@ -1,5 +1,6 @@
 /*global define, chrome*/
 define("prefs", function () {
+  var defer = require('defer');
   var storage = chrome.storage.local;
   var prefs;
   var dirty = false;
@@ -9,7 +10,7 @@ define("prefs", function () {
   function init(callback) {
     storage.get("prefs", function (items) {
       prefs = items.prefs || {};
-      callback();
+      defer(callback);
     });
   }
 

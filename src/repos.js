@@ -1,10 +1,10 @@
 /*global define, chrome*/
 define("repos", function () {
-  var encoders = require('encoders');
   var prefs = require('prefs');
   var fileSystem = chrome.fileSystem;
+
   var repo = {};
-  var root;
+  require('memdb')(repo);
 
   var ignores = {
     ".git": true,
@@ -49,10 +49,7 @@ define("repos", function () {
   function importBlob(entry, callback) {
     var reader = new FileReader();
     reader.onloadend = function() {
-      var body = this.result;
-      var hash = encoders.hashBlob(body);
-      repo[hash] = body;
-      callback(null, hash);
+      repo.saveAs("blob", this.result, callback);
     };
     entry.file(function (file) {
       reader.readAsArrayBuffer(file);
@@ -101,9 +98,7 @@ define("repos", function () {
 
     function check() {
       if (--left) return;
-      var hash = encoders.hashTree(entries);
-      repo[hash] = entries;
-      callback(null, hash);
+      repo.saveAs("tree", entries, callback);
     }
   }
 

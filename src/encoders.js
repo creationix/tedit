@@ -8,10 +8,17 @@ define("encoders", function () {
 
   return {
     frame: frame,
+    normalizeAs: normalizeAs,
+    normalizeBlob: normalizeBlob,
+    normalizeTree: normalizeTree,
+    normalizeCommit: normalizeCommit,
+    normalizeTag: normalizeTag,
+    encodeAs: encodeAs,
     encodeBlob: encodeBlob,
     encodeTree: encodeTree,
     encodeCommit: encodeCommit,
     encodeTag: encodeTag,
+    hashAs: hashAs,
     hashBlob: hashBlob,
     hashTree: hashTree,
     hashCommit: hashCommit,
@@ -20,19 +27,19 @@ define("encoders", function () {
 
   function test() {
     // Test blob encoding
-    var hash = hashBlob("Hello World\n");
+    var hash = hashBlob(normalizeBlob("Hello World\n"));
     if (hash !== "557db03de997c86a4a028e1ebd3a1ceb225be238") {
       throw new Error("Invalid body hash");
     }
 
     // Test tree encoding
-    hash = hashTree({ "greeting.txt": { mode: 0100644, hash: hash } });
+    hash = hashTree(normalizeTree({ "greeting.txt": { mode: 0100644, hash: hash } }));
     if (hash !== "648fc86e8557bdabbc2c828a19535f833727fa62") {
       throw new Error("Invalid tree hash");
     }
 
     // Test commit encoding
-    hash = hashCommit({
+    hash = hashCommit(normalizeCommit({
       tree: hash,
       author: {
         name: "Tim Caswell",
@@ -40,13 +47,13 @@ define("encoders", function () {
         date: new Date("Fri Jan 17 09:33:29 2014")
       },
       message: "Test Commit\n"
-    });
+    }));
     if (hash !== "7084d22f1a8c72cd6f8436609ef63486eb0971d6") {
       throw new Error("Invalid commit hash");
     }
 
     // Test annotated tag encoding
-    hash = hashTag({
+    hash = hashTag(normalizeTag({
       object: hash,
       type: "commit",
       tag: "mytag",
@@ -56,12 +63,30 @@ define("encoders", function () {
         date: new Date("Fri Jan 17 09:46:16 2014")
       },
       message: "Tag it!\n"
-    });
+    }));
     if (hash !== "da3064c1719c4d40dec4cdb01657d766b3ab9239") {
       throw new Error("Invalid annotated tag encoding");
     }
+    console.log("Encoders self-test passed");
   }
 
+  function encodeAs(type, body) {
+    if (type === "blob")   return encodeBlob(body);
+    if (type === "tree")   return encodeTree(body);
+    if (type === "commit") return encodeCommit(body);
+    if (type === "tag")    return encodeTag(body);
+  }
+
+  function normalizeAs(type, body) {
+    if (type === "blob")   return normalizeBlob(body);
+    if (type === "tree")   return normalizeTree(body);
+    if (type === "commit") return normalizeCommit(body);
+    if (type === "tag")    return normalizeTag(body);
+  }
+
+  function hashAs(type, body) {
+    return sha1(frame(type, encodeAs(type, body)));
+  }
   function hashBlob(body) {
     return sha1(frame("blob", encodeBlob(body)));
   }
@@ -82,7 +107,7 @@ define("encoders", function () {
     return type + " " + body.length + "\0" + body;
   }
 
-  function encodeBlob(body) {
+  function normalizeBlob(body) {
     var type = typeof body;
     if (type === "string") {
       return binary.encodeUtf8(body);
@@ -96,34 +121,43 @@ define("encoders", function () {
     throw new TypeError("Blob body must be raw string, ArrayBuffer or byte array");
   }
 
-  function encodeTree(body) {
+  function encodeBlob(body) {
+    return body;
+  }
+
+  function normalizeTree(body) {
     var type = body && typeof body;
-    var tree = "";
     if (type !== "object") {
       throw new TypeError("Tree body must be array or object");
     }
-    // If object form is passed in, convert to array form.
-    if (!Array.isArray(body)) {
-      body = Object.keys(body).map(function (name) {
-        var entry = body[name];
-        return {
-          name: name,
+    // If array form is passed in, convert to object form.
+    if (Array.isArray(body)) {
+      var array = body;
+      body = {};
+      for (var i = 0, l = array.length; i < l; i++) {
+        var entry = array[i];
+        body[entry.name] = {
           mode: entry.mode,
           hash: entry.hash
         };
-      });
+      }
     }
+    return body;
+  }
 
-    body.sort(pathCmp);
-    for (var i = 0, l = body.length; i < l; i++) {
-      var entry = body[i];
-      tree += entry.mode.toString(8) + " " + entry.name
+  function encodeTree(body) {
+    var tree = "";
+    var names = Object.keys(body).sort(pathCmp);
+    for (var i = 0, l = names.length; i < l; i++) {
+      var name = names[i];
+      var entry = body[name];
+      tree += entry.mode.toString(8) + " " + name
             + "\0" + binary.decodeHex(entry.hash);
     }
     return tree;
   }
 
-  function encodeCommit(body) {
+  function normalizeCommit(body) {
     if (!body || typeof body !== "object") {
       throw new TypeError("Commit body must be an object");
     }
@@ -134,48 +168,76 @@ define("encoders", function () {
     if (!Array.isArray(parents)) {
       throw new TypeError("Parents must be an array");
     }
+    var author = normalizePerson(body.author);
+    var committer = body.committer ? normalizePerson(body.committer) : author;
+    return {
+      tree: body.tree,
+      parents: parents,
+      author: author,
+      committer: committer,
+      message: body.message
+    };
+  }
+
+  function encodeCommit(body) {
     var str = "tree " + body.tree;
-    for (var i = 0, l = parents.length; i < l; ++i) {
-      str += "\nparent " + parents[i];
+    for (var i = 0, l = body.parents.length; i < l; ++i) {
+      str += "\nparent " + body.parents[i];
     }
-    str += "\nauthor " + encodePerson(body.author) +
-           "\ncommitter " + encodePerson(body.committer || body.author) +
+    str += "\nauthor " + formatPerson(body.author) +
+           "\ncommitter " + formatPerson(body.committer) +
            "\n\n" + body.message;
     return binary.encodeUtf8(str);
   }
 
-  function encodeTag(body) {
+  function normalizeTag(body) {
     if (!body || typeof body !== "object") {
       throw new TypeError("Tag body must be an object");
     }
     if (!(body.object && body.type && body.tag && body.tagger && body.message)) {
       throw new TypeError("Object, type, tag, tagger, and message required");
     }
+    return {
+      object: body.object,
+      type: body.type,
+      tag: body.tag,
+      tagger: normalizePerson(body.tagger),
+      message: body.message
+    };
+  }
+
+  function encodeTag(body) {
     var str = "object " + body.object +
       "\ntype " + body.type +
       "\ntag " + body.tag +
-      "\ntagger " + encodePerson(body.tagger) +
+      "\ntagger " + formatPerson(body.tagger) +
       "\n\n" + body.message;
     return binary.encodeUtf8(str);
   }
 
-  function pathCmp(oa, ob) {
-    var a = oa.name;
-    var b = ob.name;
+  function pathCmp(a, b) {
     a += "/"; b += "/";
     return a < b ? -1 : a > b ? 1 : 0;
   }
 
-  function encodePerson(person) {
+  function normalizePerson(person) {
     if (!person || typeof person !== "object") {
       throw new TypeError("Person must be an object");
     }
     if (!person.name || !person.email) {
       throw new TypeError("Name and email are required for person fields");
     }
+    return {
+      name: person.name,
+      email: person.email,
+      date: person.date || new Date()
+    };
+  }
+
+  function formatPerson(person) {
     return safe(person.name) +
       " <" + safe(person.email) + "> " +
-      formatDate(person.date || new Date());
+      formatDate(person.date);
   }
 
   function safe(string) {
