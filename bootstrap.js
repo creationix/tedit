@@ -2,48 +2,62 @@
 (function () {
   var modules = {};
   var defs = {};
+  var ready = {};
   var pending = {};
+  var scripts = {};
   window.define = define;
-  window.require = getModule;
-  window.requireAsync = load;
+  window.require = requireSync;
+  window.requireAsync = requireAsync;
   document.body.textContent = "";
 
-  load("main");
+  requireAsync("main");
 
+  function requireAsync(name, callback) {
+    load(name, function () {
+      var module = requireSync(name);
+      if (callback) callback(module);
+    });
+  }
+
+  function requireSync(name) {
+    if (name in modules) return modules[name];
+    var module = modules[name] = defs[name].fn();
+    return module;
+  }
+
+  // Make sure a module and all it's deps are defined.
   function load(name, callback) {
-    // Check for cached modules
-    if (name in modules) return callback(null, modules[name]);
+    // If it's flagged ready, it's ready
+    if (ready[name]) return callback();
     // If there is something going on wait for it to finish.
     if (name in pending) return pending[name].push(callback);
     // If the module isn't downloaded yet, start it.
     if (!(name in defs)) return download(name, callback);
     var def = defs[name];
     var missing = def.deps.filter(function (depName) {
-      return !(depName in modules);
+      return !ready[depName];
     });
     var left = missing.length;
-    if (left > 0) {
-      return missing.forEach(function (depName) {
-        load(depName, onDepLoad);
-      });
+    if (!left) {
+      ready[name] = true;
+      return callback();
     }
-    modules[name] = def.fn.apply(null, def.deps.map(getModule));
-    if (callback) callback(null, modules[name]);
+    return missing.forEach(function (depName) {
+      load(depName, onDepLoad);
+    });
 
     function onDepLoad() {
       if (!--left) return load(name, callback);
     }
   }
 
-  function getModule(name) {
-    return modules[name];
-  }
 
   function download(name, callback) {
     var script = document.createElement("script");
     script.setAttribute("charset", "utf-8");
     script.setAttribute("src", "src/" + name + ".js");
-    script.name = name;
+    script.setAttribute("async", true);
+    scripts[name] = script;
     pending[name] = [callback];
     document.head.appendChild(script);
   }
@@ -52,10 +66,10 @@
     return entry.name;
   }
 
-  function define(fn) {
-    var script = document.head.getElementsByTagName("script")[0];
+  function define(name, fn) {
+    var script = scripts[name];
+    delete scripts[name];
     document.head.removeChild(script);
-    var name = script.name;
     var deps = mine(fn.toString()).map(pullName);
     defs[name] = {
       deps: deps,

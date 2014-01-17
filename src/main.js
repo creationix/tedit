@@ -1,8 +1,10 @@
 /*global define*/
-define(function () {
+define("main", function () {
   "use strict";
-  require('window-keys');
-  require('slider');
-  require('tree');
-  require('editor');
+  require('prefs').init(function () {
+    require('window-keys');
+    require('slider');
+    require('tree');
+    require('editor');
+  });
 });

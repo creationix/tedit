@@ -1,15 +1,17 @@
 /*global define*/
-define(function () {
+define("slider", function () {
   "use strict";
 
   var $ = require("elements");
+  var prefs = require('prefs');
   var position = null;
   var isTouch = false;
-  var size = 200;
+  var size = prefs.get("slider", 200);
   var width = 8;
   var innerWidth;
 
   onResize();
+  console.log({size:size})
   slide(size);
 
   window.addEventListener("resize", onResize);
@@ -70,6 +72,7 @@ define(function () {
     size = x;
     if (size < 0) size = 0;
     if (size > innerWidth - width) size = innerWidth - width;
+    prefs.set("slider", size);
     $.slider.style.left = size + "px";
     $.slider.style.width = w + "px";
     $.tree.style.width = size + "px";

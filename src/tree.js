@@ -1,5 +1,5 @@
 /*global define*/
-define(function () {
+define("tree", function () {
   "use strict";
 
   // Put fake content in the tree

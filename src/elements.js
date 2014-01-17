@@ -1,5 +1,5 @@
 /*global define*/
-define(function () {
+define("elements", function () {
   "use strict";
 
   // Create the main UI

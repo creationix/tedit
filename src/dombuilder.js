@@ -1,32 +1,32 @@
 /*global define, Text*/
-define(function () {
+define("dombuilder", function () {
   "use strict";
 
   var CLASS_MATCH = /\.[^.#$]+/g,
       ID_MATCH = /#[^.#$]+/,
       REF_MATCH = /\$[^.#$]+/,
       TAG_MATCH = /^[^.#$]+/;
-  
+
   return domBuilder;
-  
+
   function domBuilder(json, refs) {
-  
+
     // Render strings as text nodes
     if (typeof json === 'string') return document.createTextNode(json);
-  
+
     // Pass through html elements and text nodes as-is
     if (json instanceof HTMLElement || json instanceof Text) return json;
-  
+
     // Stringify any other value types
     if (!Array.isArray(json)) return document.createTextNode(json + "");
-  
+
     // Empty arrays are just empty fragments.
     if (!json.length) return document.createDocumentFragment();
-  
+
     var node, first;
     for (var i = 0, l = json.length; i < l; i++) {
       var part = json[i];
-  
+
       if (!node) {
         if (typeof part === 'string') {
           // Create a new dom node by parsing the tagline
@@ -45,7 +45,7 @@ define(function () {
           node = document.createDocumentFragment();
         }
       }
-  
+
       // Except the first item if it's an attribute object
       if (first && typeof part === 'object' && Object.getPrototypeOf(part) === Object.prototype) {
         setAttrs(node, part);
@@ -56,7 +56,7 @@ define(function () {
     }
     return node;
   }
-  
+
   function setAttrs(node, attrs) {
     var keys = Object.keys(attrs);
     for (var i = 0, l = keys.length; i < l; i++) {
@@ -73,7 +73,7 @@ define(function () {
       }
     }
   }
-  
+
   function setStyle(style, attrs) {
     var keys = Object.keys(attrs);
     for (var i = 0, l = keys.length; i < l; i++) {
@@ -81,7 +81,7 @@ define(function () {
       style[key] = attrs[key];
     }
   }
-  
+
   function stripFirst(part) {
     return part.substr(1);
   }
