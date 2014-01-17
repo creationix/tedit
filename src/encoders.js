@@ -83,12 +83,12 @@ define("encoders", function () {
   }
 
   function encodeBlob(body) {
-    var type = body && typeof body;
-    if (type === "object" && typeof body.length === "number") {
-      return binary.toRaw(body);
-    }
+    var type = typeof body;
     if (type === "string") {
       return binary.encodeUtf8(body);
+    }
+    if (body && type === "object" && typeof body.length === "number") {
+      return binary.toRaw(body);
     }
     throw new TypeError("Blob body must be raw string or byte array");
   }
