@@ -2,11 +2,14 @@
 define(function () {
   "use strict";
 
+  var editor = require('editor');
+  var slider = require('slider');
   var zooms = [
     25, 33, 50, 67, 75, 90, 100, 110, 120, 125, 150, 175, 200, 250, 300, 400, 500
   ];
   var original = 16;
   var index = zooms.indexOf(100);
+  var oldSize = original;
   zoom();
 
   window.addEventListener("keydown", function (evt) {
@@ -33,6 +36,10 @@ define(function () {
 
   function zoom() {
     var size = original * zooms[index] / 100;
+    if (size === oldSize) return;
+    slider.size = Math.round(slider.size / oldSize * size);
+    editor.setFontSize(size);
     document.body.style.fontSize = size + "px";
+    oldSize = size;
   }
 });

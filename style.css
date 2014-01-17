@@ -313,6 +313,3 @@ body, .tree, .titlebar, .main, .editor {
   text-align: center;
   font-size: 16px;
 }
-.ace_editor {
-  font-size: inherit !important;
-}

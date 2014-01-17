@@ -49,8 +49,6 @@ define(function () {
     var delta = evt.clientX - position;
     position = evt.clientX;
     size += delta;
-    if (size < 0) size = 0;
-    if (size > innerWidth - width) size = innerWidth - width;
     slide(size);
   }
 
@@ -69,11 +67,23 @@ define(function () {
 
   function slide(x, w) {
     if (w === undefined) w = 8;
-    $.slider.style.left = x + "px";
+    size = x;
+    if (size < 0) size = 0;
+    if (size > innerWidth - width) size = innerWidth - width;
+    $.slider.style.left = size + "px";
     $.slider.style.width = w + "px";
-    $.tree.style.width = x + "px";
-    $.titlebar.style.left = (x + w) + "px";
-    $.main.style.left = (x + w) + "px";
+    $.tree.style.width = size + "px";
+    $.titlebar.style.left = (size + w) + "px";
+    $.main.style.left = (size + w) + "px";
   }
+
+  return {
+    get size() {
+      return size;
+    },
+    set size(value) {
+      slide(value);
+    }
+  };
 
 });

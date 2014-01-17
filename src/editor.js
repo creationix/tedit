@@ -4,8 +4,13 @@ define(function () {
 
   var $ = require('elements');
   // Put sample content and liven the editor
-  $.editor.textContent = 'vars foo\nfoo = {items|\n  vars x\n  x = "All this is syntax highlighted";\n}\n';
   var editor = ace.edit($.editor);
+  editor.setValue('vars foo\nfoo = {items|\n  vars x\n  x = "All this is syntax highlighted";\n}\n', 0);
   editor.setTheme("ace/theme/ambiance");
-  editor.getSession().setMode("ace/mode/jack");
+  editor.setShowInvisibles(true);
+  var session = editor.getSession();
+  session.setMode("ace/mode/jack");
+  session.setTabSize(2);
+
+  return editor;
 });
