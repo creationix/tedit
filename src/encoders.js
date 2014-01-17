@@ -48,7 +48,8 @@ define("encoders", function () {
       },
       message: "Test Commit\n"
     }));
-    if (hash !== "7084d22f1a8c72cd6f8436609ef63486eb0971d6") {
+    if (hash !== "05d04f9b583335a82100e7c5158a6149e4f57d7a") {
+      // TODO: make this work with computers in any time zone!
       throw new Error("Invalid commit hash");
     }
 
@@ -64,10 +65,10 @@ define("encoders", function () {
       },
       message: "Tag it!\n"
     }));
-    if (hash !== "da3064c1719c4d40dec4cdb01657d766b3ab9239") {
-      throw new Error("Invalid annotated tag encoding");
+    if (hash !== "d2f2d639e67abb8b5c4f8e93722971dc02ad7311") {
+      // TODO: make this work with computers in any time zone!
+      throw new Error("Invalid annotated tag hash");
     }
-    console.log("Encoders self-test passed");
   }
 
   function encodeAs(type, body) {

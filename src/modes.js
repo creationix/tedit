@@ -5,7 +5,7 @@ define("modes", function () {
       return (mode & 0140000) === 0100000;
     },
     isFile: function (mode) {
-      return (mode & 160000) === 0100000;
+      return (mode & 0160000) === 0100000;
     },
     isExecutable: function (mode) {
       return (mode & 1);
@@ -13,7 +13,7 @@ define("modes", function () {
     isTree: function (mode) {
       return mode === 040000;
     },
-    isSymlink: function (mode) {
+    isSymLink: function (mode) {
       return mode === 0120000;
     },
     isCommit: function (mode) {

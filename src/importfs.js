@@ -8,9 +8,11 @@ define("importfs", function () {
   return importEntry;
 
   function importEntry(repo, entry, callback) {
+    if (repo.onProgress) repo.onProgress("Importing " + entry.fullPath);
+    repo.importStatus = "Loading " + entry.fullPath;
     if (entry.isDirectory) return importDirectory(repo, entry, callback);
     if (entry.isFile) return importFile(repo, entry, callback);
-    // console.log("UNKNOWN TYPE", entry)
+    console.log("UNKNOWN TYPE", entry)
   }
 
   function importFile(repo, entry, callback) {
