@@ -10,7 +10,7 @@ define("repos", function () {
     ".git": true,
     "tags": true,
     ".zedstate": true,
-    // "ace": true
+    "ace": true
   };
 
   var retainer = prefs.get("retainer");
@@ -52,7 +52,6 @@ define("repos", function () {
       var body = this.result;
       var hash = encoders.hashBlob(body);
       repo[hash] = body;
-      console.log("BLOB", hash);
       callback(null, hash);
     };
     entry.file(function (file) {
@@ -75,14 +74,12 @@ define("repos", function () {
         for (var i = 0; i < length; i++) {
           var result = results[i];
           if (ignores[result.name]) continue;
-          entries[index] = {
+          var entry = entries[index++] = {
             name: result.name,
-            // TODO: check for symlinks and executable files too
             mode: result.isDirectory ? 040000 : 0100644
           };
           left++;
-          importEntry(result, onImporter(index));
-          index++;
+          importEntry(result, onImporter(entry));
         }
         readEntries();
       }, onError);
@@ -93,10 +90,11 @@ define("repos", function () {
       throw new Error("ERROR");
     }
 
-    function onImporter(index) {
+    function onImporter(entry) {
       return function (err, hash) {
         if (err) throw err;
-        entries[index].hash = hash;
+        entry.hash = hash;
+        console.log(entry.name, entry.hash);
         check();
       };
     }
@@ -104,7 +102,6 @@ define("repos", function () {
     function check() {
       if (--left) return;
       var hash = encoders.hashTree(entries);
-      console.log("TREE", hash);
       repo[hash] = entries;
       callback(null, hash);
     }
