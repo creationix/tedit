@@ -4,6 +4,7 @@ define("tree/file", function () {
 
   var Node = require('tree/node');
   var editor = require('editor');
+  var $ = require('elements');
 
   function File() {
     Node.apply(this, arguments);
@@ -24,16 +25,19 @@ define("tree/file", function () {
         console.log("MODE", mode);
         self.session = ace.createEditSession(code, mode);
         editor.setSession(self.session);
+        $.titlebar.textContent = self.name;
       });
     }
     else {
       editor.setSession(this.session);
+      $.titlebar.textContent = this.name;
     }
     if (!soft) editor.focus();
   };
 
   File.prototype.onDeactivate = function () {
     editor.setSession(editor.fallbackSession);
+    $.titlebar.textContent = "welcome.jk";
   };
 
   function guessMode(code, name) {
