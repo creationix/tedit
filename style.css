@@ -260,7 +260,8 @@ body, .tree, .titlebar, .main, .editor {
 }
 .tree {
   right: auto;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .main {
   top: 30px;
