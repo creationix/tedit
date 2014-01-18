@@ -13,5 +13,8 @@ define("tree/file", function () {
     constructor: { value: File }
   });
 
+  File.prototype.onActivate = function () {
+  };
+
   return File;
 });

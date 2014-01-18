@@ -5,6 +5,7 @@ define("tree/node", function () {
   var domBuilder = require('dombuilder');
   var modes = require('modes');
   var getMime = require('mime')();
+  var $ = require('elements');
 
   function Node(repo, name, mode, hash, parent) {
     this.repo = repo;
@@ -25,6 +26,12 @@ define("tree/node", function () {
   Node.prototype.onChange = function () {
     var title = this.path;
     var classes = ["row"];
+    if (Node.selected === this) {
+      classes.push("selected");
+    }
+    if (Node.activated === this) {
+      classes.push("activated");
+    }
 
     this.rowEl.setAttribute("class", classes.join(" "));
     classes.length = 0;
@@ -69,9 +76,93 @@ define("tree/node", function () {
 
   };
 
+  Node.selected = null;
+
+  Node.prototype.onClick = function () {
+    Node.focus();
+    if (Node.activated === this) {
+      Node.deactivate(this);
+      if (Node.selected !== this) {
+        Node.select(this);
+      }
+    }
+    else if (Node.selected === this) {
+      if (this.onActivate) Node.activate(this);
+      else if (this.onToggle) this.onToggle();
+    }
+    else {
+      Node.select(this);
+      if (this.onToggle) this.onToggle();
+    }
+  };
+
+  Node.select = function (node) {
+    var old = Node.selected;
+    Node.selected = node;
+    if (old) {
+      if (old.onDeselect) old.onDeselect();
+      old.onChange();
+    }
+    if (node) {
+      if (node.onSelect) node.onSelect();
+      node.onChange();
+      Node.scrollTo(node);
+    }
+  };
+
+  Node.activated = null;
+
+  Node.activate = function (node) {
+    var old = Node.activated;
+    Node.activated = node;
+    if (old) {
+      if (old.onDeactivate) old.onDeactivate();
+      old.onChange();
+    }
+    if (node) {
+      if (node.onActivate) node.onActivate();
+      node.onChange();
+      Node.scrollTo(node);
+    }
+  };
+
+  Node.deactivate = function (node) {
+    if (Node.activated !== node) {
+      throw new Error("Can't deactivate non-active node");
+    }
+    Node.activate(null);
+  };
+
+  Node.up = function () {
+    var self = Node.selected;
+    var parent = self.parent;
+    if (!parent) return;
+    var index = parent.children.indexOf(self);
+    if (index === 0) return Node.select(parent);
+    var next = parent.children[index - 1];
+    while(next.children && next.children.length) next = next.children[next.children.length - 1];
+    Node.select(next);
+  };
+
+  Node.down = function () {
+    var self = Node.selected;
+    if (self.children && self.children.length) {
+      return Node.select(self.children[0]);
+    }
+    while (self) {
+      var parent = self.parent;
+      if (!parent) return;
+      var index = parent.children.indexOf(self);
+      if (index < parent.children.length - 1) {
+        return Node.select(parent.children[index + 1]);
+      }
+      self = parent;
+    }
+  };
+
   function clickHandler(node) {
     return function (evt) {
-      if (typeof node.onClick !== "function") return;
+      if (!node.onClick) return;
       evt.preventDefault();
       evt.stopPropagation();
       node.onClick();

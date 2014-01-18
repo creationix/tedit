@@ -10,7 +10,7 @@ define("prefs", function () {
   function init(callback) {
     storage.get("prefs", function (items) {
       prefs = items.prefs || {};
-      console.log(prefs);
+      // console.log(prefs);
       defer(callback);
     });
   }
@@ -21,7 +21,7 @@ define("prefs", function () {
   }
 
   function set(name, value) {
-    console.log(name, value);
+    // console.log(name, value);
     if (typeof value !== "object" && prefs[name] === value) return;
     prefs[name] = value;
     if (!saving) {

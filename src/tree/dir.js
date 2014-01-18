@@ -10,7 +10,7 @@ define("tree/dir", function () {
   function Dir() {
     Node.apply(this, arguments);
     this.el.appendChild(domBuilder(["ul$ulEl"], this));
-    if (openPaths[this.path]) this.onClick();
+    if (openPaths[this.path]) this.onToggle();
   }
 
   // Inherit from Node
@@ -18,7 +18,7 @@ define("tree/dir", function () {
     constructor: { value: Dir }
   });
 
-  Dir.prototype.onClick = function () {
+  Dir.prototype.onToggle = function () {
     var self = this;
 
     // If the folder is open, remove the children.
