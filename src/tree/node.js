@@ -78,7 +78,7 @@ define("tree/node", function () {
 
   Node.selected = null;
 
-  Node.prototype.onClick = function () {
+  Node.prototype.onClick = function (arg) {
     Node.focus();
     if (Node.activated === this) {
       Node.deactivate(this);
@@ -87,7 +87,7 @@ define("tree/node", function () {
       }
     }
     else if (Node.selected === this) {
-      if (this.onActivate) Node.activate(this);
+      if (this.onActivate) Node.activate(this, arg);
       else if (this.onToggle) this.onToggle();
     }
     else {
@@ -112,7 +112,7 @@ define("tree/node", function () {
 
   Node.activated = null;
 
-  Node.activate = function (node) {
+  Node.activate = function (node, arg) {
     var old = Node.activated;
     Node.activated = node;
     if (old) {
@@ -120,7 +120,7 @@ define("tree/node", function () {
       old.onChange();
     }
     if (node) {
-      if (node.onActivate) node.onActivate();
+      if (node.onActivate) node.onActivate(arg);
       node.onChange();
       Node.scrollTo(node);
     }

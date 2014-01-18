@@ -75,9 +75,12 @@ define("tree", function () {
       else if (evt.keyCode === 38) Node.up();
       else if (evt.keyCode === 39) Node.right();
       else if (evt.keyCode === 40) Node.down();
-      // Enter or Space activates.
-      else if (evt.keyCode === 13 || evt.keyCode === 32) {
+
+      else if (evt.keyCode === 13) { // Enter
         Node.selected.onClick();
+      }
+      else if (evt.keyCode === 32) { // Space
+        Node.selected.onClick(true); // Soft activate
       }
       else return;
     }

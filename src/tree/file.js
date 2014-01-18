@@ -3,6 +3,7 @@ define("tree/file", function () {
   "use strict";
 
   var Node = require('tree/node');
+  var editor = require('editor');
 
   function File() {
     Node.apply(this, arguments);
@@ -13,7 +14,8 @@ define("tree/file", function () {
     constructor: { value: File }
   });
 
-  File.prototype.onActivate = function () {
+  File.prototype.onActivate = function (soft) {
+    if (!soft) editor.focus();
   };
 
   return File;
