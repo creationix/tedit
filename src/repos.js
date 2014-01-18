@@ -33,7 +33,7 @@ define("repos", function () {
     function onEntry(entry) {
       importEntry(repo, entry, function (err, root) {
         if (err) repo.onProgress(err);
-        else repo.onProgress("Imported " + root);
+        else repo.onProgress("Imported " + entry.name);
         repo.onProgress();
         if (err) return callback(err);
         callback(null, repo, root, entry);

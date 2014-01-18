@@ -21,7 +21,8 @@ define("progress", function () {
         timeout = null;
       }
       active = true;
-      popup.style.opacity = 1;
+      // popup.style.opacity = 1;
+      popup.style.display = "block";
       return;
     }
     if (!active) return;
@@ -34,7 +35,8 @@ define("progress", function () {
 
   function hide() {
     active = false;
-    popup.style.opacity = 0;
+    // popup.style.opacity = 0;
+    popup.style.display = "none";
   }
 
 });
