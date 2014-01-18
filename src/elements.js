@@ -1,4 +1,4 @@
-/*global define*/
+/*global define, chrome*/
 define("elements", function () {
   "use strict";
 
@@ -8,9 +8,14 @@ define("elements", function () {
   document.body.appendChild(domBuilder([
     [".tree$tree"],
     [".titlebar$titlebar", "welcome.jk"],
+    [".closebox$closebox", {onclick: closeWindow}, "×"],
     [".main$main",
       [".editor$editor"]
     ]
   ], $));
   return $;
+
+  function closeWindow() {
+    chrome.app.window.current().close();
+  }
 });

@@ -279,6 +279,23 @@ body, .tree, .titlebar, .main, .editor {
   text-align: center;
   font-size: 16px;
 }
+.closebox {
+  -webkit-app-region: no-drag;
+  position: absolute;
+  right: 4px;
+  top: 0;
+  height: 22px;
+  width: 44px;
+  line-height: 22px;
+  text-align: center;
+  color: #fff;
+  font-size: 16px;
+  background-color: #933;
+  cursor: pointer;
+}
+.closebox:hover {
+  background-color: #e11;
+}
 
 .popup {
   /*transition: opacity .25s ease-in-out;*/
