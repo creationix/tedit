@@ -18,15 +18,8 @@ define("tree/file", function () {
   File.prototype.onActivate = function (soft) {
     if (!this.session) {
       var self = this;
-      self.repo.loadAs("raw", self.hash, function (err, code) {
+      self.repo.loadAs("text", self.hash, function (err, code) {
         if (err) throw err;
-        for (var i = 0, l = code.length; i < l; i++) {
-          if (code.charCodeAt(i) > 127) {
-            self.repo.onProgress("Not an ASCII file!");
-            self.repo.onProgress();
-            return;
-          }
-        }
         var mode = guessMode(code, self.name);
         console.log("MODE", mode);
         self.session = ace.createEditSession(code, mode);
