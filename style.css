@@ -198,10 +198,10 @@ body {
   border-radius: 0.4em;
   padding: 0 0.4em;
 }
-.tree .row.selected {
+.tree .row.activated {
   background-color: #222;
 }
-.tree .row.activated {
+.tree .row.selected {
   background-color: #444;
 }
 .tree .icon-link {

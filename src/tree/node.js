@@ -85,25 +85,30 @@ define("tree/node", function () {
   Node.activated = null;
   Node.activatedPath = null;
 
-  Node.prototype.onClick = function (arg) {
+  Node.click = function (node, arg) {
     Node.focus();
-    if (Node.activated === this) {
-      Node.deactivate(this);
-      if (Node.selected !== this) {
-        Node.select(this);
+    if (Node.activated === node) {
+      console.log("deactivate", node)
+      Node.deactivate(node);
+      if (Node.selected !== node) {
+        console.log("select", node)
+        Node.select(node);
       }
     }
-    else if (Node.selected === this) {
-      if (this.onActivate) Node.activate(this, arg);
-      else if (this.onToggle) this.onToggle();
+    else if (Node.selected === node) {
+      console.log("activate/toggle", node);
+      if (node.onActivate) Node.activate(node, arg);
+      else if (node.onToggle) node.onToggle();
     }
     else {
-      Node.select(this);
-      if (this.onToggle) this.onToggle();
+      console.log("select/toggle", node);
+      Node.select(node);
+      if (node.onToggle) node.onToggle();
     }
   };
 
   Node.select = function (node) {
+    console.log("SELECT")
     var old = Node.selected;
     Node.selected = node;
     if (old) {
@@ -117,9 +122,8 @@ define("tree/node", function () {
     }
   };
 
-  Node.activated = null;
-
   Node.activate = function (node, arg) {
+    console.log("ACTIVATE")
     var old = Node.activated;
     Node.activated = node;
     Node.activatedPath = node.path;
@@ -210,10 +214,9 @@ define("tree/node", function () {
 
   function clickHandler(node) {
     return function (evt) {
-      if (!node.onClick) return;
       evt.preventDefault();
       evt.stopPropagation();
-      node.onClick();
+      Node.click(node);
     };
   }
 

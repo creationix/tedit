@@ -43,12 +43,13 @@ define("tree", function () {
   var realBlur = editor.blur;
   editor.blur = function () {
     focussed = true;
-    if (!Node.selected) Node.select(Node.root);
+    if (!Node.selected) Node.select(Node.activated || Node.root);
     return realBlur.apply(this, arguments);
   };
   var realFocus = editor.focus;
   editor.focus = function () {
     focussed = false;
+    Node.select();
     return realFocus.apply(this, arguments);
   };
 
@@ -89,10 +90,12 @@ define("tree", function () {
       else if (evt.keyCode === 40) Node.down();
 
       else if (evt.keyCode === 13) { // Enter
-        Node.selected.onClick();
+        console.log("click", Node.selected)
+        Node.click(Node.selected); // Hard click
       }
       else if (evt.keyCode === 32) { // Space
-        Node.selected.onClick(true); // Soft activate
+        console.log("soft click", Node.selected)
+        Node.click(Node.selected, true); // Soft click
       }
       else return;
     }
