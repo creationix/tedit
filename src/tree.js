@@ -9,7 +9,7 @@ define("tree", function () {
   var SymLink = require('tree/link');
   var domBuilder = require('dombuilder');
   var modes = require('modes');
-  var focussed = false, oldSlider, wasClosed;
+  var focused = false, oldSlider, wasClosed;
   var editor = require('editor');
   var slider = require('slider');
 
@@ -42,13 +42,13 @@ define("tree", function () {
 
   var realBlur = editor.blur;
   editor.blur = function () {
-    focussed = true;
+    focused = true;
     if (!Node.selected) Node.select(Node.activated || Node.root);
     return realBlur.apply(this, arguments);
   };
   var realFocus = editor.focus;
   editor.focus = function () {
-    focussed = false;
+    focused = false;
     if (wasClosed) {
       wasClosed = false;
       slider.size = 0;
@@ -66,12 +66,12 @@ define("tree", function () {
   };
 
   function toggle() {
-    if (focussed) {
+    if (focused) {
       oldSlider = slider.size;
       Node.blur();
     }
     else {
-      wasClosed = !slider.size;
+      wasClosed = slider.size < 100;
       if (wasClosed) slider.size = oldSlider || 200;
       Node.focus();
     }
@@ -83,7 +83,7 @@ define("tree", function () {
       toggle();
     }
     else {
-      if (!focussed) return;
+      if (!focused) return;
       if      (evt.keyCode === 33) Node.pageUp();
       else if (evt.keyCode === 34) Node.pageDown();
       else if (evt.keyCode === 35) Node.end();
