@@ -34,7 +34,7 @@ define("tree", function () {
 
   Node.scrollTo = function (node) {
     var max = node.el.offsetTop;
-    var min = max + node.rowEl.offsetHeight - $.tree.offsetHeight;
+    var min = max + node.rowEl.offsetHeight - $.tree.offsetHeight + 16;
     var top = $.tree.scrollTop;
     if (top < min) $.tree.scrollTop = min;
     else if (top > max) $.tree.scrollTop = max;
