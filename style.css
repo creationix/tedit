@@ -139,8 +139,6 @@
 *,
 *:before,
 *:after {
-  -moz-box-sizing: border-box;
-  -webkit-box-sizing: border-box;
   box-sizing: border-box;
 }
 body {
@@ -182,8 +180,8 @@ body {
 .tree .row {
   margin-left: -10em;
   padding-left: 10em;
-  margin-right: -0.3em;
-  padding-right: 0.3em;
+  margin-right: -10em;
+  padding-right: 10em;
   cursor: pointer;
 }
 .tree .row.dirty {
@@ -199,10 +197,11 @@ body {
   padding: 0 0.4em;
 }
 .tree .row.activated {
-  background-color: #222;
+  background-color: #333;
 }
 .tree .row.selected {
-  background-color: #444;
+  box-shadow: inset 0 0 2pt #fff;
+  /*background-color: #444;*/
 }
 .tree .icon-link {
   color: #FFB795;

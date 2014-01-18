@@ -88,27 +88,22 @@ define("tree/node", function () {
   Node.click = function (node, arg) {
     Node.focus();
     if (Node.activated === node) {
-      console.log("deactivate", node)
       Node.deactivate(node);
       if (Node.selected !== node) {
-        console.log("select", node)
         Node.select(node);
       }
     }
     else if (Node.selected === node) {
-      console.log("activate/toggle", node);
       if (node.onActivate) Node.activate(node, arg);
       else if (node.onToggle) node.onToggle();
     }
     else {
-      console.log("select/toggle", node);
       Node.select(node);
       if (node.onToggle) node.onToggle();
     }
   };
 
   Node.select = function (node) {
-    console.log("SELECT")
     var old = Node.selected;
     Node.selected = node;
     if (old) {
@@ -123,10 +118,9 @@ define("tree/node", function () {
   };
 
   Node.activate = function (node, arg) {
-    console.log("ACTIVATE")
     var old = Node.activated;
     Node.activated = node;
-    Node.activatedPath = node.path;
+    Node.activatedPath = node && node.path;
     if (old) {
       if (old.onDeactivate) old.onDeactivate();
       old.onChange();
@@ -142,7 +136,7 @@ define("tree/node", function () {
     if (Node.activated !== node) {
       throw new Error("Can't deactivate non-active node");
     }
-    Node.activate(null);
+    Node.activate();
   };
 
   Node.left = function () {
