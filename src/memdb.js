@@ -4,6 +4,7 @@ define("memdb", function () {
 
   var defer = require('defer');
   var encoders = require('encoders');
+  var binary = require('binary');
 
   var objects = mixin.objects = {};
   var types = mixin.types = {};
@@ -31,9 +32,13 @@ define("memdb", function () {
 
   function loadAs(type, hash, callback) {
     defer(function () {
+      var realType = (type === "text" || type === "raw") ? "blob" : type;
       if (!types[hash]) return callback();
-      if (type !== types[hash]) return callback(new TypeError("Type mismatch"));
-      callback(null, objects[hash]);
+      if (realType !== types[hash]) return callback(new TypeError("Type mismatch"));
+      var result = objects[hash];
+      if (type === "text") result = binary.decodeUtf8(result);
+      if (type === "blob") result = binary.fromRaw(result);
+      callback(null, result);
     });
   }
 

@@ -15,6 +15,7 @@ define("editor", function () {
   var session = editor.getSession();
   session.setMode("ace/mode/jack");
   session.setTabSize(2);
+  editor.fallbackSession = session;
 
   function jack() {/*
     [ "Welcome to the Tedit Chrome App alpha preview"
