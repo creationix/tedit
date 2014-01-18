@@ -133,6 +133,26 @@ define("tree/node", function () {
     Node.activate(null);
   };
 
+  Node.left = function () {
+    var self = Node.selected;
+    if (self.children) {
+      return self.onToggle();
+    }
+    var parent = self.parent;
+    if (parent) Node.select(parent);
+  };
+
+  Node.right = function () {
+    var self = Node.selected;
+    if (self.children) {
+      if (self.children.length) {
+        Node.select(self.children[0]);
+      }
+      return;
+    }
+    if (self.onToggle) self.onToggle();
+  };
+
   Node.up = function () {
     var self = Node.selected;
     var parent = self.parent;
@@ -158,6 +178,26 @@ define("tree/node", function () {
       }
       self = parent;
     }
+  };
+
+  Node.home = function () {
+    Node.select(Node.root);
+  };
+
+  Node.end = function () {
+    var last = Node.root;
+    while (last.children && last.children.length) {
+      last = last.children[last.children.length - 1];
+    }
+    Node.select(last);
+  };
+
+  Node.pageUp = function () {
+    for (var i = 0; i < 10; i++) Node.up();
+  };
+
+  Node.pageDown = function () {
+    for (var i = 0; i < 10; i++) Node.down();
   };
 
   function clickHandler(node) {

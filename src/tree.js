@@ -67,10 +67,18 @@ define("tree", function () {
     }
     else {
       if (!focussed) return;
-      if (evt.keyCode === 38) Node.up();
-      else if (evt.keyCode === 40) Node.down();
+      if      (evt.keyCode === 33) Node.pageUp();
+      else if (evt.keyCode === 34) Node.pageDown();
+      else if (evt.keyCode === 35) Node.end();
+      else if (evt.keyCode === 36) Node.home();
       else if (evt.keyCode === 37) Node.left();
+      else if (evt.keyCode === 38) Node.up();
       else if (evt.keyCode === 39) Node.right();
+      else if (evt.keyCode === 40) Node.down();
+      // Enter or Space activates.
+      else if (evt.keyCode === 13 || evt.keyCode === 32) {
+        Node.selected.onClick();
+      }
       else return;
     }
     evt.preventDefault();
