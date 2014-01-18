@@ -14,10 +14,22 @@ define("tree", function () {
   var slider = require('slider');
 
   Node.create = function (repo, name, mode, hash, parent) {
-    if (modes.isFile(mode)) return new File(repo, name, mode, hash, parent);
-    if (modes.isTree(mode)) return new Dir(repo, name, mode, hash, parent);
-    if (modes.isSymLink(mode)) return new SymLink(repo, name, mode, hash, parent);
-    throw new TypeError("Invalid mode 0" + mode.toString(8));
+    var Constructor;
+    if      (modes.isFile(mode)) Constructor = File;
+    else if (modes.isTree(mode)) Constructor = Dir;
+    else if (modes.isSymLink(mode)) Constructor = SymLink;
+    else throw new TypeError("Invalid mode 0" + mode.toString(8));
+    if (Node.activatedPath === Node.calcPath(parent, name)) {
+      var node = Node.activated;
+      if (node.constructor !== Constructor) {
+        Node.deactivate(Node.activated);
+      }
+      else {
+        Constructor.apply(node, arguments);
+        return node;
+      }
+    }
+    return new Constructor(repo, name, mode, hash, parent);
   };
 
   Node.scrollTo = function (node) {

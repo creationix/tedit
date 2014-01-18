@@ -5,7 +5,6 @@ define("tree/node", function () {
   var domBuilder = require('dombuilder');
   var modes = require('modes');
   var getMime = require('mime')();
-  var $ = require('elements');
 
   function Node(repo, name, mode, hash, parent) {
     this.repo = repo;
@@ -13,15 +12,21 @@ define("tree/node", function () {
     this.mode = mode;
     this.name = name;
     this.parent = parent;
-    this.path = (parent ? parent.path : "") + "/" + name;
-    domBuilder(["li$el",
-      ["$rowEl", { onclick: clickHandler(this) },
-        ["i$iconEl"], ["span$nameEl"]
-      ]
-    ], this);
-    this.el.js = this;
+    this.path = Node.calcPath(parent, name);
+    if (!this.el) {
+      domBuilder(["li$el",
+        ["$rowEl", { onclick: clickHandler(this) },
+          ["i$iconEl"], ["span$nameEl"]
+        ]
+      ], this);
+      this.el.js = this;
+    }
     this.onChange();
   }
+
+  Node.calcPath = function (parent, name) {
+    return (parent ? parent.path : "") + "/" + name;
+  };
 
   Node.prototype.onChange = function () {
     var title = this.path;
@@ -77,6 +82,8 @@ define("tree/node", function () {
   };
 
   Node.selected = null;
+  Node.activated = null;
+  Node.activatedPath = null;
 
   Node.prototype.onClick = function (arg) {
     Node.focus();
@@ -115,6 +122,7 @@ define("tree/node", function () {
   Node.activate = function (node, arg) {
     var old = Node.activated;
     Node.activated = node;
+    Node.activatedPath = node.path;
     if (old) {
       if (old.onDeactivate) old.onDeactivate();
       old.onChange();

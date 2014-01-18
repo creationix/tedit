@@ -9,8 +9,10 @@ define("tree/dir", function () {
 
   function Dir() {
     Node.apply(this, arguments);
-    this.el.appendChild(domBuilder(["ul$ulEl"], this));
-    if (openPaths[this.path]) this.onToggle();
+    if (!this.ulEl) {
+      this.el.appendChild(domBuilder(["ul$ulEl"], this));
+      if (openPaths[this.path]) this.onToggle();
+    }
   }
 
   // Inherit from Node
