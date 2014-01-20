@@ -94,11 +94,9 @@ define("tree", function () {
       else if (evt.keyCode === 40) Node.down();
 
       else if (evt.keyCode === 13) { // Enter
-        console.log("click", Node.selected)
         Node.click(Node.selected); // Hard click
       }
       else if (evt.keyCode === 32) { // Space
-        console.log("soft click", Node.selected)
         Node.click(Node.selected, true); // Soft click
       }
       else return;
