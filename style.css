@@ -152,15 +152,16 @@ body {
   user-select: none;
   color: #fff;
   padding: 0.3em 0.3em 1.5em 0.3em;
+  margin: 0;
   background-color: #111;
 }
-.tree ul {
+.tree, .tree ul {
   margin: 0;
   padding: 0;
   line-height: 1.4em;
   list-style-type: none;
 }
-.tree ul ul {
+.tree ul {
   padding-left: 0.7em;
 }
 .tree li {
@@ -314,4 +315,54 @@ body, .tree, .titlebar, .main, .editor {
 
 .ace_gutter {
   cursor: ew-resize !important;
+}
+
+.shield {
+  position: absolute;
+  z-index: 11;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+ul.contextMenu {
+  position: absolute;
+  z-index: 12;
+  margin: 0;
+  padding: 0.2em 0;
+  box-shadow: 0 0 5px 5px rgba(0, 0, 0, 0.5);
+  background-color: #fff;
+  color: #000;
+  list-style-type: none;
+  font-size: 0.9em;
+}
+ul.contextMenu li {
+  padding: 0.4em 1em 0.4em 0.4em;
+  cursor: pointer;
+}
+ul.contextMenu li i {
+  margin-right: 0.4em;
+}
+ul.contextMenu li:hover {
+  background-color: #78CF8A;
+  color: #000;
+}
+ul.contextMenu li.disabled,
+ul.contextMenu li.sep {
+  height: inherit;
+  line-height: inherit;
+  background-color: inherit;
+  color: inherit;
+  cursor: inherit;
+  opacity: 0.3;
+}
+ul.contextMenu li.sep {
+  padding: 0;
+}
+ul.contextMenu li.sep hr {
+  margin: 0.2em 0.4em;
+  height: 0;
+  border: 0;
+  height: 1px;
+  background-color: #000;
 }

@@ -6,7 +6,7 @@ define("elements", function () {
   var domBuilder = require('dombuilder');
   var $ = {};
   document.body.appendChild(domBuilder([
-    [".tree$tree"],
+    ["ul.tree$tree"],
     [".titlebar$titlebar", "welcome.jk"],
     [".closebox$closebox", {onclick: closeWindow}, "×"],
     [".main$main",

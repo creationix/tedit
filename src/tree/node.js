@@ -5,6 +5,9 @@ define("tree/node", function () {
   var domBuilder = require('dombuilder');
   var modes = require('modes');
   var getMime = require('mime')();
+  var contextMenu = require('context-menu');
+  var repos = require('repos');
+  var $ = require('elements');
 
   function Node(repo, name, mode, hash, parent) {
     this.repo = repo;
@@ -19,7 +22,7 @@ define("tree/node", function () {
           ["i$iconEl"], ["span$nameEl"]
         ]
       ], this);
-      this.el.js = this;
+      this.rowEl.js = this;
     }
     this.onChange();
   }
@@ -84,6 +87,40 @@ define("tree/node", function () {
   Node.selected = null;
   Node.activated = null;
   Node.activatedPath = null;
+  Node.roots = [];
+
+  Node.contextMenu = function (evt, node) {
+    var items;
+    if (!node) {
+      node = Node;
+      items = Node.menuItems;
+    }
+    else {
+      if (!node.getMenuItems) return;
+      items = node.getMenuItems();
+    }
+    if (items && items.length) {
+      evt.preventDefault();
+      evt.stopPropagation();
+      contextMenu(evt, node, items);
+    }
+  };
+
+  Node.menuItems = [
+    {icon: "box", label: "Create Repository from Folder", action: "importFolder"},
+  ];
+
+  Node.importFolder = function () {
+    repos.newFromFolder(function (err, repo, name, rootHash) {
+      if (err) throw err;
+      Node.addRoot(Node.create(repo, name, modes.tree, rootHash));
+    });
+  };
+
+  Node.addRoot = function (node) {
+    Node.roots.push(node);
+    $.tree.appendChild(node.el);
+  };
 
   Node.click = function (node, arg) {
     Node.focus();

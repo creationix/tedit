@@ -106,16 +106,21 @@ define("tree", function () {
   }, true);
 
 
-  require('repos')(function (err, repo, rootHash, entry) {
-    if (err) throw err;
-    repo.name = entry.fullPath;
-    Node.root = Node.create(repo, entry.name, modes.tree, rootHash);
-    $.tree.appendChild(domBuilder(["ul", Node.root.el]));
-  });
+
+
+  $.tree.addEventListener('contextmenu', function (evt) {
+    var target = evt.target;
+    while (target !== $.tree) {
+      if (target.js) return Node.contextMenu(evt, target.js);
+      target = target.parentElement;
+    }
+    Node.contextMenu(evt);
+  }, false);
+
 
   return {
     focus: Node.focus,
-    blue: Node.blue,
+    blur: Node.blur,
     toggle: Node.toggle
   };
 });
