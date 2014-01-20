@@ -106,8 +106,12 @@ define("tree/node", function () {
     }
   };
 
+  // Menu items for the blank space after the file tree.
   Node.menuItems = [
-    {icon: "box", label: "Create Repository from Folder", action: "importFolder"},
+    {icon: "plus-squared", label: "Create new empty repo", action: "newRepo"},
+    {icon: "box", label: "Create repo from folder", action: "importFolder"},
+    {icon: "download-cloud", label: "Clone from remote", action: "cloneRepo"},
+    {icon: "github", label: "Mount live GitHub repo", action: "mountGithub"},
   ];
 
   Node.importFolder = function () {

@@ -21,11 +21,11 @@ define('context-menu', function () {
       ["ul.contextMenu$ul", attrs, items.map(function (item) {
         if (item.sep) return ["li.sep", ["hr"]];
         var attrs = {};
+        if (typeof item.action === "string") {
+          item.action = node[item.action];
+        }
         if (item.action) {
           attrs.onclick = function (evt) {
-            if (typeof item.action === "string") {
-              item.action = node[item.action];
-            }
             closeMenu(evt);
             try {
               item.action.call(node);
