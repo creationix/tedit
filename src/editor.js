@@ -23,6 +23,8 @@ define("editor", function () {
     -- This file is written in Jack, a new language for kids!
     vars Global-Controls, File-Tree-Controls, Mouse-and-Touch-Controls
 
+    "Right-Click in the area to the left to create a new repo"
+
     Global-Controls = {
       Control-Shift-R: "Reload the app"
       Alt-T: "Toggle focus between editor and file tree"
