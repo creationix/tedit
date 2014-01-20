@@ -6,6 +6,7 @@ define("tree/file", function () {
   var editor = require('editor');
   var $ = require('elements');
   var modelist = ace.require('ace/ext/modelist');
+  var whitespace = ace.require('ace/ext/whitespace');
 
   function File() {
     Node.apply(this, arguments);
@@ -24,6 +25,7 @@ define("tree/file", function () {
         if (err) throw err;
         var mode = modelist.getModeForPath(self.name);
         self.session = ace.createEditSession(code, mode.mode);
+        whitespace.detectIndentation(self.session);
         editor.setSession(self.session);
         $.titlebar.textContent = self.name;
       });
