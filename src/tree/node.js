@@ -109,13 +109,20 @@ define("tree/node", function () {
   // Menu items for the blank space after the file tree.
   Node.menuItems = [
     {icon: "plus-squared", label: "Create new empty repo", action: "newRepo"},
-    {icon: "box", label: "Create repo from folder", action: "importFolder"},
+    {icon: "folder-open", label: "Import folder as new repo", action: "importFolder"},
     {icon: "download-cloud", label: "Clone from remote", action: "cloneRepo"},
     {icon: "github", label: "Mount live GitHub repo", action: "mountGithub"},
   ];
 
   Node.importFolder = function () {
     repos.newFromFolder(function (err, repo, name, rootHash) {
+      if (err) throw err;
+      Node.addRoot(Node.create(repo, name, modes.tree, rootHash));
+    });
+  };
+
+  Node.newRepo = function () {
+    repos.newEmpty(function (err, repo, name, rootHash) {
       if (err) throw err;
       Node.addRoot(Node.create(repo, name, modes.tree, rootHash));
     });

@@ -6,7 +6,7 @@ define("repos", function () {
 
   return {
     newFromFolder: newFromFolder,
-    // newEmpty: newEmpty,
+    newEmpty: newEmpty,
     // clone: clone,
   };
 
@@ -16,25 +16,7 @@ define("repos", function () {
     require('progress')(repo);
     require('memdb')(repo);
 
-    // var retainer = prefs.get("retainer");
-    // if (retainer) {
-    //   fileSystem.isRestorable(retainer, function (isRestorable) {
-    //     if (isRestorable) {
-    //       fileSystem.restoreEntry(retainer, onEntry);
-    //     }
-    //     else {
-    //       fileSystem.chooseEntry({ type: "openDirectory"}, onDir);
-    //     }
-    //   });
-    // }
-    // else {
-      fileSystem.chooseEntry({ type: "openDirectory"}, onEntry);
-    // }
-
-    // function onDir(entry) {
-    //   prefs.set("retainer", fileSystem.retainEntry(entry));
-    //   onEntry(entry);
-    // }
+    fileSystem.chooseEntry({ type: "openDirectory"}, onEntry);
 
     function onEntry(entry) {
       importEntry(repo, entry, function (err, root) {
@@ -45,6 +27,16 @@ define("repos", function () {
         callback(null, repo, entry.name, root);
       });
     }
+  }
+
+  function newEmpty(callback) {
+    var repo = {};
+    require('progress')(repo);
+    require('memdb')(repo);
+    repo.saveAs("tree", [], function (err, hash) {
+      if (err) return callback(err);
+      callback(null, repo, "new-repo", hash);
+    });
   }
 
 });

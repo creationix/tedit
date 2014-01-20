@@ -5,6 +5,7 @@ define("tree/file", function () {
   var Node = require('tree/node');
   var editor = require('editor');
   var $ = require('elements');
+  var modelist = ace.require('ace/ext/modelist');
 
   function File() {
     Node.apply(this, arguments);
@@ -21,9 +22,8 @@ define("tree/file", function () {
       var self = this;
       self.repo.loadAs("text", self.hash, function (err, code) {
         if (err) throw err;
-        var mode = guessMode(code, self.name);
-        console.log("MODE", mode);
-        self.session = ace.createEditSession(code, mode);
+        var mode = modelist.getModeForPath(self.name);
+        self.session = ace.createEditSession(code, mode.mode);
         editor.setSession(self.session);
         $.titlebar.textContent = self.name;
       });
@@ -38,22 +38,6 @@ define("tree/file", function () {
   File.prototype.onDeactivate = function () {
     editor.setSession(editor.fallbackSession);
     $.titlebar.textContent = "welcome.jk";
-  };
-
-  function guessMode(code, name) {
-    var ext = name.match(/[^.]*$/)[0];
-    return modes[ext] || "ace/modes/text";
-  }
-
-  var modes = {
-    js: "ace/mode/javascript",
-    jk: "ace/mode/jack",
-    css: "ace/mode/css",
-    html: "ace/mode/html",
-    sh: "ace/mode/sh",
-    json: "ace/mode/json",
-    md: "ace/mode/markdown",
-    markdown: "ace/mode/markdown",
   };
 
   return File;
