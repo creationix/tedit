@@ -27,7 +27,6 @@ define("repos", function () {
         if (err) throw err;
         repos[name].root = roots[name];
         if (--left) return;
-        console.log("REPOS", repos);
         callback(null, repos);
       });
     });

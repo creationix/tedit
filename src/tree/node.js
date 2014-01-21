@@ -6,7 +6,8 @@ define("tree/node", function () {
   var modes = require('modes');
   var getMime = require('mime')();
   var contextMenu = require('context-menu');
-  var repos = require('repos');
+  var repoTools = require('repos');
+  var prefs = require('prefs');
   var $ = require('elements');
 
   function Node(repo, name, mode, hash, parent) {
@@ -115,14 +116,14 @@ define("tree/node", function () {
   ];
 
   Node.importFolder = function () {
-    repos.newFromFolder(function (err, repo) {
+    repoTools.newFromFolder(function (err, repo) {
       if (err) throw err;
       Node.addRoot(Node.create(repo, repo.name, modes.tree, repo.root));
     });
   };
 
   Node.newRepo = function () {
-    repos.newEmpty(function (err, repo) {
+    repoTools.newEmpty(function (err, repo) {
       if (err) throw err;
       Node.addRoot(Node.create(repo, repo.name, modes.tree, repo.root));
     });
@@ -131,6 +132,36 @@ define("tree/node", function () {
   Node.addRoot = function (node) {
     Node.roots.push(node);
     $.tree.appendChild(node.el);
+  };
+
+  Node.removeRoot = function (node) {
+
+    // Remove the node from the roots list
+    Node.roots.splice(Node.roots.indexOf(node), 1);
+
+    // Kill the name and root pair in prefs
+    repoTools.getRepos(function (err, repos) {
+      if (err) throw err;
+      delete repos[node.name];
+      repoTools.saveRoots();
+    });
+
+    // Remove the root element for the repo
+    $.tree.removeChild(node.el);
+
+    // Clean out any open paths that were in this repo
+    var openPaths = prefs.get("openPaths");
+    if (openPaths) {
+      var changed = false;
+      var name = node.name, length = name.length;
+      Object.keys(openPaths).forEach(function (path) {
+        if (path.substr(1, length) !== name) return;
+        delete openPaths[path];
+        changed = true;
+      });
+      if (changed) prefs.set("openPaths", openPaths);
+    }
+
   };
 
   Node.click = function (node, arg) {

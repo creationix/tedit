@@ -20,6 +20,18 @@ define("tree/dir", function () {
     constructor: { value: Dir }
   });
 
+  Dir.prototype.getMenuItems = function () {
+    var actions = [];
+    if (!this.parent) {
+      actions.push({icon: "plus-squared", label: "Remove this Repo", action: "removeSelf"});
+    }
+    return actions;
+  };
+
+  Dir.prototype.removeSelf = function () {
+    Node.removeRoot(this);
+  };
+
   Dir.prototype.onToggle = function () {
     var self = this;
 
