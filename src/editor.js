@@ -5,6 +5,8 @@ define("editor", function () {
   var $ = require('elements');
   // Put sample content and liven the editor
   var editor = ace.edit($.editor);
+  var textMode = true;
+  var currentImage = null;
 
   var code = jack.toString().substr(20);
   code = code.substr(0, code.length - 5);
@@ -16,6 +18,45 @@ define("editor", function () {
   session.setMode("ace/mode/jack");
   session.setTabSize(2);
   editor.fallbackSession = session;
+  var realSetSession = editor.setSession;
+
+  $.image.addEventListener("click", function (evt) {
+    evt.stopPropagation();
+    evt.preventDefault();
+    if (currentImage) {
+      currentImage.tiled = !currentImage.tiled;
+      updateImage();
+    }
+  }, false);
+
+  editor.setSession = function (session) {
+    if ("tiled" in session) {
+      // This is an image url.
+      if (textMode) {
+        textMode = false;
+        $.preview.style.display = "block";
+        $.editor.style.display = "none";
+      }
+      currentImage = session;
+      return updateImage();
+    }
+    if (!textMode) {
+      currentImage = null;
+      textMode = true;
+      $.preview.style.display = "none";
+      $.editor.style.display = "block";
+    }
+    return realSetSession.apply(editor, arguments);
+  };
+
+
+  function updateImage() {
+    var img = currentImage;
+    $.image.style.backgroundImage = "url(" + img.url + ")";
+    if (img.tiled) $.image.classList.remove("zoom");
+    else $.image.classList.add("zoom");
+  }
+
 
   function jack() {/*
     [ "Welcome to the Tedit Chrome App alpha preview"

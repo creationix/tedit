@@ -249,7 +249,7 @@ body {
   background: none;
 }
 
-body, .tree, .titlebar, .main, .editor {
+body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
   position: absolute;
   top: 0;
   left: 0;
@@ -313,8 +313,27 @@ body, .tree, .titlebar, .main, .editor {
   text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
-.ace_gutter {
+.ace_gutter, .dragger {
   cursor: ew-resize !important;
+}
+.preview {
+  background-color: #cf6969;
+  background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH3QsEFCs5qJx92gAAAB1pVFh0Q29tbWVudAAAAAAAQ3JlYXRlZCB3aXRoIEdJTVBkLmUHAAAAK0lEQVQ4y2M0MjL6z4AHGBsb45NmYGKgEIwaMBgMYCEUz2fPnh0NxOFvAADQeAVQbGocpgAAAABJRU5ErkJggg==');
+}
+
+.preview .dragger {
+  width: 20px;
+  right: auto;
+  background-color: #3a3a3a;
+}
+.preview .image {
+  left: 20px;
+  width: auto;
+  background-position: center;
+}
+.preview .zoom {
+  background-repeat: no-repeat;
+  background-size: contain;
 }
 
 .shield {

@@ -12,10 +12,13 @@ define("slider", function () {
   innerWidth = window.innerWidth;
   slide(size);
   var gutter = document.querySelector(".ace_gutter");
+  var dragger = document.querySelector(".dragger");
 
   window.addEventListener("resize", onResize);
   gutter.addEventListener("mousedown", onStart, true);
   gutter.addEventListener("touchstart", onStart, true);
+  dragger.addEventListener("mousedown", onStart, true);
+  dragger.addEventListener("touchstart", onStart, true);
 
   function onResize() {
     innerWidth = window.innerWidth;

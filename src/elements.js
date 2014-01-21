@@ -10,7 +10,11 @@ define("elements", function () {
     [".titlebar$titlebar", "welcome.jk"],
     [".closebox$closebox", {onclick: closeWindow}, "×"],
     [".main$main",
-      [".editor$editor"]
+      [".editor$editor"],
+      [".preview$preview", {css: {display:"none"}},
+        [".dragger$dragger"],
+        [".image$image"]
+      ]
     ]
   ], $));
   return $;
