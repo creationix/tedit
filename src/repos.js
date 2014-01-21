@@ -44,7 +44,6 @@ define("repos", function () {
   function newRepo(name, callback) {
     if (name in repos) return callback(new Error("Name already taken: " + name));
     var repo = repos[name] = {name: name};
-    require('progress')(repo);
     require('indexeddb')(repo, function (err) {
       if (err) return callback(err);
       callback(null, repo);
@@ -61,9 +60,6 @@ define("repos", function () {
       newRepo(name, function (err, repo) {
         if (err) return callback(err);
         importEntry(repo, entry, function (err, root) {
-          if (err) repo.onProgress(err);
-          else repo.onProgress("Imported " + entry.name);
-          repo.onProgress();
           if (err) return callback(err);
           repo.root = root;
           repo.name = name;

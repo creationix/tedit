@@ -3,12 +3,13 @@ define("importfs", function () {
   "use strict";
 
   var modes = require('modes');
-  var ignores = importEntry.ignores = [".git"];
+  var notify = require('notify');
+  var ignores = importEntry.ignores = [".git", "node_modules"];
 
   return importEntry;
 
   function importEntry(repo, entry, callback) {
-    if (repo.onProgress) repo.onProgress("Importing " + entry.fullPath);
+    notify("Importing " + entry.fullPath);
     repo.importStatus = "Loading " + entry.fullPath;
     if (entry.isDirectory) return importDirectory(repo, entry, callback);
     if (entry.isFile) return importFile(repo, entry, callback);
@@ -18,7 +19,10 @@ define("importfs", function () {
   function importFile(repo, entry, callback) {
     var reader = new FileReader();
     reader.onloadend = function() {
-      repo.saveAs("blob", this.result, callback);
+      repo.saveAs("blob", this.result, function (err, hash) {
+        if (err) return callback(err);
+        callback(null, hash, entry.name);
+      });
     };
     entry.file(function (file) {
       reader.readAsArrayBuffer(file);
@@ -43,7 +47,10 @@ define("importfs", function () {
     function onEntries(results) {
       length = results.length;
       if (!length) {
-        return repo.saveAs("tree", tree, callback);
+        return repo.saveAs("tree", tree, function (err, hash) {
+          if (err) return callback(err);
+          callback(null, hash, dirEntry.name);
+        });
       }
       entries = results;
       index = 0;
