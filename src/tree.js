@@ -7,7 +7,7 @@ define("tree", function () {
   var Dir = require('tree/dir');
   var File = require('tree/file');
   var SymLink = require('tree/link');
-  var domBuilder = require('dombuilder');
+  var repos = require('repos');
   var modes = require('modes');
   var focused = false, oldSlider, wasClosed;
   var editor = require('editor');
@@ -117,6 +117,13 @@ define("tree", function () {
     Node.contextMenu(evt);
   }, false);
 
+  repos.getRepos(function (err, repos) {
+    if (err) throw err;
+    Object.keys(repos).forEach(function (name) {
+      var repo = repos[name];
+      Node.addRoot(Node.create(repo, name, modes.tree, repo.root));
+    });
+  });
 
   return {
     focus: Node.focus,

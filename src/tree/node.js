@@ -115,16 +115,16 @@ define("tree/node", function () {
   ];
 
   Node.importFolder = function () {
-    repos.newFromFolder(function (err, repo, name, rootHash) {
+    repos.newFromFolder(function (err, repo) {
       if (err) throw err;
-      Node.addRoot(Node.create(repo, name, modes.tree, rootHash));
+      Node.addRoot(Node.create(repo, repo.name, modes.tree, repo.root));
     });
   };
 
   Node.newRepo = function () {
-    repos.newEmpty(function (err, repo, name, rootHash) {
+    repos.newEmpty(function (err, repo) {
       if (err) throw err;
-      Node.addRoot(Node.create(repo, name, modes.tree, rootHash));
+      Node.addRoot(Node.create(repo, repo.name, modes.tree, repo.root));
     });
   };
 

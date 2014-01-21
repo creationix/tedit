@@ -21,12 +21,13 @@ define("indexeddb", function () {
     }
 
     db.createObjectStore("objects", {keyPath: "hash"});
+    db.createObjectStore("refs", {keyPath: "path"});
   };
 
   request.onsuccess = function (evt) {
     db = evt.target.result;
     callbacks.forEach(function (callback) {
-      callback(db);
+      callback(null, db);
     });
     callbacks = null;
   };
@@ -38,7 +39,7 @@ define("indexeddb", function () {
     repo.saveAs = saveAs;
     repo.loadAs = loadAs;
     if (!callback) return;
-    if (db) return callback(db);
+    if (db) return callback(null, db);
     callbacks.push(callback);
   }
 

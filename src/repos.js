@@ -4,38 +4,88 @@ define("repos", function () {
   var fileSystem = chrome.fileSystem;
   var importEntry = require('importfs');
 
+  var repos;
+
   return {
+    getRepos: getRepos,
+    saveRoots: saveRoots,
     newFromFolder: newFromFolder,
     newEmpty: newEmpty,
     // clone: clone,
   };
 
+  // Callback a list of all the saved repos.
+  // Used at startup
+  function getRepos(callback) {
+    if (repos) return callback(null, repos);
+    var roots = prefs.get("roots", {});
+    repos = {};
+    var left = 0;
+    Object.keys(roots).forEach(function (name) {
+      left++;
+      newRepo(name, function (err) {
+        if (err) throw err;
+        repos[name].root = roots[name];
+        if (--left) return;
+        console.log("REPOS", repos);
+        callback(null, repos);
+      });
+    });
+    if (!left) return callback(null, repos);
+  }
+
+  function saveRoots() {
+    var roots = {};
+    Object.keys(repos).forEach(function (name) {
+      roots[name] = repos[name].root;
+    });
+    prefs.set("roots", roots);
+  }
+
+  function newRepo(name, callback) {
+    if (name in repos) return callback(new Error("Name already taken: " + name));
+    var repo = repos[name] = {name: name};
+    require('progress')(repo);
+    require('indexeddb')(repo, function (err) {
+      if (err) return callback(err);
+      callback(null, repo);
+    });
+  }
+
   // Callback contains (err, repo, name, rootHash)
   function newFromFolder(callback) {
-    var repo = {};
-    require('progress')(repo);
-    require('indexeddb')(repo, function () {
-      fileSystem.chooseEntry({ type: "openDirectory"}, onEntry);
-    });
+    fileSystem.chooseEntry({ type: "openDirectory"}, onEntry);
 
     function onEntry(entry) {
-      importEntry(repo, entry, function (err, root) {
-        if (err) repo.onProgress(err);
-        else repo.onProgress("Imported " + entry.name);
-        repo.onProgress();
+      var i = 0, name;
+      do { name = entry.name + (i ? ("-" + i) : ""); } while (++i && name in repos);
+      newRepo(name, function (err, repo) {
         if (err) return callback(err);
-        callback(null, repo, entry.name, root);
+        importEntry(repo, entry, function (err, root) {
+          if (err) repo.onProgress(err);
+          else repo.onProgress("Imported " + entry.name);
+          repo.onProgress();
+          if (err) return callback(err);
+          repo.root = root;
+          repo.name = name;
+          saveRoots();
+          callback(null, repo);
+        });
       });
     }
   }
 
   function newEmpty(callback) {
-    var repo = {};
-    require('progress')(repo);
-    require('indexeddb')(repo, function () {
+    var i = 0, name;
+    do { name = "new" + (i ? ("-" + i) : ""); } while (++i && name in repos);
+    newRepo(name, function (err, repo) {
+      if (err) return callback(err);
       repo.saveAs("tree", [], function (err, hash) {
         if (err) return callback(err);
-        callback(null, repo, "new-repo", hash);
+        repo.name = name;
+        repo.root = hash;
+        saveRoots();
+        callback(null, repo);
       });
     });
   }
