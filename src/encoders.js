@@ -19,27 +19,26 @@ define("encoders", function () {
     encodeCommit: encodeCommit,
     encodeTag: encodeTag,
     hashAs: hashAs,
-    hashBlob: hashBlob,
-    hashTree: hashTree,
-    hashCommit: hashCommit,
-    hashTag: hashTag
   };
 
   function test() {
     // Test blob encoding
-    var hash = hashBlob(normalizeBlob("Hello World\n"));
-    if (hash !== "557db03de997c86a4a028e1ebd3a1ceb225be238") {
+    var normalized = normalizeBlob("Hello World\n");
+    var expected = "557db03de997c86a4a028e1ebd3a1ceb225be238";
+    var hash = hashAs("blob", normalized);
+    if (hash !== expected) {
+      console.log({expected: expected, actual: hash, normalized: normalized});
       throw new Error("Invalid body hash");
     }
 
     // Test tree encoding
-    hash = hashTree(normalizeTree({ "greeting.txt": { mode: 0100644, hash: hash } }));
+    hash = hashAs("tree", normalizeTree({ "greeting.txt": { mode: 0100644, hash: hash } }));
     if (hash !== "648fc86e8557bdabbc2c828a19535f833727fa62") {
       throw new Error("Invalid tree hash");
     }
 
     // Test commit encoding
-    hash = hashCommit(normalizeCommit({
+    hash = hashAs("commit", normalizeCommit({
       tree: hash,
       author: {
         name: "Tim Caswell",
@@ -54,7 +53,7 @@ define("encoders", function () {
     }
 
     // Test annotated tag encoding
-    hash = hashTag(normalizeTag({
+    hash = hashAs("tag", normalizeTag({
       object: hash,
       type: "commit",
       tag: "mytag",
@@ -85,39 +84,29 @@ define("encoders", function () {
     if (type === "tag")    return normalizeTag(body);
   }
 
+  // Calculate a git compatable hash by git encoding the body and prepending a
+  // git style frame header and calculating the sha1 sum of that.
   function hashAs(type, body) {
-    return sha1(frame(type, encodeAs(type, body)));
+    var encoded = encodeAs(type, body);
+    var sum = sha1();
+    sum.update(frame(type, encoded.length));
+    sum.update(encoded);
+    return sum.digest();
   }
 
-  function hashBlob(body) {
-    return sha1(frame("blob", encodeBlob(body)));
-  }
-
-  function hashTree(body) {
-    return sha1(frame("tree", encodeTree(body)));
-  }
-
-  function hashCommit(body) {
-    return sha1(frame("commit", encodeCommit(body)));
-  }
-
-  function hashTag(body) {
-    return sha1(frame("tag", encodeTag(body)));
-  }
-
-  function frame(type, body) {
-    return type + " " + body.length + "\0" + body;
+  function frame(type, length) {
+    return type + " " + length + "\0";
   }
 
   function normalizeBlob(body) {
     var type = typeof body;
     if (type === "string") {
-      return binary.encodeUtf8(body);
+      return binary.fromRaw(body);
     }
     if (body && type === "object") {
       if (body.constructor.name === "ArrayBuffer") body = new Uint8Array(body);
       if (typeof body.length === "number") {
-        return binary.toRaw(body);
+        return body;//binary.toRaw(body);
       }
     }
     throw new TypeError("Blob body must be raw string, ArrayBuffer or byte array");

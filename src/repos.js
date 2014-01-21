@@ -14,9 +14,9 @@ define("repos", function () {
   function newFromFolder(callback) {
     var repo = {};
     require('progress')(repo);
-    require('memdb')(repo);
-
-    fileSystem.chooseEntry({ type: "openDirectory"}, onEntry);
+    require('indexeddb')(repo, function () {
+      fileSystem.chooseEntry({ type: "openDirectory"}, onEntry);
+    });
 
     function onEntry(entry) {
       importEntry(repo, entry, function (err, root) {
@@ -32,10 +32,11 @@ define("repos", function () {
   function newEmpty(callback) {
     var repo = {};
     require('progress')(repo);
-    require('memdb')(repo);
-    repo.saveAs("tree", [], function (err, hash) {
-      if (err) return callback(err);
-      callback(null, repo, "new-repo", hash);
+    require('indexeddb')(repo, function () {
+      repo.saveAs("tree", [], function (err, hash) {
+        if (err) return callback(err);
+        callback(null, repo, "new-repo", hash);
+      });
     });
   }
 
