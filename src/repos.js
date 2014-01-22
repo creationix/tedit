@@ -46,6 +46,7 @@ define("repos", function () {
     var repo = repos[name] = {name: name};
     require('indexeddb')(repo, function (err) {
       if (err) return callback(err);
+      require('pathtoentry')(repo);
       callback(null, repo);
     });
   }
