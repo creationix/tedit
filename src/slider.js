@@ -2,6 +2,8 @@
 define("slider", function () {
   "use strict";
 
+  require('editor');
+
   var $ = require("elements");
   var prefs = require('prefs');
   var position = null;
@@ -19,6 +21,12 @@ define("slider", function () {
   gutter.addEventListener("touchstart", onStart, true);
   dragger.addEventListener("mousedown", onStart, true);
   dragger.addEventListener("touchstart", onStart, true);
+
+  require('zoom')(onZoom);
+
+  function onZoom(scale, oldScale) {
+    slide(Math.round(size / oldScale * scale));
+  }
 
   function onResize() {
     innerWidth = window.innerWidth;

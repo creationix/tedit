@@ -17,7 +17,15 @@ define("elements", function () {
       ]
     ]
   ], $));
+
+  // Hook for global zoom keybindings
+  require('zoom')(onZoom);
+
   return $;
+
+  function onZoom(scale) {
+    document.body.style.fontSize = (scale * 16) + "px";
+  }
 
   function closeWindow() {
     chrome.app.window.current().close();

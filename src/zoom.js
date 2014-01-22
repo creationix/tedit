@@ -1,19 +1,28 @@
 /*global define, chrome*/
-define("window-keys", function () {
+define("zoom", function () {
   "use strict";
 
   var prefs = require('prefs');
-  var editor = require('editor');
-  var slider = require('slider');
   var zooms = [
     25, 33, 50, 67, 75, 90, 100, 110, 120, 125, 150, 175, 200, 250, 300, 400, 500
   ];
-  var original = 16;
   var index = prefs.get("zoomIndex", zooms.indexOf(100));
-  var oldSize;
-  zoom();
+  var oldIndex = index;
+  var handlers = [];
 
-  window.addEventListener("keydown", function (evt) {
+  window.addEventListener("keydown", onKey, true);
+
+  onZoom.bigger = bigger;
+  onZoom.smaller = smaller;
+  onZoom.reset = reset;
+  return onZoom;
+
+  function onZoom(callback) {
+    handlers.push(callback);
+    callback(zooms[index] / 100, zooms[oldIndex] / 100);
+  }
+
+  function onKey(evt) {
     // Ctrl-0
     if (evt.ctrlKey && evt.keyCode === 48) reset();
     // Ctrl-"+"
@@ -26,7 +35,7 @@ define("window-keys", function () {
     else return;
     evt.preventDefault();
     evt.stopPropagation();
-  }, true);
+  }
 
   function bigger() {
     if (index < zooms.length - 1) index++;
@@ -44,20 +53,14 @@ define("window-keys", function () {
   }
 
   function zoom() {
-    var size = original * zooms[index] / 100;
-    if (oldSize !== undefined) {
-      if (size === oldSize) return;
-      slider.size = Math.round(slider.size / oldSize * size);
-    }
+    if (index === oldIndex) return;
+    var scale = zooms[index] / 100;
+    var oldScale = oldIndex && zooms[oldIndex] / 100;
+    oldIndex = index;
+    handlers.forEach(function (handler) {
+      handler(scale, oldScale);
+    });
     prefs.set("zoomIndex", index);
-    editor.setFontSize(size);
-    document.body.style.fontSize = size + "px";
-    oldSize = size;
   }
 
-  return {
-    bigger: bigger,
-    smaller: smaller,
-    reset: reset,
-  };
 });

@@ -49,6 +49,13 @@ define("editor", function () {
     return realSetSession.apply(editor, arguments);
   };
 
+  require('zoom')(onZoom);
+
+  function onZoom(scale) {
+    editor.setFontSize(16 * scale);
+  }
+
+
 
   function updateImage() {
     var img = currentImage;
