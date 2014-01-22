@@ -11,6 +11,7 @@ define("pathtoentry", function () {
   var dirs = {};
 
   return function (repo) {
+    if (!repo.submodules) repo.submodules = {};
     repo.pathToEntry = pathToEntry;
   };
 
@@ -124,6 +125,18 @@ define("pathtoentry", function () {
           index = 0;
           continue;
         }
+        // If it's a submodule, jump over to that repo.
+        if (modes.isCommit(mode)) {
+          var parentPath = parts.slice(0, index).join("/");
+          var submodule = repo.submodules[parentPath];
+          if (!submodule) {
+            return callback(new Error("Missing submodule for path: " + parentPath));
+          }
+          cached = cache[hash];
+          if (!cached) return submodule.loadAs("commit", hash, onValue);
+          var childPath = parts.slice(index).join("/");
+          return submodule.pathToEntry(cached.tree, childPath, callback);
+        }
         return callback(new Error("Invalid path segment"));
       }
 
@@ -146,6 +159,8 @@ define("pathtoentry", function () {
       }
       result.mode = mode;
       result.hash = hash;
+      // In the case of submodule traversal, the caller's repo is different
+      result.repo = repo;
 
       return callback(null, result);
 
