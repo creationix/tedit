@@ -10,7 +10,7 @@ define("prefs", function () {
   function init(callback) {
     storage.get("prefs", function (items) {
       prefs = items.prefs || {};
-      // console.log(prefs);
+      // This is deferred to workaround chrome error reporting issues.
       defer(callback);
     });
   }
