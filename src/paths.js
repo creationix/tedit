@@ -2,7 +2,13 @@
 define("paths", function () {
 
   var modes = require('modes');
+  var tree2 = require('tree2');
   var inner, outer;
+
+  var author = {
+    name: "Tim Caswell",
+    email: "tim@creationix.com"
+  };
 
   makeRepo(onInner);
   makeRepo(onOuter);
@@ -24,19 +30,18 @@ define("paths", function () {
     if (err) throw err;
     inner.saveAs("commit", {
       tree: hash,
-      author: {
-        name: "Tim Caswell",
-        email: "tim@creationix.com"
-      },
-      message: "Text commit in inner repo"
+      author: author,
+      message: "Test commit in inner repo"
     }, onInnerCommit);
   }
 
   function onInnerCommit(err, hash) {
     if (err) throw err;
-    outer.submodules.inner = inner;
     // WARNING:  There is a race condition where we assume outer is ready by now.
     // If this ever becomes a problem, please add more code to protect.
+
+    // Register the inner as a submodule in the outer
+    outer.submodules.inner = inner;
     outer.saveAs("tree", {
       inner: { mode: modes.commit, hash: hash }
     }, onOuterTree);
@@ -49,12 +54,22 @@ define("paths", function () {
 
   function onOuterTree(err, hash) {
     if (err) throw err;
+    outer.saveAs("commit", {
+      tree: hash,
+      author: author,
+      message: "Test commit in outer repo"
+    }, onOuterCommit);
     outer.pathToEntry(hash, "inner/test.txt", onEntry);
   }
 
   function onEntry(err, entry) {
     if (err) throw err;
-    console.log("entry", entry);
+    // console.log("entry", entry);
+  }
+
+  function onOuterCommit(err, hash) {
+    if (err) throw err;
+    tree2.addRoot(outer, hash, "outer");
   }
 
   function makeRepo(callback) {

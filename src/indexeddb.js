@@ -59,6 +59,7 @@ define("indexeddb", function () {
     var entry = { hash: hash, type: type, body: body };
     var request = store.put(entry);
     request.onsuccess = function() {
+      // console.log("SAVE", type, hash);
       callback(null, hash);
     };
     request.onerror = function(evt) {
@@ -67,11 +68,13 @@ define("indexeddb", function () {
   }
 
   function loadAs(type, hash, callback) {
+    // console.log("LOAD", type, hash);
     var trans = db.transaction(["objects"], "readwrite");
     var store = trans.objectStore("objects");
     var request = store.get(hash);
     request.onsuccess = function(evt) {
       var entry = evt.target.result;
+      if (!entry) return callback();
       if (type === "text") {
         type = "blob";
         entry.body = binary.toUnicode(entry.body);

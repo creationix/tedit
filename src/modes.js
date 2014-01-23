@@ -1,5 +1,6 @@
 /*global define*/
 define("modes", function () {
+  // Not strict mode because it uses octal literals all over.
   return {
     isBlob: function (mode) {
       return (mode & 0140000) === 0100000;
@@ -18,6 +19,12 @@ define("modes", function () {
     },
     isCommit: function (mode) {
       return mode === 0160000;
+    },
+    toType: function (mode) {
+      if (mode === 0160000) return "commit";
+      if (mode ===  040000) return "tree";
+      if ((mode & 0140000) === 0100000) return "blob";
+      return "unknown";
     },
     tree:    040000,
     blob:   0100644,

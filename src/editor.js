@@ -3,22 +3,27 @@ define("editor", function () {
   "use strict";
 
   var $ = require('elements');
+  var whitespace = ace.require('ace/ext/whitespace');
   // Put sample content and liven the editor
-  var editor = ace.edit($.editor);
-  var textMode = true;
-  var currentImage = null;
 
   var code = jack.toString().substr(20);
   code = code.substr(0, code.length - 5);
   code = code.split("\n").map(function (line) { return line.substr(4); }).join("\n");
+
+  var editor = ace.edit($.editor);
   editor.setValue(code, 1);
   editor.setTheme("ace/theme/ambiance");
   editor.setShowInvisibles(true);
-  var session = editor.getSession();
-  session.setMode("ace/mode/jack");
-  session.setTabSize(2);
-  editor.fallbackSession = session;
-  var realSetSession = editor.setSession;
+
+  var textMode = true;
+  var currentImage = null;
+
+  var session = ace.createEditSession(code, "ace/mode/jack");
+  whitespace.detectIndentation(session);
+  var defaultNode = {
+    name: "welcome.jk",
+    doc: session
+  };
 
   $.image.addEventListener("click", function (evt) {
     evt.stopPropagation();
@@ -29,15 +34,17 @@ define("editor", function () {
     }
   }, false);
 
-  editor.setSession = function (session) {
-    if ("tiled" in session) {
+  editor.setNode = function (node) {
+    if (!node) node = defaultNode;
+
+    if ("tiled" in node.doc) {
       // This is an image url.
       if (textMode) {
         textMode = false;
         $.preview.style.display = "block";
         $.editor.style.display = "none";
       }
-      currentImage = session;
+      currentImage = node.doc;
       return updateImage();
     }
     if (!textMode) {
@@ -46,16 +53,17 @@ define("editor", function () {
       $.preview.style.display = "none";
       $.editor.style.display = "block";
     }
-    return realSetSession.apply(editor, arguments);
+    editor.setSession(node.doc);
+    $.titlebar.textContent = node.name;
   };
+
+  editor.setNode();
 
   require('zoom')(onZoom);
 
   function onZoom(scale) {
     editor.setFontSize(16 * scale);
   }
-
-
 
   function updateImage() {
     var img = currentImage;

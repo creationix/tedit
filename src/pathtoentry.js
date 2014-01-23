@@ -13,7 +13,25 @@ define("pathtoentry", function () {
   return function (repo) {
     if (!repo.submodules) repo.submodules = {};
     repo.pathToEntry = pathToEntry;
+    repo.getCached = getCached;
+    repo.loadAsCached = loadAsCached;
   };
+
+  function getCached(hash) {
+    return cache[hash];
+  }
+
+  function loadAsCached(type, hash, callback) {
+    var repo = this;
+    if (!callback) return loadAsCached.bind(repo, type, hash);
+    if (hash in cache) return callback();
+    repo.loadAs(type, hash, function (err, body) {
+      if (err) return callback(err);
+      if (!body) return callback(new Error("No such hash: " + hash));
+      cache[hash] = body;
+      callback();
+    });
+  }
 
   function pathToEntry(root, path, callback) {
     var repo = this;
@@ -153,6 +171,11 @@ define("pathtoentry", function () {
         cached = cache[hash];
         if (!cached) return repo.loadAs("text", hash, onValue);
         result = { link: cached };
+      }
+      else if (modes.isCommit(mode)) {
+        cached = cache[hash];
+        if (!cached) return repo.loadAs("commit", hash, onValue);
+        result = { commit: cached };
       }
       else {
         result = {};
