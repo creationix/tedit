@@ -37,6 +37,7 @@ define("tree2", function () {
 
   function onContextMenu(evt) {
     var node = findJs(evt.target);
+    if (!node) return;
     evt.preventDefault();
     evt.stopPropagation();
     console.log("MENU", node);
@@ -57,8 +58,10 @@ define("tree2", function () {
       return;
     }
 
-    node.children = [];
+    openPaths[node.fullPath] = true;
+    prefs.set("openPaths", openPaths);
     updateNode(node);
+
     Object.keys(node.tree).map(function (name) {
       var entry = node.tree[name];
       var path = node.path + "/" + name;
@@ -72,12 +75,27 @@ define("tree2", function () {
     function onChild(err, child) {
       if (err) throw err;
       if (!child) throw new Error("Broken child");
-      node.children.push(child);
-      child.parent = node;
       updateNode(child);
-      node.ulEl.appendChild(child.el);
+      addChild(node, child);
     }
+  }
 
+  // Add a child node in the correct sorted position
+  function addChild(parent, child) {
+    child.parent = parent;
+    var children = parent.children;
+    for (var i = 0, l = children.length; i < l; i++) {
+      var other = children[i];
+      if (other.name + "/" < child.name + "/") break;
+    }
+    if (i < l) {
+      parent.ulEl.insertBefore(child.el, children[i].el);
+      children.splice(i, 0, child);
+    }
+    else {
+      parent.ulEl.appendChild(child.el);
+      children.push(child);
+    }
   }
 
   function toggleNode(node) {
