@@ -9,6 +9,7 @@ define("tree2", function () {
   var contextMenu = require('context-menu');
   var prefs = require('prefs');
   var binary = require('binary');
+  var dialog = require('dialog');
   require('zoom');
   var roots = [];
   var selected = null;
@@ -19,11 +20,7 @@ define("tree2", function () {
   $.tree.addEventListener("click", onClick, false);
   $.tree.addEventListener("contextmenu", onContextMenu, false);
 
-  return {
-    addRoot: addRoot,
-    removeRoot: removeRoot,
-    renameRoot: renameRoot
-  };
+  return addRoot;
 
   function addRoot(repo, hash, name) {
     createCommitNode(repo, hash, name, null, function (err, node) {
@@ -41,8 +38,24 @@ define("tree2", function () {
     $.tree.removeChild(root.el);
   }
 
-  function renameRoot(root, newName) {
+  function renameRoot(root) {
     throw "TODO: renameRoot";
+  }
+
+  function createFile(parent) {
+    dialog.prompt("Enter name for new file", function (name) {
+      console.log("onPrompt", [name])
+      if (!name) return;
+      throw "TODO: createFile";
+    });
+  }
+
+  function createFolder(parent) {
+    throw "TODO: createFolder";
+  }
+
+  function createSymLink(parent) {
+    throw "TODO: createSymLink";
   }
 
   function createCommitNode(repo, hash, name, parent, callback) {
@@ -160,14 +173,18 @@ define("tree2", function () {
     var actions = [];
     if (node) {
       var type;
-      actions.push({icon:"doc", label:"Create File"});
-      actions.push({icon:"folder", label:"Create Folder"});
-      actions.push({icon:"link", label:"Create SymLink"});
-      actions.push({sep:true});
-      actions.push({icon:"globe", label:"Serve over HTTP"});
+      actions.push({icon:"globe", label:"Serve Over HTTP"});
       actions.push({icon:"hdd", label:"Live Export to Disk"});
       if (node.mode === modes.tree) {
-        type = "Folder";
+        type = node.commit ? "Submodule" : "Folder";
+        actions.push({sep:true});
+        actions.push({icon:"doc", label:"Create File", action: createFile});
+        actions.push({icon:"folder", label:"Create Folder", action: createFolder});
+        actions.push({icon:"link", label:"Create SymLink", action: createSymLink});
+        actions.push({sep:true});
+        actions.push({icon:"fork", label: "Import Remote Repo"});
+        actions.push({icon:"folder", label:"Import Folder"});
+        actions.push({icon:"docs", label:"Import File(s)"});
       }
       else if (modes.isFile(node.mode)) {
         type = "File";
@@ -200,7 +217,9 @@ define("tree2", function () {
     }
     else {
       actions.push({icon:"git", label: "Create Empty Git Repo"});
-      actions.push({icon:"github", label: "Mount Github Repo"});
+      actions.push({icon:"hdd", label:"Create Repo From Folder"});
+      actions.push({icon:"fork", label: "Clone Remote Repo"});
+      actions.push({icon:"github", label: "Live Mount Github Repo"});
     }
     if (!actions.length) return;
     evt.preventDefault();

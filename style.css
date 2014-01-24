@@ -8,6 +8,9 @@ body {
   background-color: #000;
   margin: 0;
   font-family: sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .tree {
@@ -204,6 +207,39 @@ body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
 .preview .zoom {
   background-repeat: no-repeat;
   background-size: contain;
+}
+
+.dialog {
+  box-shadow: 0 0 10px rgba(0,0,0,0.7);
+  z-index: 12;
+  background-color: #999;
+  color: #000;
+  display: flex;
+  flex-direction: column;
+}
+
+.dialog .title {
+  background-color: #3a3a3a;
+  color: #fff;
+  line-height: 30px;
+  font-size: 16px;
+  height: 30px;
+  display: flex;
+}
+.dialog .title .content {
+  text-align: center;
+  flex: 1
+}
+.dialog .title .closebox {
+  position: static;
+}
+.dialog .body {
+  flex: 1
+}
+
+.dialog .contents {
+  display: block;
+  width: 100%;
 }
 
 .shield {

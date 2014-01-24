@@ -2,7 +2,7 @@
 define("paths", function () {
 
   var modes = require('modes');
-  var tree2 = require('tree2');
+  var addRoot = require('tree2');
   var inner, outer;
 
   var author = {
@@ -69,7 +69,7 @@ define("paths", function () {
 
   function onOuterCommit(err, hash) {
     if (err) throw err;
-    tree2.addRoot(outer, hash, "outer");
+    addRoot(outer, hash, "outer");
   }
 
   function makeRepo(callback) {
