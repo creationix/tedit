@@ -6,6 +6,7 @@ define('context-menu', function () {
   return ContextMenu;
 
   function ContextMenu(evt, node, items) {
+    if (!(this instanceof ContextMenu)) return new ContextMenu(evt, node, items);
     var $ = {};
 
     var css = { left: evt.pageX + "px" };
@@ -21,18 +22,10 @@ define('context-menu', function () {
       ["ul.contextMenu$ul", attrs, items.map(function (item) {
         if (item.sep) return ["li.sep", ["hr"]];
         var attrs = {};
-        if (typeof item.action === "string") {
-          item.action = node[item.action];
-        }
         if (item.action) {
           attrs.onclick = function (evt) {
             closeMenu(evt);
-            try {
-              item.action.call(node);
-            }
-            catch (err) {
-              console.log(err);
-            }
+            item.action(node);
           };
         }
         else {

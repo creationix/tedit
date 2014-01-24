@@ -6,6 +6,7 @@ define("tree2", function () {
   var domBuilder = require('dombuilder');
   var modelist = ace.require('ace/ext/modelist');
   var whitespace = ace.require('ace/ext/whitespace');
+  var contextMenu = require('context-menu');
   var prefs = require('prefs');
   var binary = require('binary');
   require('zoom');
@@ -37,10 +38,55 @@ define("tree2", function () {
 
   function onContextMenu(evt) {
     var node = findJs(evt.target);
-    if (!node) return;
+    var actions = [];
+    if (node) {
+      var type;
+      actions.push({icon:"doc", label:"Create File"});
+      actions.push({icon:"folder", label:"Create Folder"});
+      actions.push({icon:"link", label:"Create SymLink"});
+      actions.push({sep:true});
+      actions.push({icon:"globe", label:"Serve over HTTP"});
+      actions.push({icon:"hdd", label:"Live Export to Disk"});
+      if (node.mode === modes.tree) {
+        type = "Folder";
+      }
+      else if (modes.isFile(node.mode)) {
+        type = "File";
+        actions.push({sep:true});
+        if (node.mode === modes.exec) {
+          actions.push({icon:"asterisk", label:"Make not Executable"});
+        }
+        else {
+          actions.push({icon:"asterisk", label:"Make Executable"});
+        }
+      }
+      else if (node.mode === modes.sym) {
+        type = "SymLink";
+      }
+      if (node.commit) {
+        actions.push({sep:true});
+        actions.push({icon:"bookmark", label:"Create a Commit"});
+        actions.push({icon:"download-cloud", label:"Pull from Remote"});
+        actions.push({icon:"upload-cloud", label:"Push to Remote"});
+      }
+      actions.push({sep:true});
+      if (node.parent) {
+        actions.push({icon:"pencil", label:"Rename " + type});
+        actions.push({icon:"trash", label:"Delete " + type});
+      }
+      else {
+        actions.push({icon:"pencil", label:"Rename Repo"});
+        actions.push({icon:"trash", label:"Remove Repo"});
+      }
+    }
+    else {
+      actions.push({icon:"git", label: "Create Empty Git Repo"});
+      actions.push({icon:"github", label: "Mount Github Repo"});
+    }
+    if (!actions.length) return;
     evt.preventDefault();
     evt.stopPropagation();
-    console.log("MENU", node);
+    contextMenu(evt, node, actions);
   }
 
   function toggleTree(node) {
@@ -60,6 +106,7 @@ define("tree2", function () {
 
     openPaths[node.fullPath] = true;
     prefs.set("openPaths", openPaths);
+    node.children = [];
     updateNode(node);
 
     Object.keys(node.tree).map(function (name) {
