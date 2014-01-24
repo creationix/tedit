@@ -14,6 +14,7 @@ define("tree2", function () {
   var selected = null;
   var active = null;
   var activePath;
+  var openPaths = prefs.get("openPaths", {});
 
   $.tree.addEventListener("click", onClick, false);
   $.tree.addEventListener("contextmenu", onContextMenu, false);
@@ -205,7 +206,6 @@ define("tree2", function () {
   }
 
   function toggleTree(node) {
-    var openPaths = prefs.get("openPaths", {});
 
     // If it's open, remove all children.
     if (node.children) {
