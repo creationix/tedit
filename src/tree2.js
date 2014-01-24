@@ -13,6 +13,7 @@ define("tree2", function () {
   var roots = [];
   var selected = null;
   var active = null;
+  var activePath;
 
   $.tree.addEventListener("click", onClick, false);
   $.tree.addEventListener("contextmenu", onContextMenu, false);
@@ -112,7 +113,10 @@ define("tree2", function () {
     Object.keys(node.tree).map(function (name) {
       var entry = node.tree[name];
       var path = node.path + "/" + name;
-      console.log(name, entry);
+      var fullPath = node.fullPath + "/" + name;
+      if (fullPath === activePath) {
+        return onChild(null, active);
+      }
       if (entry.mode !== modes.commit) return createNode(node.repo, path, onChild);
       var submodule = node.repo.submodules[path.substr(1)];
       if (!submodule) throw new Error("Invalid submodule " + path);
@@ -130,6 +134,7 @@ define("tree2", function () {
   // Add a child node in the correct sorted position
   function addChild(parent, child) {
     child.parent = parent;
+    child.fullPath = parent.fullPath + "/" + child.name;
     var children = parent.children;
     for (var i = 0, l = children.length; i < l; i++) {
       var other = children[i];
@@ -147,8 +152,15 @@ define("tree2", function () {
 
   function toggleNode(node) {
     var old = active;
-    if (node === active) active = null;
-    else active = node;
+    if (node === active) {
+      active = null;
+      activePath = null;
+    }
+    else {
+      active = node;
+      activePath = node.fullPath;
+      console.log(activePath);
+    }
     if (old) updateNode(old);
     if (active) updateNode(active);
     activateNode(active);
@@ -182,12 +194,13 @@ define("tree2", function () {
   }
 
   function addRoot(repo, hash, name) {
-    createCommitNode(repo, hash, name, function (err, commitNode) {
+    createCommitNode(repo, hash, name, function (err, node) {
       if (err) throw err;
-      if (!commitNode) throw new Error("Invalid commit hash: " + hash);
-      roots.push(commitNode);
-      updateNode(commitNode);
-      $.tree.appendChild(commitNode.el);
+      if (!node) throw new Error("Invalid commit hash: " + hash);
+      roots[name] = node;
+      node.fullPath = name;
+      updateNode(node);
+      $.tree.appendChild(node.el);
     });
   }
 
