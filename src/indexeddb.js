@@ -60,7 +60,7 @@ define("indexeddb", function () {
     var request = store.put(entry);
     request.onsuccess = function() {
       // console.log("SAVE", type, hash);
-      callback(null, hash);
+      callback(null, hash, body);
     };
     request.onerror = function(evt) {
       callback(new Error(evt.value));

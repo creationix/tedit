@@ -51,14 +51,17 @@ define("tree2", function () {
   function removeNode(node) {
     dialog.confirm("Are you sure you want to remove this node?", function (confirm) {
       if (!confirm) return;
-      throw "TODO: removeNode";
+      notifyParent(node, node.name);
     });
   }
 
   function renameNode(node) {
-    dialog.prompt("Enter new name.", node.name, function (name) {
-      if (!name || name === node.name) return;
-      throw "TODO: renameNode";
+    dialog.prompt("Enter new name.", node.name, function (newName) {
+      if (!newName || newName === node.name) return;
+      var oldName = node.name;
+      node.name = newName;
+      updateNode(node);
+      notifyParent(node, oldName, newName);
     });
   }
 
@@ -84,7 +87,78 @@ define("tree2", function () {
   }
 
   function toggleExec(node) {
-    throw "TODO: toggleExec";
+    node.mode = node.mode === modes.exec ? modes.blob : modes.exec;
+    updateNode(node);
+    notifyParent(node, node.name, node.name);
+  }
+
+  // This is a multi-function routine
+  // If oldName is null, it's a new child
+  // If newName is null, it's a child removal
+  // If they are different it's a rename
+  // If they are the same, the child changed in some other way.
+  // This assumes the node has the correct hash and mode already.
+  function notifyParent(node, oldName, newName) {
+    var parent = node.parent;
+    if (!parent) {
+      console.log(node.commit.hash);
+      return;
+    }
+    var repo = parent.repo;
+
+    // Clone old tree so we can make local modifications
+    var tree = {};
+    Object.keys(parent.tree).forEach(function (name) {
+      tree[name] = parent.tree[name];
+    });
+
+    if (oldName) {
+      delete tree[oldName];
+      removeChild(parent, node);
+      if (node.commit) {
+        delete parent.repo.submodules[oldName];
+      }
+    }
+    if (newName) {
+      if (node.commit) {
+        tree[newName] = {
+          mode: modes.commit,
+          hash: node.commit.hash
+        };
+        parent.repo.submodules[newName] = node.repo;
+      }
+      else {
+        tree[newName] = {
+          mode: node.mode,
+          hash: node.hash
+        };
+      }
+      addChild(parent, node);
+    }
+
+    repo.saveAs("tree", tree, function (err, hash, newTree) {
+      if (err) throw err;
+      parent.tree = newTree;
+      parent.hash = hash;
+      if (!parent.commit) {
+        return notifyParent(parent);
+      }
+      repo.root = hash;
+      updateNode(parent);
+      // Create a new temporary commit
+      repo.saveAs("commit", {
+        tree: hash,
+        parent: repo.head,
+        author: {name:"unknown", email: "unknown"},
+        message: "Temporary Changes"
+      }, function (err, hash, newCommit) {
+        if (err) throw err;
+        parent.commit = newCommit;
+        newCommit.hash = hash;
+        updateNode(parent);
+        return notifyParent(parent);
+      });
+    });
   }
 
   function createCommitNode(repo, hash, name, parent, callback) {
@@ -97,6 +171,7 @@ define("tree2", function () {
       commit.hash = hash;
       // Store the hash to the root tree
       repo.root = commit.tree;
+      repo.head = hash;
       // Create a tree node now
       createNode(repo, "", name, parent, onTreeNode);
     }
@@ -147,6 +222,14 @@ define("tree2", function () {
     }
   }
 
+  function removeChild(parent, child) {
+    var children = parent.children;
+    var index = children.indexOf(child);
+    if (index < 0) return;
+    children.splice(index, 1);
+    parent.ulEl.removeChild(child.el);
+  }
+
   // Add a child node in the correct sorted position
   function addChild(parent, child) {
     var children = parent.children;
@@ -165,6 +248,7 @@ define("tree2", function () {
   }
 
   function updateNode(node) {
+    node.nameEl.setAttribute("class", node.mode === modes.exec ? "executable" : "");
     node.nameEl.textContent = node.name;
     // Calculate the icon based on the node mode
     var icon = node.mode === modes.tree ?
@@ -180,6 +264,7 @@ define("tree2", function () {
     var classes = ["row"];
     if (selected === node)  classes.push("selected");
     if (active === node) classes.push("activated");
+    if (node.commit && node.repo.head !== node.commit.hash) classes.push("staged");
     node.rowEl.setAttribute("class", classes.join(" "));
   }
 
@@ -204,6 +289,16 @@ define("tree2", function () {
       var type;
       actions.push({icon:"globe", label:"Serve Over HTTP"});
       actions.push({icon:"hdd", label:"Live Export to Disk"});
+      if (node.commit) {
+        if (node.repo.head !== node.commit.hash) {
+          actions.push({sep:true});
+          actions.push({icon:"floppy", label:"Commit Changes"});
+          actions.push({icon:"ccw", label:"Revert all Changes"});
+        }
+        actions.push({sep:true});
+        actions.push({icon:"download-cloud", label:"Pull from Remote"});
+        actions.push({icon:"upload-cloud", label:"Push to Remote"});
+      }
       if (node.mode === modes.tree) {
         type = node.commit ? "Submodule" : "Folder";
         actions.push({sep:true});
@@ -225,12 +320,6 @@ define("tree2", function () {
       }
       else if (node.mode === modes.sym) {
         type = "SymLink";
-      }
-      if (node.commit) {
-        actions.push({sep:true});
-        actions.push({icon:"bookmark", label:"Create a Commit"});
-        actions.push({icon:"download-cloud", label:"Pull from Remote"});
-        actions.push({icon:"upload-cloud", label:"Push to Remote"});
       }
       actions.push({sep:true});
       if (node.parent) {

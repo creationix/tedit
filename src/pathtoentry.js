@@ -201,6 +201,8 @@ define("pathtoentry", function () {
 
     function onValue(err, value) {
       if (value === undefined) return callback(err);
+      // Don't let anyone change this value.
+      if (typeof value === "object") Object.freeze(value);
       cache[hash] = value;
       return walk();
     }
