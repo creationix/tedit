@@ -92,6 +92,10 @@ define("tree2", function () {
     notifyParent(node, node.name, node.name);
   }
 
+  function revertStaged(node) {
+    console.log(node);
+  }
+
   // This is a multi-function routine
   // If oldName is null, it's a new child
   // If newName is null, it's a child removal
@@ -293,7 +297,7 @@ define("tree2", function () {
         if (node.repo.head !== node.commit.hash) {
           actions.push({sep:true});
           actions.push({icon:"floppy", label:"Commit Changes"});
-          actions.push({icon:"ccw", label:"Revert all Changes"});
+          actions.push({icon:"ccw", label:"Revert all Changes", action: revertStaged});
         }
         actions.push({sep:true});
         actions.push({icon:"download-cloud", label:"Pull from Remote"});

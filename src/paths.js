@@ -2,7 +2,7 @@
 define("paths", function () {
 
   var modes = require('modes');
-  var addRoot = require('tree2');
+  var addRoot = require('tree3');
   var inner, outer;
 
   var author = {
@@ -74,9 +74,9 @@ define("paths", function () {
 
   function makeRepo(callback) {
     var repo = {};
-    require('pathtoentry')(repo);
     require('indexeddb')(repo, function (err) {
       if (err) return callback(err);
+      require('pathtoentry')(repo);
       callback(null, repo);
     });
   }
