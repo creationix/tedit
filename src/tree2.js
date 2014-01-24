@@ -23,6 +23,114 @@ define("tree2", function () {
     removeRoot: removeRoot
   };
 
+  function addRoot(repo, hash, name) {
+    createCommitNode(repo, hash, name, null, function (err, node) {
+      if (err) throw err;
+      if (!node) throw new Error("Invalid commit hash: " + hash);
+      roots[name] = node;
+      updateNode(node);
+      $.tree.appendChild(node.el);
+    });
+  }
+
+  function removeRoot(root) {
+    roots.splice(roots.indexOf(root), 1);
+    $.tree.removeChild(root.el);
+  }
+
+  function createCommitNode(repo, hash, name, parent, callback) {
+    var commit;
+    repo.loadAs("commit", hash, onCommit);
+
+    function onCommit(err, result) {
+      if (!result) return callback(err);
+      commit = result;
+      commit.hash = hash;
+      // Store the hash to the root tree
+      repo.root = commit.tree;
+      // Create a tree node now
+      createNode(repo, "", name, parent, onTreeNode);
+    }
+
+    function onTreeNode(err, node) {
+      if (!node) return callback(err);
+      // Store the commit data on the tree
+      node.commit = commit;
+
+      // Insert an icon to show this is a commit.
+      domBuilder(["i.icon-fork.tight$forkEl"], node);
+      node.rowEl.insertBefore(node.forkEl, node.nameEl);
+
+      callback(null, node);
+    }
+  }
+
+  function createNode(repo, path, name, parent, callback) {
+    var fullPath = parent ? parent.fullPath + "/" + name : name;
+    repo.pathToEntry(repo.root, path, onEntry);
+
+    function onEntry(err, node) {
+      if (!node) return callback(err);
+
+      // Store the path within this repo for future reference
+      node.path = path;
+      node.name = name;
+      node.fullPath = fullPath;
+      node.parent = parent;
+
+      // Build the skeleton dom elements
+      domBuilder(["li$el",
+        [".row$rowEl", ["i$iconEl"], ["span$nameEl", name] ],
+      ], node);
+
+      // Create a back-reference for the event-delegation code to find
+      node.rowEl.js = node;
+
+      // Trees add a ul element
+      if (modes.isTree(node.mode)) {
+        node.el.appendChild(domBuilder(["ul$ulEl"], node));
+      }
+
+      callback(null, node);
+    }
+  }
+
+  // Add a child node in the correct sorted position
+  function addChild(parent, child) {
+    var children = parent.children;
+    for (var i = 0, l = children.length; i < l; i++) {
+      var other = children[i];
+      if (other.name + "/" < child.name + "/") break;
+    }
+    if (i < l) {
+      parent.ulEl.insertBefore(child.el, children[i].el);
+      children.splice(i, 0, child);
+    }
+    else {
+      parent.ulEl.appendChild(child.el);
+      children.push(child);
+    }
+  }
+
+  function updateNode(node) {
+    node.nameEl.textContent = node.name;
+    // Calculate the icon based on the node mode
+    var icon = node.mode === modes.tree ?
+      node.children ? "folder-open" : "folder" :
+      modes.isFile(node.mode) ? "doc" :
+      node.mode === modes.sym ? "link" : "asterisk";
+    node.iconEl.setAttribute("class", "icon-" + icon);
+    node.iconEl.setAttribute("title", modes.toType(node.mode) + " " + node.hash);
+    if (node.commit) {
+      node.forkEl.setAttribute("title", "commit " + node.commit.hash);
+      node.nameEl.setAttribute("title", node.commit.message);
+    }
+    var classes = ["row"];
+    if (selected === node)  classes.push("selected");
+    if (active === node) classes.push("activated");
+    node.rowEl.setAttribute("class", classes.join(" "));
+  }
+
   function findJs(node) {
     while (!node.js && node !== $.tree) node = node.parentElement;
     return node.js;
@@ -117,10 +225,10 @@ define("tree2", function () {
       if (fullPath === activePath) {
         return onChild(null, active);
       }
-      if (entry.mode !== modes.commit) return createNode(node.repo, path, onChild);
+      if (entry.mode !== modes.commit) return createNode(node.repo, path, name, node, onChild);
       var submodule = node.repo.submodules[path.substr(1)];
       if (!submodule) throw new Error("Invalid submodule " + path);
-      createCommitNode(submodule, entry.hash, name, onChild);
+      createCommitNode(submodule, entry.hash, name, node, onChild);
     });
 
     function onChild(err, child) {
@@ -128,25 +236,6 @@ define("tree2", function () {
       if (!child) throw new Error("Broken child");
       updateNode(child);
       addChild(node, child);
-    }
-  }
-
-  // Add a child node in the correct sorted position
-  function addChild(parent, child) {
-    child.parent = parent;
-    child.fullPath = parent.fullPath + "/" + child.name;
-    var children = parent.children;
-    for (var i = 0, l = children.length; i < l; i++) {
-      var other = children[i];
-      if (other.name + "/" < child.name + "/") break;
-    }
-    if (i < l) {
-      parent.ulEl.insertBefore(child.el, children[i].el);
-      children.splice(i, 0, child);
-    }
-    else {
-      parent.ulEl.appendChild(child.el);
-      children.push(child);
     }
   }
 
@@ -159,7 +248,6 @@ define("tree2", function () {
     else {
       active = node;
       activePath = node.fullPath;
-      console.log(activePath);
     }
     if (old) updateNode(old);
     if (active) updateNode(active);
@@ -193,99 +281,7 @@ define("tree2", function () {
     }
   }
 
-  function addRoot(repo, hash, name) {
-    createCommitNode(repo, hash, name, function (err, node) {
-      if (err) throw err;
-      if (!node) throw new Error("Invalid commit hash: " + hash);
-      roots[name] = node;
-      node.fullPath = name;
-      updateNode(node);
-      $.tree.appendChild(node.el);
-    });
-  }
 
-  function createNode(repo, path, callback) {
-    repo.pathToEntry(repo.root, path, onEntry);
-
-    function onEntry(err, node) {
-      if (!node) return callback(err);
-
-      // Store the path within this repo for future reference
-      node.path = path;
-
-      node.name = path.substr(path.lastIndexOf("/") + 1);
-
-      // Build the skeleton dom elements
-      domBuilder(["li$el",
-        [".row$rowEl", ["i$iconEl"], ["span$nameEl", name] ],
-      ], node);
-
-      // Create a back-reference for the event-delegation code to find
-      node.rowEl.js = node;
-
-      // Trees add a ul element
-      if (modes.isTree(node.mode)) {
-        node.el.appendChild(domBuilder(["ul$ulEl"], node));
-      }
-
-      callback(null, node);
-    }
-  }
-
-  function createCommitNode(repo, hash, name, callback) {
-    var commit;
-    repo.loadAs("commit", hash, onCommit);
-
-    function onCommit(err, result) {
-      if (!result) return callback(err);
-      commit = result;
-      commit.hash = hash;
-      // Store the hash to the root tree
-      repo.root = commit.tree;
-      // Create a tree node now
-      createNode(repo, "", onTreeNode);
-    }
-
-    function onTreeNode(err, node) {
-      if (!node) return callback(err);
-      // Store the commit data on the tree
-      node.commit = commit;
-
-      // Insert an icon to show this is a commit.
-      domBuilder(["i.icon-fork.tight$forkEl"], node);
-      node.rowEl.insertBefore(node.forkEl, node.nameEl);
-
-      // Store the custom name since the path is ""
-      node.name = name;
-
-      callback(null, node);
-    }
-  }
-
-  function updateNode(node) {
-    node.nameEl.textContent = node.name;
-    // Calculate the icon based on the node mode
-    var icon = node.mode === modes.tree ?
-      node.children ? "folder-open" : "folder" :
-      modes.isFile(node.mode) ? "doc" :
-      node.mode === modes.sym ? "link" : "asterisk";
-    node.iconEl.setAttribute("class", "icon-" + icon);
-    node.iconEl.setAttribute("title", modes.toType(node.mode) + " " + node.hash);
-    if (node.commit) {
-      node.forkEl.setAttribute("title", "commit " + node.commit.hash);
-      node.nameEl.setAttribute("title", node.commit.message);
-    }
-    var classes = ["row"];
-    if (selected === node)  classes.push("selected");
-    if (active === node) classes.push("activated");
-    node.rowEl.setAttribute("class", classes.join(" "));
-  }
-
-
-  function removeRoot(root) {
-    roots.splice(roots.indexOf(root), 1);
-    $.tree.removeChild(root.el);
-  }
 
 
 });
