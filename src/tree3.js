@@ -12,11 +12,13 @@ define("tree3", function () {
   var dialog = require('dialog');
   require('zoom');
 
-  var openedPaths = prefs.get("openPaths", {});
+  var openPaths = prefs.get("openPaths", {});
   var selectedPath = "";
   var activePath = "";
   // repos by path
   var repos = {};
+
+  var roots = [];
 
 
   $.tree.addEventListener("click", onClick, false);
@@ -26,11 +28,24 @@ define("tree3", function () {
 
   function addRoot(repo, hash, name) {
     findRepos(repo, name);
-    console.log(repos);
-    renderCommit(repo, hash, name, name, function (err, ui) {
-      if (err) throw err;
-      $.tree.appendChild(domBuilder(ui));
+    roots.push({repo:repo, hash:hash, name:name});
+    refresh();
+  }
+
+  function refresh() {
+    var left = 0;
+    var items = [];
+    roots.forEach(function (root) {
+      left++;
+      renderCommit(root.repo, root.hash, root.name, root.name, function (err, ui) {
+        if (err) throw err;
+        items.push(domBuilder(ui));
+        if (--left) return;
+        $.tree.textContent = "";
+        $.tree.appendChild(domBuilder(items));
+      });
     });
+
   }
 
   function findRepos(repo, path) {
@@ -57,7 +72,7 @@ define("tree3", function () {
   function renderNode(hash, mode, name, path) {
     var icon = modes.isFile(mode) ? "doc" :
       mode === modes.sym ? "link" :
-      openedPaths[path] ? "folder-open" : "folder";
+      openPaths[path] ? "folder-open" : "folder";
     return ["li",
       [".row", {"data-hash":hash, "data-path":path, "data-mode":mode.toString(8)},
         ["i.icon-" + icon],
@@ -69,7 +84,7 @@ define("tree3", function () {
   function renderTree(repo, hash, name, path, callback) {
     repo.loadAs("tree", hash, function (err, tree) {
       if (!tree) return callback(err || new Error("Missing tree " + hash));
-      var open = openedPaths[path];
+      var open = openPaths[path];
       var ui = renderNode(hash, modes.tree, name, path);
       var names = Object.keys(tree);
       if (!open || !names.length) return callback(null, ui);
@@ -117,6 +132,13 @@ define("tree3", function () {
     if (!node) return;
     evt.preventDefault();
     evt.stopPropagation();
+    var mode = parseInt(node.mode, 8);
+    if (mode === modes.tree) {
+      if (openPaths[node.path]) delete openPaths[node.path];
+      else openPaths[node.path] = true;
+      prefs.set("openPaths", openPaths);
+      return refresh();
+    }
     console.log("click", node);
   }
 
