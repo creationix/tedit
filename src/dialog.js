@@ -6,7 +6,7 @@ define("dialog", function () {
 
   // dialog.alert = alertDialog;
   dialog.prompt = promptDialog;
-  // dialog.confirm = confirmDialog;
+  dialog.confirm = confirmDialog;
 
   return dialog;
 
@@ -16,7 +16,7 @@ define("dialog", function () {
     evt.preventDefault();
   }
 
-  function dialog(title, contents) {
+  function dialog(title, contents, onCancel) {
     var $ = { close: closeDialog };
     document.body.appendChild(domBuilder([
       [".shield$shield", {onclick: cancel}],
@@ -33,7 +33,7 @@ define("dialog", function () {
 
     function cancel(evt) {
       nullify(evt);
-      $.onCancel();
+      onCancel();
     }
 
     function closeDialog() {
@@ -42,16 +42,15 @@ define("dialog", function () {
     }
   }
 
-  function promptDialog(prompt, callback) {
+  function promptDialog(prompt, value, callback) {
     var $ = dialog(prompt, [
       ["form", {onsubmit: submit},
         [".input",
-          ["input.input-field$input"],
+          ["input.input-field$input", {value:value}],
           ["input.input-item", {type:"submit",value:"OK"}]
         ]
       ]
-    ]);
-    $.onCancel = onCancel;
+    ], onCancel);
     $.input.focus();
     return $;
 
@@ -65,7 +64,32 @@ define("dialog", function () {
       $.close();
       callback($.input.value);
     }
+  }
 
+  function confirmDialog(question, callback) {
+    var $ = dialog("Confirm", [
+      ["p", question],
+      ["form", {onsubmit: submit},
+        [".input",
+          ["input.input-field$yes", {type:"submit",value:"Yes"}],
+          ["input.input-item", {type:"button",value:"No",onclick:onCancel}]
+        ]
+      ]
+    ], onCancel);
+    $.yes.focus();
+    return $;
+
+    function onCancel(evt) {
+      nullify(evt);
+      $.close();
+      callback();
+    }
+
+    function submit(evt) {
+      nullify(evt);
+      $.close();
+      callback(true);
+    }
   }
 
 });

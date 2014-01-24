@@ -33,29 +33,58 @@ define("tree2", function () {
   }
 
   function removeRoot(root) {
-    delete roots[root.name];
-    // TODO: purge paths related to this
-    $.tree.removeChild(root.el);
+    dialog.confirm("Are you sure you want to remove this entire repository?", function (confirm) {
+      if (!confirm) return;
+      delete roots[root.name];
+      // TODO: purge paths related to this
+      $.tree.removeChild(root.el);
+    });
   }
 
   function renameRoot(root) {
-    throw "TODO: renameRoot";
+    dialog.prompt("Enter name for new repository", root.name, function (name) {
+      if (!name || name === root.name) return;
+      throw "TODO: renameRoot";
+    });
+  }
+
+  function removeNode(node) {
+    dialog.confirm("Are you sure you want to remove this node?", function (confirm) {
+      if (!confirm) return;
+      throw "TODO: removeNode";
+    });
+  }
+
+  function renameNode(node) {
+    dialog.prompt("Enter name for new", node.name, function (name) {
+      if (!name || name === node.name) return;
+      throw "TODO: renameNode";
+    });
   }
 
   function createFile(parent) {
-    dialog.prompt("Enter name for new file", function (name) {
-      console.log("onPrompt", [name])
+    dialog.prompt("Enter name for new file", "", function (name) {
       if (!name) return;
       throw "TODO: createFile";
     });
   }
 
   function createFolder(parent) {
-    throw "TODO: createFolder";
+    dialog.prompt("Enter name for new folder", "", function (name) {
+      if (!name) return;
+      throw "TODO: createFolder";
+    });
   }
 
   function createSymLink(parent) {
-    throw "TODO: createSymLink";
+    dialog.prompt("Enter name for new sym-link", "", function (name) {
+      if (!name) return;
+      throw "TODO: createSymLink";
+    });
+  }
+
+  function toggleExec(node) {
+    throw "TODO: toggleExec";
   }
 
   function createCommitNode(repo, hash, name, parent, callback) {
@@ -189,12 +218,10 @@ define("tree2", function () {
       else if (modes.isFile(node.mode)) {
         type = "File";
         actions.push({sep:true});
-        if (node.mode === modes.exec) {
-          actions.push({icon:"asterisk", label:"Make not Executable"});
-        }
-        else {
-          actions.push({icon:"asterisk", label:"Make Executable"});
-        }
+        var label = (node.mode === modes.exec) ?
+          "Make not Executable" :
+          "Make Executable";
+        actions.push({icon:"asterisk", label: label, action: toggleExec});
       }
       else if (node.mode === modes.sym) {
         type = "SymLink";
@@ -207,8 +234,8 @@ define("tree2", function () {
       }
       actions.push({sep:true});
       if (node.parent) {
-        actions.push({icon:"pencil", label:"Rename " + type});
-        actions.push({icon:"trash", label:"Delete " + type});
+        actions.push({icon:"pencil", label:"Rename " + type, action: renameNode});
+        actions.push({icon:"trash", label:"Delete " + type, action: removeNode});
       }
       else {
         actions.push({icon:"pencil", label:"Rename Repo", action: renameRoot});

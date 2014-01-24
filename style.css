@@ -255,15 +255,18 @@ body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
   border-right: 0
 }
 
+.input-item[type=submit], .input-field[type=submit] {
+  background-color: #EED1B3;
+}
 .input-item {
-  background-color: rgba(147,128,108,0.3);
-  color: #666;
+  background-color: #ddd;
+  color: #000;
   font: inherit;
-  font-weight: 400
+  font-weight: 400;
 }
 
 .input-field,.input-item {
-  border: 1px solid rgba(147,128,108,.25);
+  border: 1px solid #888;
   padding: .5em .75em
 }
 
