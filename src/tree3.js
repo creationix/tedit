@@ -73,8 +73,11 @@ define("tree3", function () {
     var icon = modes.isFile(mode) ? "doc" :
       mode === modes.sym ? "link" :
       openPaths[path] ? "folder-open" : "folder";
+    var classes = ["row"];
+    if (selectedPath === path) classes.push("selected");
+    if (activePath === path) classes.push("activated");
     return ["li",
-      [".row", {"data-hash":hash, "data-path":path, "data-mode":mode.toString(8)},
+      ["div", {"data-hash":hash, "data-path":path, "data-mode":mode.toString(8), "class": classes.join(" ")},
         ["i.icon-" + icon],
         ["span", name]
       ]
