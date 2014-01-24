@@ -13,25 +13,40 @@ define("pathtoentry", function () {
   return function (repo) {
     if (!repo.submodules) repo.submodules = {};
     repo.pathToEntry = pathToEntry;
-    repo.getCached = getCached;
-    repo.loadAsCached = loadAsCached;
+    var loadAs = repo.loadAs;
+    repo.loadAs = loadAsCached;
+    var saveAs = repo.saveAs;
+    repo.saveAs = saveAsCached;
+
+    // Monkeypatch loadAs to cache non-blobs
+    function loadAsCached(type, hash, callback) {
+      if (!callback) return loadAsCached.bind(repo, type, hash);
+      if (hash in cache) return callback(null, cache[hash]);
+      if (type === "blob" || type === "text") {
+        return loadAs.apply(repo, arguments);
+      }
+      loadAs.call(repo, type, hash, function (err, body, hash) {
+        if (body === undefined) return callback(err);
+        cache[hash] = body;
+        callback(null, body, hash);
+      });
+    }
+
+    // Monkeypatch saveAs to cache non-blobs
+    function saveAsCached(type, body, callback) {
+      if (!callback) return saveAsCached.bind(repo, type, body);
+      if (type === "blob" || type === "text") {
+        return saveAs.apply(repo, arguments);
+      }
+      saveAs.call(repo, type, body, function (err, hash, body) {
+        if (err) return callback(err);
+        cache[hash] = body;
+        callback(null, hash, body);
+      });
+    }
+
   };
 
-  function getCached(hash) {
-    return cache[hash];
-  }
-
-  function loadAsCached(type, hash, callback) {
-    var repo = this;
-    if (!callback) return loadAsCached.bind(repo, type, hash);
-    if (hash in cache) return callback();
-    repo.loadAs(type, hash, function (err, body) {
-      if (err) return callback(err);
-      if (!body) return callback(new Error("No such hash: " + hash));
-      cache[hash] = body;
-      callback();
-    });
-  }
 
   function pathToEntry(root, path, callback) {
     var repo = this;
