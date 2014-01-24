@@ -56,28 +56,28 @@ define("tree2", function () {
   }
 
   function renameNode(node) {
-    dialog.prompt("Enter name for new", node.name, function (name) {
+    dialog.prompt("Enter new name.", node.name, function (name) {
       if (!name || name === node.name) return;
       throw "TODO: renameNode";
     });
   }
 
   function createFile(parent) {
-    dialog.prompt("Enter name for new file", "", function (name) {
+    dialog.prompt("Enter name for new file.", "", function (name) {
       if (!name) return;
       throw "TODO: createFile";
     });
   }
 
   function createFolder(parent) {
-    dialog.prompt("Enter name for new folder", "", function (name) {
+    dialog.prompt("Enter name for new folder.", "", function (name) {
       if (!name) return;
       throw "TODO: createFolder";
     });
   }
 
   function createSymLink(parent) {
-    dialog.prompt("Enter name for new sym-link", "", function (name) {
+    dialog.prompt("Enter name for new sym-link.", "", function (name) {
       if (!name) return;
       throw "TODO: createSymLink";
     });
