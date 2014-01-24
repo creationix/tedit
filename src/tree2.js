@@ -96,6 +96,9 @@ define("tree2", function () {
       // Trees add a ul element
       if (modes.isTree(node.mode)) {
         node.el.appendChild(domBuilder(["ul$ulEl"], node));
+        if (openPaths[fullPath]) {
+          toggleTree(node);
+        }
       }
 
       callback(null, node);
