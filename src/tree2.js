@@ -20,7 +20,8 @@ define("tree2", function () {
 
   return {
     addRoot: addRoot,
-    removeRoot: removeRoot
+    removeRoot: removeRoot,
+    renameRoot: renameRoot
   };
 
   function addRoot(repo, hash, name) {
@@ -34,8 +35,13 @@ define("tree2", function () {
   }
 
   function removeRoot(root) {
-    roots.splice(roots.indexOf(root), 1);
+    delete roots[root.name];
+    // TODO: purge paths related to this
     $.tree.removeChild(root.el);
+  }
+
+  function renameRoot(root, newName) {
+    throw "TODO: renameRoot";
   }
 
   function createCommitNode(repo, hash, name, parent, callback) {
@@ -184,8 +190,8 @@ define("tree2", function () {
         actions.push({icon:"trash", label:"Delete " + type});
       }
       else {
-        actions.push({icon:"pencil", label:"Rename Repo"});
-        actions.push({icon:"trash", label:"Remove Repo"});
+        actions.push({icon:"pencil", label:"Rename Repo", action: renameRoot});
+        actions.push({icon:"trash", label:"Remove Repo", action: removeRoot});
       }
     }
     else {
