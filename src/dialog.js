@@ -45,17 +45,17 @@ define("dialog", function () {
   function promptDialog(prompt, callback) {
     var $ = dialog(prompt, [
       ["form", {onsubmit: submit},
-        ["input$input"],
-        ["input", {type:"submit",value:"OK"}],
-        ["input", {type:"button",value:"Cancel",onclick:onCancel}]
+        [".input",
+          ["input.input-field$input"],
+          ["input.input-item", {type:"submit",value:"OK"}]
+        ]
       ]
     ]);
     $.onCancel = onCancel;
     $.input.focus();
     return $;
 
-    function onCancel(evt) {
-      nullify(evt);
+    function onCancel() {
       $.close();
       callback();
     }

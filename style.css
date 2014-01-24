@@ -212,34 +212,67 @@ body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
 .dialog {
   box-shadow: 0 0 10px rgba(0,0,0,0.7);
   z-index: 12;
-  background-color: #999;
+  background-color: #bbb;
   color: #000;
   display: flex;
   flex-direction: column;
+  font-size: 16px;
 }
 
 .dialog .title {
   background-color: #3a3a3a;
   color: #fff;
   line-height: 30px;
-  font-size: 16px;
   height: 30px;
   display: flex;
 }
 .dialog .title .content {
   text-align: center;
-  flex: 1
+  flex: 1;
+  padding: 0 10px;
 }
 .dialog .title .closebox {
   position: static;
 }
 .dialog .body {
+  padding: 0.5em 0.5em 0 0.5em;
+}
+
+.input {
+  display: flex;
+  margin-bottom: 0.5em
+}
+
+.input-field {
   flex: 1
 }
 
-.dialog .contents {
-  display: block;
-  width: 100%;
+.input-field:not(:first-child) {
+  border-left: 0
+}
+
+.input-field:not(:last-child) {
+  border-right: 0
+}
+
+.input-item {
+  background-color: rgba(147,128,108,0.3);
+  color: #666;
+  font: inherit;
+  font-weight: 400
+}
+
+.input-field,.input-item {
+  border: 1px solid rgba(147,128,108,.25);
+  padding: .5em .75em
+}
+
+.input-field:first-child,.input-item:first-child {
+  border-radius: 2px 0 0 2px
+}
+
+.input-field:last-child,.input-item:last-child {
+  border-radius: 0 2px 2px 0
 }
 
 .shield {
