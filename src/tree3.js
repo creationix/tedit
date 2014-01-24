@@ -24,6 +24,7 @@ define("tree3", function () {
   $.tree.addEventListener("click", onClick, false);
   $.tree.addEventListener("contextmenu", onContextMenu, false);
 
+  addRoot.refresh = refresh;
   return addRoot;
 
   function addRoot(repo, hash, name) {
@@ -136,12 +137,16 @@ define("tree3", function () {
     evt.preventDefault();
     evt.stopPropagation();
     var mode = parseInt(node.mode, 8);
+
+    // Trees toggle on click
     if (mode === modes.tree) {
       if (openPaths[node.path]) delete openPaths[node.path];
       else openPaths[node.path] = true;
       prefs.set("openPaths", openPaths);
       return refresh();
     }
+
+
     console.log("click", node);
   }
 
