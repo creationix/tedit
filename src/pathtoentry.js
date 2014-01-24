@@ -13,15 +13,17 @@ define("pathtoentry", function () {
   return function (repo) {
     if (!repo.submodules) repo.submodules = {};
     repo.pathToEntry = pathToEntry;
-    var loadAs = repo.loadAs;
-    repo.loadAs = loadAsCached;
-    var saveAs = repo.saveAs;
-    repo.saveAs = saveAsCached;
+    // var loadAs = repo.loadAs;
+    // repo.loadAs = loadAsCached;
+    // var saveAs = repo.saveAs;
+    // repo.saveAs = saveAsCached;
 
     // Monkeypatch loadAs to cache non-blobs
     function loadAsCached(type, hash, callback) {
       if (!callback) return loadAsCached.bind(repo, type, hash);
-      if (hash in cache) return callback(null, cache[hash]);
+      if (hash in cache) {
+        return callback(null, cache[hash]);
+      }
       if (type === "blob" || type === "text") {
         return loadAs.apply(repo, arguments);
       }
@@ -34,7 +36,9 @@ define("pathtoentry", function () {
 
     // Monkeypatch saveAs to cache non-blobs
     function saveAsCached(type, body, callback) {
-      if (!callback) return saveAsCached.bind(repo, type, body);
+      if (!callback) {
+        return saveAsCached.bind(repo, type, body);
+      }
       if (type === "blob" || type === "text") {
         return saveAs.apply(repo, arguments);
       }

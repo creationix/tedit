@@ -74,11 +74,16 @@ define("paths", function () {
 
   function makeRepo(callback) {
     var repo = {};
-    require('indexeddb')(repo, function (err) {
-      if (err) return callback(err);
-      require('pathtoentry')(repo);
-      callback(null, repo);
-    });
+    require('memdb')(repo);
+    require('pathtoentry')(repo);
+    callback(null, repo);
+
+
+    // require('indexeddb')(repo, function (err) {
+    //   if (err) return callback(err);
+    //   require('pathtoentry')(repo);
+    //   callback(null, repo);
+    // });
   }
 
 });
