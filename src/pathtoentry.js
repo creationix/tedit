@@ -186,7 +186,7 @@ define("pathtoentry", function () {
       if (modes.isTree(mode)) {
         cached = cache[hash];
         if (!cached) return repo.loadAs("tree", hash, onValue);
-        result = { tree: cached };
+        result = { tree: encoders.normalizeAs("tree", cached) };
       }
       else if (modes.isSymLink(mode)) {
         cached = cache[hash];
@@ -196,7 +196,7 @@ define("pathtoentry", function () {
       else if (modes.isCommit(mode)) {
         cached = cache[hash];
         if (!cached) return repo.loadAs("commit", hash, onValue);
-        result = { commit: cached };
+        result = { commit: encoders.normalizeAs("commit", cached) };
       }
       else {
         result = {};
