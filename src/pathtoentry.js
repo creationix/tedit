@@ -3,6 +3,7 @@ define("pathtoentry", function () {
   "use strict";
 
   var modes = require('modes');
+  var encoders = require('encoders');
 
   // Cache the tree entries by hash for faster path lookup.
   var cache = {};
@@ -22,8 +23,8 @@ define("pathtoentry", function () {
     function loadAsCached(type, hash, callback) {
       if (!callback) return loadAsCached.bind(repo, type, hash);
       if (hash in cache) {
-        // console.log("LOAD CACHED", hash);
-        return callback(null, cache[hash]);
+        console.log("LOAD CACHED", hash);
+        return callback(null, encoders.normalizeAs(type, cache[hash]));
       }
       if (type === "blob" || type === "text") {
         return loadAs.apply(repo, arguments);
