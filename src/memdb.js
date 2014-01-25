@@ -40,8 +40,7 @@ define("memdb", function () {
         if (!types[hash]) return callback();
         if (realType !== types[hash]) return callback(new TypeError("Type mismatch"));
         var result = objects[hash];
-        if (type === "text") result = binary.decodeUtf8(result);
-        if (type === "blob") result = binary.fromRaw(result);
+        if (type === "text") result = binary.toUnicode(result);
         callback(null, result, hash);
       });
     }

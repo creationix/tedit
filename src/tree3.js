@@ -1,4 +1,4 @@
-/*global define, ace*/
+/*global define, ace, URL*/
 define("tree3", function () {
   var $ = require('elements');
   var modes = require('modes');
@@ -12,9 +12,19 @@ define("tree3", function () {
   var dialog = require('dialog');
   require('zoom');
 
+  var imagetypes = {
+    gif:  "image/gif",
+    jpg:  "image/jpeg",
+    jpeg: "image/jpeg",
+    png:  "image/png",
+    svg:  "image/svg+xml",
+  };
+
   var openPaths = prefs.get("openPaths", {});
   var selectedPath = "";
   var activePath = "";
+  // Active documents by path
+  var docPaths = {};
   // repos by path
   var repos = {};
 
@@ -137,17 +147,80 @@ define("tree3", function () {
     evt.preventDefault();
     evt.stopPropagation();
     var mode = parseInt(node.mode, 8);
+    var path = node.path;
 
     // Trees toggle on click
     if (mode === modes.tree) {
-      if (openPaths[node.path]) delete openPaths[node.path];
-      else openPaths[node.path] = true;
+      if (openPaths[path]) delete openPaths[path];
+      else openPaths[path] = true;
       prefs.set("openPaths", openPaths);
       return refresh();
     }
 
+    activate(node);
 
-    console.log("click", node);
+  }
+
+  function activate(node) {
+    var path = node.path;
+    if (activePath === path) {
+      activePath = null;
+      refresh();
+      return loadDoc();
+    }
+    activePath = node.path;
+    refresh();
+    var doc = docPaths[path];
+    if (doc) return loadDoc(doc);
+    var repo = findRepo(path);
+    if (!repo) throw new Error("Missing repo for " + path);
+    var name = path.substr(path.lastIndexOf("/") + 1);
+    return repo.loadAs("blob", node.hash, function (err, buffer) {
+      if (err) throw err;
+      var imageMime = imagetypes[path.substr(path.lastIndexOf(".") + 1)];
+      if (imageMime) {
+        doc = docPaths[path] = {
+          tiled: false,
+          name: name,
+          url: URL.createObjectURL(new Blob([buffer], {type: imageMime}))
+        };
+        return loadDoc(doc);
+      }
+
+      var mode = modelist.getModeForPath(name);
+      var code;
+
+      try {
+        code = binary.toUnicode(buffer);
+      }
+      catch (err) {
+        // Data is not unicode!
+        return;
+      }
+      doc = docPaths[path] = ace.createEditSession(code, mode.mode);
+      doc.name = name;
+      whitespace.detectIndentation(doc);
+      loadDoc(doc);
+    });
+
+
+  }
+
+  function loadDoc(doc, soft) {
+    editor.setDoc(doc);
+    if (!soft) editor.focus();
+  }
+
+  function findRepo(path) {
+    var keys = Object.keys(repos);
+    var longest = "";
+    for (var i = 0, l = keys.length; i < l; i++) {
+      var key = keys[i];
+      if (key.length < longest) continue;
+      if (path.substr(0, key.length) !== key) continue;
+      longest = key;
+    }
+    if (longest) return repos[longest];
   }
 
   function onContextMenu(evt) {

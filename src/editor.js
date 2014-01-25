@@ -20,10 +20,7 @@ define("editor", function () {
 
   var session = ace.createEditSession(code, "ace/mode/jack");
   whitespace.detectIndentation(session);
-  var defaultNode = {
-    name: "welcome.jk",
-    doc: session
-  };
+  session.name = "welcome.jk";
 
   $.image.addEventListener("click", function (evt) {
     evt.stopPropagation();
@@ -34,17 +31,17 @@ define("editor", function () {
     }
   }, false);
 
-  editor.setNode = function (node) {
-    if (!node) node = defaultNode;
+  editor.setDoc = function (doc) {
+    if (!doc) doc = session;
 
-    if ("tiled" in node.doc) {
+    if ("tiled" in doc) {
       // This is an image url.
       if (textMode) {
         textMode = false;
         $.preview.style.display = "block";
         $.editor.style.display = "none";
       }
-      currentImage = node.doc;
+      currentImage = doc;
       return updateImage();
     }
     if (!textMode) {
@@ -53,11 +50,11 @@ define("editor", function () {
       $.preview.style.display = "none";
       $.editor.style.display = "block";
     }
-    editor.setSession(node.doc);
-    $.titlebar.textContent = node.name;
+    editor.setSession(doc);
+    $.titlebar.textContent = doc.name;
   };
 
-  editor.setNode();
+  editor.setDoc();
 
   require('zoom')(onZoom);
 
