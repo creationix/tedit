@@ -26,7 +26,6 @@ define("memdb", function () {
         }
         catch (err) { return callback(err); }
         console.log("SAVE", name, hash);
-        if (type === "tree" || type === "tag" || type === "commit") Object.freeze(body);
         objects[hash] = body;
         types[hash] = type;
         callback(null, hash, body);
@@ -41,6 +40,7 @@ define("memdb", function () {
         if (realType !== types[hash]) return callback(new TypeError("Type mismatch"));
         var result = objects[hash];
         if (type === "text") result = binary.toUnicode(result);
+        else if (type !== "blob") result = encoders.normalizeAs(type, result);
         callback(null, result, hash);
       });
     }
