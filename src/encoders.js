@@ -19,6 +19,7 @@ define("encoders", function () {
     encodeCommit: encodeCommit,
     encodeTag: encodeTag,
     hashAs: hashAs,
+    pathCmp: pathCmp
   };
 
   function test() {

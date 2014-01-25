@@ -7,6 +7,7 @@ define("tree3", function () {
   var modelist = ace.require('ace/ext/modelist');
   var whitespace = ace.require('ace/ext/whitespace');
   var contextMenu = require('context-menu');
+  var pathCmp = require('encoders').pathCmp;
   var prefs = require('prefs');
   var binary = require('binary');
   var dialog = require('dialog');
@@ -120,7 +121,7 @@ define("tree3", function () {
       if (!open || !names.length) return callback(null, ui);
       var left = names.length;
       var children = new Array(left);
-      Object.keys(tree).forEach(function (name, i) {
+      Object.keys(tree).sort(pathCmp).forEach(function (name, i) {
         var childPath = path ? path + "/" + name : name;
         var entry = tree[name];
         if (modes.isBlob(entry.mode)) {
@@ -351,12 +352,48 @@ define("tree3", function () {
   }
 
   function createFile(node) {
+    var chain;
+    var tree;
+    var name;
+    var repo;
+    var entry;
+    getChain(node.path, function (err, result) {
+      if (err) throw err;
+      chain = result;
+      var entry = chain[chain.length - 1];
+      tree = entry.tree;
+      name = entry.name;
+      repo = entry.repo;
+      prompt();
+    });
+    function prompt() {
+      dialog.prompt("Enter name for new file.", "", onName);
+    }
+    function onName(name) {
+      if (!name) return;
+      if (name in tree) return prompt();
+      entry = tree[name] = { mode: modes.blob, hash: null };
+      repo.saveAs("blob", "", onBlob);
+    }
+    function onBlob(err, hash) {
+      if (err) throw err;
+      entry.hash = hash;
+      saveTree(chain);
+    }
   }
 
   function createFolder(node) {
+    dialog.prompt("Enter name for new folder.", "", function (name) {
+      if (!name) return;
+      throw "TODO: createFolder";
+    });
   }
 
   function createSymLink(node) {
+    dialog.prompt("Enter name for new sym-link.", "", function (name) {
+      if (!name) return;
+      throw "TODO: createSymLink";
+    });
   }
 
   function toggleExec(node) {
