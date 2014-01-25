@@ -339,6 +339,17 @@ define("tree3", function () {
     });
   }
 
+  function revertChanges(node) {
+    getChain(node.path, function (err, chain) {
+      if (err) throw err;
+      chain.pop(); // Throw away the tree
+      var entry = chain.pop();
+      var hash = entry.repo.head;
+      var name = entry.name;
+      saveChain(chain, name, hash);
+    });
+  }
+
   function createFile(node) {
   }
 
@@ -415,7 +426,7 @@ define("tree3", function () {
         if (repo.head !== node.commitHash) {
           actions.push({sep:true});
           actions.push({icon:"floppy", label:"Commit Changes"});
-          actions.push({icon:"ccw", label:"Revert all Changes"});
+          actions.push({icon:"ccw", label:"Revert all Changes", action: revertChanges});
         }
         actions.push({sep:true});
         actions.push({icon:"download-cloud", label:"Pull from Remote"});
