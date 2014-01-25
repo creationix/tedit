@@ -365,14 +365,14 @@ define("tree3", function () {
       tree = entry.tree;
       name = entry.name;
       repo = entry.repo;
-      prompt();
+      doPrompt();
     });
-    function prompt() {
+    function doPrompt() {
       dialog.prompt("Enter name for new " + label + ".", "", onName);
     }
     function onName(name) {
       if (!name) return;
-      if (name in tree) return prompt();
+      if (name in tree) return doPrompt();
       entry = tree[name] = { mode: mode, hash: null };
       repo.saveAs(type, value, onHash);
     }
@@ -407,14 +407,33 @@ define("tree3", function () {
   }
 
   function renameNode(node) {
-    throw "TODO: implement renameNode";
-    // Get chain
-    // find parent tree
-    // This will be tricky for submodule trees
-    // store old name
-    // prompt for new name in loop
-    // modify parent tree and save
-    // modify global paths that need updating
+    getChain(node.path, function (err, chain) {
+      if (err) throw err;
+      var entry = chain.pop();
+      var oldName = entry.name;
+      var label = getType(node);
+      var parent = chain[chain.length - 1];
+      if (parent.commit) {
+        // TODO: properly clean up submodule data
+        // find local path and update submodule link in parent repo
+        chain.pop();
+        parent = chain[chain.length - 1];
+      }
+      var tree = parent.tree;
+      doPrompt();
+      function doPrompt() {
+        dialog.prompt("Enter new name for " + label + ".", oldName, onName);
+      }
+      function onName(name) {
+        if (!name || name === oldName) return;
+        if (name in tree) return doPrompt();
+        tree[name] = tree[oldName];
+        delete tree[oldName];
+        var newPath = node.path.substr(0, node.path.lastIndexOf("/") + 1) + name;
+        updatePaths(new RegExp("^" + node.path + "(?=/|$)"), newPath);
+        saveTree(chain);
+      }
+    });
   }
 
   function removeNode(node) {
@@ -514,7 +533,7 @@ define("tree3", function () {
         actions.push({icon:"folder", label:"Create Folder", action: createFolder});
         actions.push({icon:"link", label:"Create SymLink", action: createSymLink});
         actions.push({sep:true});
-        actions.push({icon:"fork", label: "Import Remote Repo"});
+        actions.push({icon:"fork", label: "Add Submodule"});
         actions.push({icon:"folder", label:"Import Folder"});
         actions.push({icon:"docs", label:"Import File(s)"});
       }
