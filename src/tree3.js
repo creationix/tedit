@@ -27,8 +27,8 @@ define("tree3", function () {
   var docPaths = {};
   // repos by path
   var repos = {};
-
-  var roots = [];
+  // roots by name
+  var roots = {};
 
 
   $.tree.addEventListener("click", onClick, false);
@@ -39,16 +39,21 @@ define("tree3", function () {
 
   function addRoot(repo, hash, name) {
     findRepos(repo, name);
-    roots.push({repo:repo, hash:hash, name:name});
+    roots[name] = {repo:repo, hash:hash};
     refresh();
   }
 
   function refresh() {
-    var left = 0;
+    var keys = Object.keys(roots);
+    var left = keys.length;
+    if (!left) {
+      $.tree.textContent = "";
+      return;
+    }
     var items = [];
-    roots.forEach(function (root) {
-      left++;
-      renderCommit(root.repo, root.hash, root.name, root.name, function (err, ui) {
+    keys.forEach(function (name) {
+      var root = roots[name];
+      renderCommit(root.repo, root.hash, name, name, function (err, ui) {
         if (err) throw err;
         items.push(domBuilder(ui));
         if (--left) return;
@@ -69,11 +74,13 @@ define("tree3", function () {
   }
 
   function renderCommit(repo, hash, name, path, callback) {
+    if (!repo.head) repo.head = hash;
     repo.loadAs("commit", hash, function (err, commit) {
       if (!commit) return callback(err || new Error("Missing commit " + hash));
       renderTree(repo, commit.tree, name, path, function (err, ui) {
         if (err) return callback(err);
         ui[1][1]["data-commit-hash"] = hash;
+        if (hash !== repo.head) ui[1][1]["class"] += " staged";
         ui[1].splice(3, 0, ["i.icon-fork.tight"]);
         callback(null, ui);
       });
@@ -87,10 +94,19 @@ define("tree3", function () {
     var classes = ["row"];
     if (selectedPath === path) classes.push("selected");
     if (activePath === path) classes.push("activated");
+
+    var rowProps = {
+      "data-hash": hash,
+      "data-path": path,
+      "data-mode": mode.toString(8),
+      "class": classes.join(" ")
+    };
+    var spanProps = {};
+    if (mode === modes.exec) spanProps["class"] = "executable";
     return ["li",
-      ["div", {"data-hash":hash, "data-path":path, "data-mode":mode.toString(8), "class": classes.join(" ")},
+      ["div", rowProps,
         ["i.icon-" + icon],
-        ["span", name]
+        ["span", spanProps, name]
       ]
     ];
   }
@@ -120,7 +136,6 @@ define("tree3", function () {
         }
         function onChild(err, childUi) {
           if (err) throw err;
-          childUi[1][1]["data-parent"] = hash;
           children[i] = childUi;
           if (--left) return;
           ui.push(["ul", children]);
@@ -174,10 +189,10 @@ define("tree3", function () {
     if (doc) return loadDoc(doc);
     var repo = findRepo(path);
     if (!repo) throw new Error("Missing repo for " + path);
-    var name = path.substr(path.lastIndexOf("/") + 1);
+    var name = getName(path);
     return repo.loadAs("blob", node.hash, function (err, buffer) {
       if (err) throw err;
-      var imageMime = imagetypes[path.substr(path.lastIndexOf(".") + 1)];
+      var imageMime = imagetypes[getExtension(name)];
       if (imageMime) {
         doc = docPaths[path] = {
           tiled: false,
@@ -223,12 +238,228 @@ define("tree3", function () {
     if (longest) return repos[longest];
   }
 
+  function getType(node) {
+    var mode = parseInt(node.mode, 8);
+    return node.commitHash ? "submodule" :
+      mode === modes.tree ? "folder" :
+      mode === modes.sym ? "symlink" : "file";
+  }
+
+  function getName(path) {
+    return path.substr(path.lastIndexOf("/") + 1);
+  }
+
+  function getExtension(name) {
+    return name.substr(name.lastIndexOf(".") + 1);
+  }
+
+  function getChain(path, callback) {
+    var parts = path.split("/").filter(Boolean);
+    var chain = [];
+    var name = parts.shift();
+    path = name;
+    var root = roots[name];
+    var repo = root.repo;
+    return loadCommit(root.hash);
+
+    function loadCommit(hash) {
+      repo.loadAs("commit", hash, function (err, commit) {
+        if (!commit) return callback(err || new Error("Invalid commit " + hash));
+        chain.push({
+          repo: repo,
+          name: name,
+          commit: commit
+        });
+        loadTree(commit.tree, name);
+      });
+    }
+
+    function loadTree(hash) {
+      repo.loadAs("tree", hash, function (err, tree) {
+        if (!tree) return callback(err || new Error("Invalid tree " + hash));
+        chain.push({
+          repo: repo,
+          name: name,
+          tree: tree
+        });
+        if (!parts.length) return callback(null, chain);
+        name = parts.shift();
+        path += "/" + name;
+        var entry = tree[name];
+        if (!entry) return callback(new Error("Bad path " + path));
+        if (entry.mode === modes.commit) {
+          repo = repos[path];
+          if (!repo) return callback(new Error("Missing repo " + path));
+          return loadCommit(entry.hash);
+        }
+        if (entry.mode === modes.tree) {
+          return loadTree(entry.hash);
+        }
+        chain.push({
+          repo: repo,
+          name: name,
+          mode: entry.mode
+        });
+        callback(null, chain);
+      });
+    }
+  }
+
+  function saveChain(chain, name, hash) {
+    pop();
+    function pop() {
+      var entry = chain.pop();
+      if (!entry) {
+        roots[name].hash = hash;
+        return refresh();
+      }
+      if (entry.commit) {
+        var commit = entry.commit;
+        commit.tree = hash;
+        return entry.repo.saveAs("commit", commit, onSave);
+      }
+      var tree = entry.tree;
+      tree[name].hash = hash;
+      name = entry.name;
+      return entry.repo.saveAs("tree", tree, onSave);
+    }
+    function onSave(err, result) {
+      if (err) throw err;
+      hash = result;
+      pop();
+    }
+
+  }
+
+  function saveTree(chain) {
+    var entry = chain.pop();
+    entry.repo.saveAs("tree", entry.tree, function (err, hash) {
+      if (err) throw err;
+      saveChain(chain, entry.name, hash);
+    });
+  }
+
+  function createFile(node) {
+  }
+
+  function createFolder(node) {
+  }
+
+  function createSymLink(node) {
+  }
+
+  function toggleExec(node) {
+    getChain(node.path, function (err, chain) {
+      if (err) throw err;
+      var entry = chain.pop();
+      var name = entry.name;
+      var mode = entry.mode === modes.exec ? modes.blob : modes.exec;
+      chain[chain.length - 1].tree[name].mode = mode;
+      saveTree(chain);
+    });
+  }
+
+  function renameNode(node) {
+  }
+
+  function removeNode(node) {
+    var message = "Delete " + getType(node) + " '" + getName(node.path) + "'?";
+
+    dialog.confirm(message, function (confirm) {
+      if (!confirm) return;
+      getChain(node.path, onChain);
+    });
+
+    function onChain(err, chain) {
+      if (err) throw err;
+      var name = chain.pop().name;
+      var parent = chain[chain.length - 1];
+      if (parent.commit) {
+        // TODO: properly clean up submodule data
+        // find local path and remove submodule link in parent repo
+        // find full path and remove global link to repo
+        chain.pop();
+        parent = chain[chain.length - 1];
+      }
+      delete parent.tree[name];
+      return saveTree(chain);
+    }
+  }
+
+  function renameRoot(node) {
+  }
+
+  function removeRoot(node) {
+    var message = "Remove repository '" + node.path + "'?";
+
+    dialog.confirm(message, function (confirm) {
+      if (!confirm) return;
+      delete roots[node.path];
+      // TODO: clean up other paths
+      refresh();
+    });
+  }
+
   function onContextMenu(evt) {
     var node = findJs(evt.target);
+    var mode = parseInt(node.mode, 8);
     evt.preventDefault();
     evt.stopPropagation();
     var actions = [];
-    console.log("context", node);
+    if (node) {
+      var type;
+      actions.push({icon:"globe", label:"Serve Over HTTP"});
+      actions.push({icon:"hdd", label:"Live Export to Disk"});
+      if (node.commitHash) {
+        var repo = findRepo(node.path);
+        if (repo.head !== node.commitHash) {
+          actions.push({sep:true});
+          actions.push({icon:"floppy", label:"Commit Changes"});
+          actions.push({icon:"ccw", label:"Revert all Changes"});
+        }
+        actions.push({sep:true});
+        actions.push({icon:"download-cloud", label:"Pull from Remote"});
+        actions.push({icon:"upload-cloud", label:"Push to Remote"});
+      }
+      if (mode === modes.tree) {
+        type = node.commitHash ? "Submodule" : "Folder";
+        actions.push({sep:true});
+        actions.push({icon:"doc", label:"Create File", action: createFile});
+        actions.push({icon:"folder", label:"Create Folder", action: createFolder});
+        actions.push({icon:"link", label:"Create SymLink", action: createSymLink});
+        actions.push({sep:true});
+        actions.push({icon:"fork", label: "Import Remote Repo"});
+        actions.push({icon:"folder", label:"Import Folder"});
+        actions.push({icon:"docs", label:"Import File(s)"});
+      }
+      else if (modes.isFile(mode)) {
+        type = "File";
+        actions.push({sep:true});
+        var label = (mode === modes.exec) ?
+          "Make not Executable" :
+          "Make Executable";
+        actions.push({icon:"asterisk", label: label, action: toggleExec});
+      }
+      else if (mode === modes.sym) {
+        type = "SymLink";
+      }
+      actions.push({sep:true});
+      if (node.path.indexOf("/") >= 0) {
+        actions.push({icon:"pencil", label:"Rename " + type, action: renameNode});
+        actions.push({icon:"trash", label:"Delete " + type, action: removeNode});
+      }
+      else {
+        actions.push({icon:"pencil", label:"Rename Repo", action: renameRoot});
+        actions.push({icon:"trash", label:"Remove Repo", action: removeRoot});
+      }
+    }
+    else {
+      actions.push({icon:"git", label: "Create Empty Git Repo"});
+      actions.push({icon:"hdd", label:"Create Repo From Folder"});
+      actions.push({icon:"fork", label: "Clone Remote Repo"});
+      actions.push({icon:"github", label: "Live Mount Github Repo"});
+    }
+
     if (!actions.length) return;
     evt.preventDefault();
     evt.stopPropagation();
