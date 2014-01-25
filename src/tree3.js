@@ -407,6 +407,14 @@ define("tree3", function () {
   }
 
   function renameNode(node) {
+    throw "TODO: implement renameNode";
+    // Get chain
+    // find parent tree
+    // This will be tricky for submodule trees
+    // store old name
+    // prompt for new name in loop
+    // modify parent tree and save
+    // modify global paths that need updating
   }
 
   function removeNode(node) {
@@ -434,7 +442,38 @@ define("tree3", function () {
   }
 
   function renameRoot(node) {
+    dialog.prompt("Enter new name for repository.", node.path, function (name) {
+      if (!name || name === node.path) return;
+      roots[name] = roots[node.path];
+      delete roots[node.path];
+      updatePaths(new RegExp("^" + node.path + "(?=/|$)"), name);
+      refresh();
+    });
   }
+
+  function updatePaths(old, name) {
+    migrate(repos, old, name);
+    migrate(docPaths, old, name);
+    migrate(openPaths, old, name);
+    prefs.set("openPaths", openPaths);
+    if (old.test(selectedPath)) {
+      selectedPath = selectedPath.replace(old, name);
+    }
+    if (old.test(activePath)) {
+      activePath = activePath.replace(old, name);
+    }
+  }
+
+
+  function migrate(obj, old, name) {
+    Object.keys(obj).forEach(function (key) {
+      if (!old.test(key)) return;
+      var newKey = key.replace(old, name);
+      obj[newKey] = obj[key];
+      delete obj[key];
+    });
+  }
+
 
   function removeRoot(node) {
     var message = "Remove repository '" + node.path + "'?";
