@@ -20,7 +20,7 @@ define("editor", function () {
 
   var session = ace.createEditSession(code, "ace/mode/jack");
   whitespace.detectIndentation(session);
-  session.name = "welcome.jk";
+  session.name = "welcome.jack";
 
   $.image.addEventListener("click", function (evt) {
     evt.stopPropagation();
