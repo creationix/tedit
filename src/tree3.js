@@ -203,9 +203,10 @@ define("tree3", function () {
         return loadDoc(doc);
       }
 
-      var mode = modelist.getModeForPath(name);
-      var code;
+      var mode = parseInt(node.mode, 8) === modes.sym ?
+        "ace/mode/text" : modelist.getModeForPath(name).mode;
 
+      var code;
       try {
         code = binary.toUnicode(buffer);
       }
@@ -213,7 +214,7 @@ define("tree3", function () {
         // Data is not unicode!
         return;
       }
-      doc = docPaths[path] = ace.createEditSession(code, mode.mode);
+      doc = docPaths[path] = ace.createEditSession(code, mode);
       doc.name = name;
       whitespace.detectIndentation(doc);
       loadDoc(doc);
@@ -351,13 +352,13 @@ define("tree3", function () {
     });
   }
 
-  function createFile(node) {
+  function createNode(path, mode, type, value, label) {
     var chain;
     var tree;
     var name;
     var repo;
     var entry;
-    getChain(node.path, function (err, result) {
+    getChain(path, function (err, result) {
       if (err) throw err;
       chain = result;
       var entry = chain[chain.length - 1];
@@ -367,33 +368,31 @@ define("tree3", function () {
       prompt();
     });
     function prompt() {
-      dialog.prompt("Enter name for new file.", "", onName);
+      dialog.prompt("Enter name for new " + label + ".", "", onName);
     }
     function onName(name) {
       if (!name) return;
       if (name in tree) return prompt();
-      entry = tree[name] = { mode: modes.blob, hash: null };
-      repo.saveAs("blob", "", onBlob);
+      entry = tree[name] = { mode: mode, hash: null };
+      repo.saveAs(type, value, onHash);
     }
-    function onBlob(err, hash) {
+    function onHash(err, hash) {
       if (err) throw err;
       entry.hash = hash;
       saveTree(chain);
     }
   }
 
+  function createFile(node) {
+    createNode(node.path, modes.blob, "blob", "", "file");
+  }
+
   function createFolder(node) {
-    dialog.prompt("Enter name for new folder.", "", function (name) {
-      if (!name) return;
-      throw "TODO: createFolder";
-    });
+    createNode(node.path, modes.tree, "tree", {}, "folder");
   }
 
   function createSymLink(node) {
-    dialog.prompt("Enter name for new sym-link.", "", function (name) {
-      if (!name) return;
-      throw "TODO: createSymLink";
-    });
+    createNode(node.path, modes.sym, "blob", "", "sym-link");
   }
 
   function toggleExec(node) {
