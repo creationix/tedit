@@ -345,11 +345,10 @@ define("tree3", function () {
 
   }
 
-  function saveTree(chain, callback) {
+  function saveTree(chain) {
     var entry = chain.pop();
     entry.repo.saveAs("tree", entry.tree, function (err, hash) {
-      if (callback) callback(err, hash);
-      else if (err) throw err;
+      if (err) throw err;
       saveChain(chain, entry.name, hash);
     });
   }
@@ -511,15 +510,7 @@ define("tree3", function () {
         delete tree[oldName];
         var newPath = node.path.substr(0, node.path.lastIndexOf("/") + 1) + name;
         updatePaths(makePrefix(node.path), newPath);
-        saveTree(chain, function (err, hash) {
-          if (err) throw err;
-          var doc = docPaths[newPath];
-          if (!doc) return;
-          doc.setMode(modelist.getModeForPath(name).mode);
-          doc.path = newPath;
-          doc.updateTitle();
-          console.log("RENAME", node.path, newPath, hash);
-        });
+        saveTree(chain);
       }
     });
   }
@@ -560,7 +551,11 @@ define("tree3", function () {
 
   function updatePaths(old, name) {
     migrate(repos, old, name);
-    migrate(docPaths, old, name);
+    migrate(docPaths, old, name, function (doc, newPath) {
+      doc.setMode(modelist.getModeForPath(newPath).mode);
+      doc.path = newPath;
+      doc.updateTitle();
+    });
     migrate(openPaths, old, name);
     prefs.set("openPaths", openPaths);
     if (old.test(selectedPath)) {
@@ -571,12 +566,13 @@ define("tree3", function () {
     }
   }
 
-  function migrate(obj, old, name) {
+  function migrate(obj, old, name, cb) {
     Object.keys(obj).forEach(function (key) {
       if (!old.test(key)) return;
       var newKey = key.replace(old, name);
-      obj[newKey] = obj[key];
+      var value = obj[newKey] = obj[key];
       delete obj[key];
+      if (cb) cb(value, newKey);
     });
   }
 
