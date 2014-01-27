@@ -153,6 +153,11 @@ body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
   text-align: center;
   font-size: 16px;
 }
+.titlebar .fade {
+  opacity: 0.6;
+  font-size: 0.8em;
+  margin-right: 0.2em;
+}
 .closebox {
   -webkit-app-region: no-drag;
   position: absolute;

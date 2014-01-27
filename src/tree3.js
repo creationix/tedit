@@ -197,7 +197,7 @@ define("tree3", function () {
       if (imageMime) {
         doc = docPaths[path] = {
           tiled: false,
-          name: name,
+          path: path,
           url: URL.createObjectURL(new Blob([buffer], {type: imageMime}))
         };
         return loadDoc(doc);
@@ -215,7 +215,9 @@ define("tree3", function () {
         return;
       }
       doc = docPaths[path] = ace.createEditSession(code, mode);
-      doc.name = name;
+      doc.setTabSize(2);
+      doc.path = path;
+      doc.on("change", changeSaver(doc));
       whitespace.detectIndentation(doc);
       loadDoc(doc);
     });
@@ -233,11 +235,20 @@ define("tree3", function () {
     var longest = "";
     for (var i = 0, l = keys.length; i < l; i++) {
       var key = keys[i];
-      if (key.length < longest) continue;
+      if (key.length < longest.length) continue;
       if (path.substr(0, key.length) !== key) continue;
       longest = key;
     }
     if (longest) return repos[longest];
+  }
+
+  function pathToEntry(path, callback) {
+    var index = path.indexOf("/");
+    var root = roots[path.substr(0, index)];
+    root.repo.loadAs("commit", root.hash, function (err, commit) {
+      if (err) return callback(err);
+      root.repo.pathToEntry(commit.tree, path.substr(index + 1), callback);
+    });
   }
 
   function getType(node) {
@@ -307,12 +318,13 @@ define("tree3", function () {
     }
   }
 
-  function saveChain(chain, name, hash) {
+  function saveChain(chain, name, hash, callback) {
     pop();
     function pop() {
       var entry = chain.pop();
       if (!entry) {
         roots[name].hash = hash;
+        callback && callback();
         return refresh();
       }
       if (entry.commit) {
@@ -333,13 +345,50 @@ define("tree3", function () {
 
   }
 
-  function saveTree(chain) {
+  function saveTree(chain, callback) {
     var entry = chain.pop();
     entry.repo.saveAs("tree", entry.tree, function (err, hash) {
-      if (err) throw err;
+      if (callback) callback(err, hash);
+      else if (err) throw err;
       saveChain(chain, entry.name, hash);
     });
   }
+
+  function changeSaver(doc) {
+    var timeout, chain, tree, value, name, dir;
+
+    return function () {
+      if (value === doc.getValue()) return;
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(onTimeout, 500);
+    };
+
+    function onTimeout() {
+      timeout = null;
+      value = doc.getValue();
+      if (doc.savedValue === value) return;
+      doc.savedValue = value;
+      var index = doc.path.lastIndexOf("/");
+      name = doc.path.substr(index + 1);
+      dir = doc.path.substr(0, index);
+      getChain(dir, onChain);
+    }
+
+    function onChain(err, result) {
+      if (err) throw err;
+      chain = result;
+      tree = chain[chain.length - 1];
+      tree.repo.saveAs("blob", value, onHash);
+    }
+    function onHash(err, hash) {
+      if (err) throw err;
+      tree.tree[name].hash = hash;
+      saveTree(chain);
+      chain = tree = value = name = dir = null;
+    }
+
+  }
+
 
   function revertChanges(node) {
     getChain(node.path, function (err, chain) {
@@ -348,7 +397,34 @@ define("tree3", function () {
       var entry = chain.pop();
       var hash = entry.repo.head;
       var name = entry.name;
-      saveChain(chain, name, hash);
+      // TODO: restore any submodules that were renamed
+      saveChain(chain, name, hash, function () {
+        updateDocs(node.path);
+        editor.focus();
+      });
+    });
+  }
+
+  function updateDocs(path) {
+    var prefix = makePrefix(path);
+    Object.keys(docPaths).forEach(function (path) {
+      if (!prefix.test(path)) return;
+      var doc = docPaths[path];
+      pathToEntry(path, function (err, entry, repo) {
+        if (err) throw err;
+        if (!entry) {
+          delete docPaths[path];
+          if (activePath === path) editor.setDoc();
+          return;
+        }
+        repo.loadAs("text", entry.hash, function (err, text) {
+          if (err) throw err;
+          // TODO: set mode in case extension changed
+          doc.setMode(modelist.getModeForPath(path).mode);
+          doc.savedValue = text;
+          doc.setValue(text);
+        });
+      });
     });
   }
 
@@ -374,6 +450,10 @@ define("tree3", function () {
       if (!name) return;
       if (name in tree) return doPrompt();
       entry = tree[name] = { mode: mode, hash: null };
+      if (mode === modes.tree) {
+        openPaths[path + "/" + name] = true;
+        prefs.set("openPaths", openPaths);
+      }
       repo.saveAs(type, value, onHash);
     }
     function onHash(err, hash) {
@@ -430,8 +510,16 @@ define("tree3", function () {
         tree[name] = tree[oldName];
         delete tree[oldName];
         var newPath = node.path.substr(0, node.path.lastIndexOf("/") + 1) + name;
-        updatePaths(new RegExp("^" + node.path + "(?=/|$)"), newPath);
-        saveTree(chain);
+        updatePaths(makePrefix(node.path), newPath);
+        saveTree(chain, function (err, hash) {
+          if (err) throw err;
+          var doc = docPaths[newPath];
+          if (!doc) return;
+          doc.setMode(modelist.getModeForPath(name).mode);
+          doc.path = newPath;
+          doc.updateTitle();
+          console.log("RENAME", node.path, newPath, hash);
+        });
       }
     });
   }
@@ -465,7 +553,7 @@ define("tree3", function () {
       if (!name || name === node.path) return;
       roots[name] = roots[node.path];
       delete roots[node.path];
-      updatePaths(new RegExp("^" + node.path + "(?=/|$)"), name);
+      updatePaths(makePrefix(node.path), name);
       refresh();
     });
   }
@@ -482,7 +570,6 @@ define("tree3", function () {
       activePath = activePath.replace(old, name);
     }
   }
-
 
   function migrate(obj, old, name) {
     Object.keys(obj).forEach(function (key) {
@@ -505,13 +592,18 @@ define("tree3", function () {
     });
   }
 
+  function makePrefix(path) {
+    // TODO: escape special regex characters in path
+    return new RegExp("^" + path + "(?=/|$)");
+  }
+
   function onContextMenu(evt) {
     var node = findJs(evt.target);
-    var mode = parseInt(node.mode, 8);
     evt.preventDefault();
     evt.stopPropagation();
     var actions = [];
     if (node) {
+      var mode = parseInt(node.mode, 8);
       var type;
       actions.push({icon:"globe", label:"Serve Over HTTP"});
       actions.push({icon:"hdd", label:"Live Export to Disk"});
@@ -528,14 +620,16 @@ define("tree3", function () {
       }
       if (mode === modes.tree) {
         type = node.commitHash ? "Submodule" : "Folder";
-        actions.push({sep:true});
-        actions.push({icon:"doc", label:"Create File", action: createFile});
-        actions.push({icon:"folder", label:"Create Folder", action: createFolder});
-        actions.push({icon:"link", label:"Create SymLink", action: createSymLink});
-        actions.push({sep:true});
-        actions.push({icon:"fork", label: "Add Submodule"});
-        actions.push({icon:"folder", label:"Import Folder"});
-        actions.push({icon:"docs", label:"Import File(s)"});
+        if (openPaths[node.path]) {
+          actions.push({sep:true});
+          actions.push({icon:"doc", label:"Create File", action: createFile});
+          actions.push({icon:"folder", label:"Create Folder", action: createFolder});
+          actions.push({icon:"link", label:"Create SymLink", action: createSymLink});
+          actions.push({sep:true});
+          actions.push({icon:"fork", label: "Add Submodule"});
+          actions.push({icon:"folder", label:"Import Folder"});
+          actions.push({icon:"docs", label:"Import File(s)"});
+        }
       }
       else if (modes.isFile(mode)) {
         type = "File";

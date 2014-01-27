@@ -23,7 +23,7 @@ define("pathtoentry", function () {
     function loadAsCached(type, hash, callback) {
       if (!callback) return loadAsCached.bind(repo, type, hash);
       if (hash in cache) {
-        console.log("LOAD CACHED", hash);
+        // console.log("LOAD CACHED", hash);
         return callback(null, encoders.normalizeAs(type, cache[hash]));
       }
       if (type === "blob" || type === "text") {
@@ -203,10 +203,9 @@ define("pathtoentry", function () {
       }
       result.mode = mode;
       result.hash = hash;
-      // In the case of submodule traversal, the caller's repo is different
-      result.repo = repo;
 
-      return callback(null, result);
+      // In the case of submodule traversal, the caller's repo is different
+      return callback(null, result, repo);
 
       // Used by the symlink code to resolve the target against the path.
       function onPart(part) {

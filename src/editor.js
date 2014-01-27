@@ -4,6 +4,7 @@ define("editor", function () {
 
   var $ = require('elements');
   var whitespace = ace.require('ace/ext/whitespace');
+  var domBuilder = require('dombuilder');
   // Put sample content and liven the editor
 
   var code = jack.toString().substr(20);
@@ -13,26 +14,27 @@ define("editor", function () {
   var editor = ace.edit($.editor);
   editor.setValue(code, 1);
   editor.setTheme("ace/theme/ambiance");
-  editor.setShowInvisibles(true);
+  // editor.setShowInvisibles(true);
 
   var textMode = true;
-  var currentImage = null;
+  var currentDoc = null;
 
   var session = ace.createEditSession(code, "ace/mode/jack");
   whitespace.detectIndentation(session);
-  session.name = "welcome.jack";
+  session.path = "Tedit";
 
   $.image.addEventListener("click", function (evt) {
     evt.stopPropagation();
     evt.preventDefault();
-    if (currentImage) {
-      currentImage.tiled = !currentImage.tiled;
+    if (currentDoc) {
+      currentDoc.tiled = !currentDoc.tiled;
       updateImage();
     }
   }, false);
 
   editor.setDoc = function (doc) {
     if (!doc) doc = session;
+    currentDoc = doc;
 
     if ("tiled" in doc) {
       // This is an image url.
@@ -41,18 +43,29 @@ define("editor", function () {
         $.preview.style.display = "block";
         $.editor.style.display = "none";
       }
-      currentImage = doc;
       return updateImage();
     }
     if (!textMode) {
-      currentImage = null;
       textMode = true;
       $.preview.style.display = "none";
       $.editor.style.display = "block";
     }
     editor.setSession(doc);
-    $.titlebar.textContent = doc.name;
+    if (!doc.updateTitle) doc.updateTitle = updateTitle;
+    doc.updateTitle();
   };
+
+  function updateTitle() {
+    var doc = this;
+    if (currentDoc !== doc) return;
+    var index = doc.path.lastIndexOf("/");
+    $.titlebar.textContent = "";
+    $.titlebar.appendChild(domBuilder([
+      ["span.fade", doc.path.substr(0, index + 1)],
+      ["span", doc.path.substr(index + 1)],
+    ]));
+
+  }
 
   editor.setDoc();
 
