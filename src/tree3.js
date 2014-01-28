@@ -615,7 +615,7 @@ define("tree3", function () {
     dialog.prompt("Enter github user/name path to mount.", "creationix/", function (path) {
       if (!path) return;
       var jsGithub = require('js-github');
-      var token = "94b25b780c5fbaf24424ca14e872661876a603f0";
+      var token = "a5bc78ce23d6f67a61610f9ea51edcabc6bd5e07";
       var repo = {};
       jsGithub(repo, path, token);
       var name = path.substr(path.lastIndexOf("/") + 1);

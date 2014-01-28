@@ -2,6 +2,7 @@
 define("js-github", function () {
 
   var normalizeAs = require('encoders').normalizeAs;
+  var hashAs = require('encoders').hashAs;
   var decoders = require('github-decoders');
   var encoders = require('github-encoders');
   var xhr = require('xhr');
@@ -70,6 +71,11 @@ define("js-github", function () {
     }
     catch (err) {
       return callback(err);
+    }
+
+    // Github doesn't allow creating empty trees.
+    if (type === "tree" && request.tree.length === 0) {
+      return callback(null, hashAs("tree", []), body);
     }
     var typeCache = this.typeCache;
     var typeName = type === "text" ? "blobs" : type + "s";
