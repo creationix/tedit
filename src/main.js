@@ -3,7 +3,7 @@ define("main", function () {
   "use strict";
 
   require('prefs').init(function () {
-    require('paths');
+    require('tree3');
     require('slider');
   });
 });

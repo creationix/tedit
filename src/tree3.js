@@ -4,6 +4,7 @@ define("tree3", function () {
   var modes = require('modes');
   var editor = require('editor');
   var domBuilder = require('dombuilder');
+  var parseConfig = require('parseconfig');
   var modelist = ace.require('ace/ext/modelist');
   var whitespace = ace.require('ace/ext/whitespace');
   var contextMenu = require('context-menu');
@@ -132,7 +133,34 @@ define("tree3", function () {
         }
         if (entry.mode === modes.commit) {
           var submodule = repos[childPath];
-          if (!submodule) throw new Error("Missing submodule " + childPath);
+          if (!submodule) {
+            var parentPath = findLongest(path);
+            var subPath = (path + "/" + name).substr(parentPath.length + 1);
+            return pathToEntry(parentPath + "/.gitmodules", function (err, entry, repo) {
+              if (err) throw err;
+              if (!entry || !modes.isFile(entry.mode)) throw new Error("Missing .gitmodules file");
+              repo.loadAs("text", entry.hash, function (err, text) {
+                if (err) throw err;
+                var meta = parseConfig(text);
+                var url;
+                for (var key in meta.submodule) {
+                  var entry = meta.submodule[key];
+                  if (entry.path !== subPath) continue;
+                  url = entry.url;
+                  break;
+                }
+                if (!url) throw new Error("Missing submodule " + subPath + " in .gitmodules");
+                if (repo.githubRoot) {
+                  var match = url.match(/github.com[:\/]([^.]*)/);
+                  if (match) {
+                    repos[childPath] = createGithubRepo(match[1]);
+                    return renderTree(repo, hash, name, path, callback);
+                  }
+                }
+                throw new Error("Missing submodule " + childPath);
+              });
+            });
+          }
           return renderCommit(submodule, entry.hash, name, childPath, onChild);
         }
         function onChild(err, childUi) {
@@ -230,7 +258,7 @@ define("tree3", function () {
     if (!soft) editor.focus();
   }
 
-  function findRepo(path) {
+  function findLongest(path) {
     var keys = Object.keys(repos);
     var longest = "";
     for (var i = 0, l = keys.length; i < l; i++) {
@@ -239,6 +267,11 @@ define("tree3", function () {
       if (path.substr(0, key.length) !== key) continue;
       longest = key;
     }
+    return longest;
+  }
+
+  function findRepo(path) {
+    var longest = findLongest(path);
     if (longest) return repos[longest];
   }
 
@@ -614,17 +647,22 @@ define("tree3", function () {
   function liveMount() {
     dialog.prompt("Enter github user/name path to mount.", "creationix/", function (path) {
       if (!path) return;
-      var jsGithub = require('js-github');
-      var token = "a5bc78ce23d6f67a61610f9ea51edcabc6bd5e07";
-      var repo = {};
-      jsGithub(repo, path, token);
-      var name = path.substr(path.lastIndexOf("/") + 1);
-      require('pathtoentry')(repo);
+      var repo = createGithubRepo(path);
       repo.readRef("refs/heads/master", function (err, hash) {
         if (err) throw err;
+        var name = path.substr(path.lastIndexOf("/") + 1);
         addRoot(repo, hash, name);
       });
     });
+  }
+
+  function createGithubRepo(path) {
+    var jsGithub = require('js-github');
+    var token = "a5bc78ce23d6f67a61610f9ea51edcabc6bd5e07";;
+    var repo = { githubRoot: path };
+    jsGithub(repo, path, token);
+    require('pathtoentry')(repo);
+    return repo;
   }
 
 
