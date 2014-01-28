@@ -21,6 +21,8 @@ define("binary", function () {
     fromUnicode: fromUnicode,
     toHex: toHex,
     fromHex: fromHex,
+    toBase64: toBase64,
+    fromBase64: fromBase64,
 
     // Array input and output
     toArray: toArray,
@@ -29,6 +31,9 @@ define("binary", function () {
     // Raw <-> Hex-encoded codec
     decodeHex: decodeHex,
     encodeHex: encodeHex,
+
+    decodeBase64: decodeBase64,
+    encodeBase64: encodeBase64,
 
     // Unicode <-> Utf8-encoded-raw codec
     encodeUtf8: encodeUtf8,
@@ -115,6 +120,14 @@ define("binary", function () {
     return binary;
   }
 
+  function toBase64(binary, start, end) {
+    return btoa(toRaw(binary, start, end));
+  }
+
+  function fromBase64(base64, binary, offset) {
+    return fromRaw(atob(base64), binary, offset);
+  }
+
   function nibbleToCode(nibble) {
     nibble |= 0;
     return (nibble + (nibble < 10 ? 0x30 : 0x57))|0;
@@ -154,6 +167,14 @@ define("binary", function () {
            + String.fromCharCode(nibbleToCode(byte & 0xf));
     }
     return hex;
+  }
+
+  function decodeBase64(base64) {
+    return atob(base64);
+  }
+
+  function encodeBase64(raw) {
+    return btoa(raw);
   }
 
   function decodeUtf8(utf8) {
