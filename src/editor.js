@@ -76,7 +76,7 @@ define("editor", function () {
   }
 
   function updateImage() {
-    var img = currentImage;
+    var img = currentDoc;
     $.image.style.backgroundImage = "url(" + img.url + ")";
     if (img.tiled) $.image.classList.remove("zoom");
     else $.image.classList.add("zoom");

@@ -587,6 +587,22 @@ define("tree3", function () {
     });
   }
 
+  function liveMount() {
+    dialog.prompt("Enter github user/name path to mount.", "creationix/", function (path) {
+      if (!prompt) return;
+      var jsGithub = require('js-github');
+      var token = "94b25b780c5fbaf24424ca14e872661876a603f0";
+      var repo = {};
+      jsGithub(repo, path, token);
+      require('pathtoentry')(repo);
+      repo.readRef("refs/heads/master", function (err, hash) {
+        if (err) throw err;
+        addRoot(repo, hash, path);
+      });
+    });
+  }
+
+
   function makePrefix(path) {
     // TODO: escape special regex characters in path
     return new RegExp("^" + path + "(?=/|$)");
@@ -651,7 +667,7 @@ define("tree3", function () {
       actions.push({icon:"git", label: "Create Empty Git Repo"});
       actions.push({icon:"hdd", label:"Create Repo From Folder"});
       actions.push({icon:"fork", label: "Clone Remote Repo"});
-      actions.push({icon:"github", label: "Live Mount Github Repo"});
+      actions.push({icon:"github", label: "Live Mount Github Repo", action: liveMount});
     }
 
     if (!actions.length) return;
