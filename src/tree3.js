@@ -418,7 +418,6 @@ define("tree3", function () {
         }
         repo.loadAs("text", entry.hash, function (err, text) {
           if (err) throw err;
-          // TODO: set mode in case extension changed
           doc.setMode(modelist.getModeForPath(path).mode);
           doc.savedValue = text;
           doc.setValue(text);
