@@ -388,6 +388,30 @@ define("tree3", function () {
 
   }
 
+  function commitChanges(node) {
+    dialog.prompt("Enter commit message", "", function (message) {
+      if (!message) return;
+      getChain(node.path, function (err, chain) {
+        if (err) throw err;
+        chain.pop(); // Throw away the tree
+        var entry = chain.pop();
+        var repo = entry.repo;
+        var commit = entry.commit;
+        commit.message = message;
+        // TODO: let the user override the author data somehow.
+        commit.parents = [repo.head];
+        repo.saveAs("commit", commit, function (err, hash) {
+          if (err) throw err;
+          repo.head = hash;
+          if (repo.updateRef) repo.updateRef("refs/heads/master", hash, function (err) {
+            if (err) throw err;
+          });
+          var name = getName(node.path);
+          saveChain(chain, name, hash);
+        });
+      });
+    });
+  }
 
   function revertChanges(node) {
     getChain(node.path, function (err, chain) {
@@ -589,15 +613,16 @@ define("tree3", function () {
 
   function liveMount() {
     dialog.prompt("Enter github user/name path to mount.", "creationix/", function (path) {
-      if (!prompt) return;
+      if (!path) return;
       var jsGithub = require('js-github');
       var token = "94b25b780c5fbaf24424ca14e872661876a603f0";
       var repo = {};
       jsGithub(repo, path, token);
+      var name = path.substr(path.lastIndexOf("/") + 1);
       require('pathtoentry')(repo);
       repo.readRef("refs/heads/master", function (err, hash) {
         if (err) throw err;
-        addRoot(repo, hash, path);
+        addRoot(repo, hash, name);
       });
     });
   }
@@ -622,7 +647,7 @@ define("tree3", function () {
         var repo = findRepo(node.path);
         if (repo.head !== node.commitHash) {
           actions.push({sep:true});
-          actions.push({icon:"floppy", label:"Commit Changes"});
+          actions.push({icon:"floppy", label:"Commit Changes", action: commitChanges});
           actions.push({icon:"ccw", label:"Revert all Changes", action: revertChanges});
         }
         actions.push({sep:true});

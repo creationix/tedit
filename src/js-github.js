@@ -17,6 +17,7 @@ define("js-github", function () {
     repo.loadAs = loadAs; // (type, hash-ish) -> value
     repo.saveAs = saveAs; // (type, value) -> hash
     repo.readRef = readRef;
+    repo.updateRef = updateRef;
 
     repo.apiGet = request.bind(null, "GET");
     repo.apiPost = request.bind(null, "POST");
@@ -93,6 +94,24 @@ define("js-github", function () {
       if (result === undefined) return callback(err);
       typeCache[result.object.sha] = result.object.type;
       return callback(null, result.object.sha);
+    }
+  }
+
+  function updateRef(ref, hash, callback) {
+    if (!callback) return updateRef(this, ref, hash);
+    if (!(/^refs\//).test(ref)) {
+      return callback(new Error("Invalid ref: " + ref));
+    }
+    var typeCache = this.typeCache;
+    return this.apiPatch("/repos/:root/git/" + ref, {
+      sha: hash,
+      force: true
+    }, onResult);
+
+    function onResult(err, result) {
+      if (err) return callback(err);
+      typeCache[result.object.sha] = result.object.type;
+      callback();
     }
   }
 
