@@ -5,6 +5,7 @@ define("tree", function () {
   var editor = require('editor');
   var domBuilder = require('dombuilder');
   var parseConfig = require('parseconfig');
+  var encodeConfig = require('encodeconfig');
   var modelist = ace.require('ace/ext/modelist');
   var whitespace = ace.require('ace/ext/whitespace');
   var contextMenu = require('context-menu');
@@ -12,7 +13,6 @@ define("tree", function () {
   var prefs = require('prefs');
   var binary = require('binary');
   var dialog = require('dialog');
-  var repoTools = require('repos');
   require('zoom');
 
   var imagetypes = {
@@ -167,6 +167,50 @@ define("tree", function () {
 
       });
     });
+  }
+
+  function createSubmodule(path, url, callback) {
+    var parentPath = findLongest(path);
+    var subPath = (path).substr(parentPath.length + 1);
+    var repo, meta;
+    return pathToEntry(parentPath + "/.gitmodules", onEntry);
+
+    function onEntry(err, modEntry, parentRepo) {
+      if (err) return callback(err);
+      repo = parentRepo;
+      if (!modEntry) return onMeta({});
+      if (!modes.isFile(modEntry.mode)) throw new Error("Invalid .gitmodules file");
+      repo.loadAs("text", modEntry.hash, function (err, text) {
+        if (err) return callback(err);
+        try { meta = parseConfig(text); }
+        catch (err) { return callback(err); }
+        onMeta(meta);
+      });
+    }
+
+    function onMeta(meta) {
+      var submodules = meta.submodule || (meta.submodule = {});
+      submodules[subPath] = {
+        path: subPath,
+        url: url
+      };
+      console.log("META", meta);
+      repo.saveAs("blob", encodeConfig(meta), onHash);
+    }
+
+    function onHash(err, hash) {
+      getChain(parentPath, function (err, chain) {
+        if (err) return callback(err);
+        var entry = chain[chain.length - 1];
+        var tree = entry.tree;
+        // var name = getName(subPath);
+        tree[".gitmodules"] = {
+          mode: modes.blob,
+          hash: hash
+        };
+        saveTree(chain);
+      });
+    }
   }
 
   function findSubmodule(path, callback) {
@@ -563,6 +607,39 @@ define("tree", function () {
     createNode(node.path, modes.sym, "blob", "", "sym-link");
   }
 
+  function addSubmodule(node) {
+    var chain, url;
+    dialog.prompt("Enter URL for submodule", "", onUrl);
+
+    function onUrl(result) {
+      if (!result) return;
+      url = result;
+      getChain(node.path, onChain);
+    }
+
+    function onChain(err, result) {
+      if (err) throw err;
+      chain = result;
+      var entry = chain[chain.length - 1];
+      var tree = entry.tree;
+      var name = uniqueName(getName(url.replace(/\.git$/, '')), tree);
+      createSubmodule(node.path + "/" + name, url, function (err, hash) {
+        if (err) throw err;
+        console.log({
+          chain: chain,
+          name: name,
+          hash: hash
+        });
+      });
+    }
+  }
+
+  function uniqueName(name, hash) {
+    var original = name, i = 1;
+    while (name in hash) name = original + "-" + i++;
+    return name;
+  }
+
   function toggleExec(node) {
     getChain(node.path, function (err, chain) {
       if (err) throw err;
@@ -747,7 +824,7 @@ define("tree", function () {
           actions.push({icon:"folder", label:"Create Folder", action: createFolder});
           actions.push({icon:"link", label:"Create SymLink", action: createSymLink});
           actions.push({sep:true});
-          actions.push({icon:"fork", label: "Add Submodule"});
+          actions.push({icon:"fork", label: "Add Submodule", action: addSubmodule});
           actions.push({icon:"folder", label:"Import Folder"});
           actions.push({icon:"docs", label:"Import File(s)"});
         }
