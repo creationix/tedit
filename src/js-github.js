@@ -10,8 +10,6 @@ define("js-github", function () {
   // Implement the js-git object interface using github APIs
   return function (repo, root, accessToken) {
 
-    var request = xhr(root, accessToken);
-
     repo.typeCache = {};
     repo.pendingReqs = {};
 
@@ -20,10 +18,7 @@ define("js-github", function () {
     repo.readRef = readRef;
     repo.updateRef = updateRef;
 
-    repo.apiGet = request.bind(null, "GET");
-    repo.apiPost = request.bind(null, "POST");
-    repo.apiPatch = request.bind(null, "PATCH");
-    repo.apiDelete = request.bind(null, "DELETE");
+    repo.apiRequest = xhr(root, accessToken);
 
   };
 
@@ -36,7 +31,7 @@ define("js-github", function () {
     repo.pendingReqs[hash] = [callback];
     callback = flusher(repo.pendingReqs, hash);
     var typeName = type === "text" ? "blob" : type;
-    repo.apiGet("/repos/:root/git/" + typeName + "s/" + hash, onValue);
+    repo.apiRequest("GET", "/repos/:root/git/" + typeName + "s/" + hash, onValue);
 
     function onValue(err, result) {
       if (result === undefined) return callback(err);
@@ -79,7 +74,7 @@ define("js-github", function () {
     }
     var typeCache = this.typeCache;
     var typeName = type === "text" ? "blobs" : type + "s";
-    return this.apiPost("/repos/:root/git/" + typeName, request, onWrite);
+    return this.apiRequest("POST", "/repos/:root/git/" + typeName, request, onWrite);
 
     function onWrite(err, result) {
       if (err) return callback(err);
@@ -94,7 +89,7 @@ define("js-github", function () {
       return callback(new TypeError("Invalid ref: " + ref));
     }
     var typeCache = this.typeCache;
-    return this.apiGet("/repos/:root/git/" + ref, onRef);
+    return this.apiRequest("GET", "/repos/:root/git/" + ref, onRef);
 
     function onRef(err, result) {
       if (result === undefined) return callback(err);
@@ -109,7 +104,7 @@ define("js-github", function () {
       return callback(new Error("Invalid ref: " + ref));
     }
     var typeCache = this.typeCache;
-    return this.apiPatch("/repos/:root/git/" + ref, {
+    return this.apiRequest("PATCH", "/repos/:root/git/" + ref, {
       sha: hash,
       force: true
     }, onResult);

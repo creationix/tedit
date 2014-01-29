@@ -4,6 +4,38 @@ define("repos", function () {
   var fileSystem = chrome.fileSystem;
   var importEntry = require('importfs');
 
+  var urls = prefs.get("urls", []);
+  var repos = {};
+  urls.forEach(function (url) {
+    var repo = repos[url] = {};
+    var match = url.match(/^github:\/\/([^\/]+\/[^\/]+$)/);
+    if (match) {
+      require('js-github')(repo, match[1], prefs.get("githubToken"));
+    }
+    else {
+      require('indexeddb')(repo, url);
+    }
+    require('pathtoentry')(repo);
+    repo.remoteUrl = url;
+  });
+  console.log(repos);
+
+  // github://1fed34ade@creationix/conquest
+  // git://github.com/creationix/conquest.git
+  // https://1fed34ade@github.com/creationix/conquest.git
+  // local://foo
+
+  // repo.githubRoot
+  // repo.githubToken
+  // remote
+  //   type: github
+  //   path: creationix/conquest
+  //   token: 1fed3341234fdad1098dfecb7c87
+
+  //   type: git | http(s)
+  //   host: github.com | bitbucket.org | etc..
+  //   port: 443 | 80 | 9418 | etc..
+  //   path: /creationix/conquest.git
   var repos;
 
   return {

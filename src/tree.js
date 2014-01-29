@@ -12,6 +12,7 @@ define("tree", function () {
   var prefs = require('prefs');
   var binary = require('binary');
   var dialog = require('dialog');
+  var repoTools = require('repos');
   require('zoom');
 
   var imagetypes = {
