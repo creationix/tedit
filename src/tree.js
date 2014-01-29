@@ -507,6 +507,15 @@ define("tree", function () {
     });
   }
 
+  function checkUpdates(node) {
+    var repo = findRepo(node.path);
+    repo.readRef("refs/heads/master", function (err, hash) {
+      if (err) throw err;
+      repo.head = hash;
+      refresh();
+    });
+  }
+
   function createNode(path, mode, type, value, label) {
     var chain;
     var tree;
@@ -723,7 +732,7 @@ define("tree", function () {
         }
         actions.push({sep:true});
         if (repo.githubRoot) {
-          actions.push({icon:"github", label:"Check for Updates"});
+          actions.push({icon:"github", label:"Check for Updates", action: checkUpdates});
         }
         else {
           actions.push({icon:"download-cloud", label:"Pull from Remote"});

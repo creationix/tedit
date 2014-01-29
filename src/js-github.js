@@ -105,8 +105,7 @@ define("js-github", function () {
     }
     var typeCache = this.typeCache;
     return this.apiRequest("PATCH", "/repos/:root/git/" + ref, {
-      sha: hash,
-      force: true
+      sha: hash
     }, onResult);
 
     function onResult(err, result) {
