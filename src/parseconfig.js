@@ -5,7 +5,7 @@ define("parseconfig", function () {
   function parse(text) {
     var config = {};
     var match, offset = 0;
-    while (match = text.substr(offset).match(/\[([a-z]*) "([a-z]*)"\]([^\[]*)/)) {
+    while (match = text.substr(offset).match(/\[([a-z]*) "([^"]*)"\]([^\[]*)/)) {
       var type = match[1];
       var section = config[type] || (config[type] = {});
       var name = match[2];

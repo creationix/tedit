@@ -151,7 +151,7 @@ define("tree", function () {
                 }
                 if (!url) throw new Error("Missing submodule " + subPath + " in .gitmodules");
                 if (repo.githubRoot) {
-                  var match = url.match(/github.com[:\/]([^.]*)/);
+                  var match = url.match(/github.com[:\/](.*?)(?:\.git)?$/);
                   if (match) {
                     repos[childPath] = createGithubRepo(repo.githubToken, match[1]);
                     return renderTree(repo, hash, name, path, callback);
