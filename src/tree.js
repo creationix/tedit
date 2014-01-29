@@ -78,19 +78,28 @@ define("tree", function () {
 
   function renderCommit(repo, hash, name, path, callback) {
     if (!repo.head) repo.head = hash;
+    if (!openPaths[path]) {
+      return onUi(renderNode(modes.tree, name, path));
+    }
+
     repo.loadAs("commit", hash, function (err, commit) {
       if (!commit) return callback(err || new Error("Missing commit " + hash));
       renderTree(repo, commit.tree, name, path, function (err, ui) {
         if (err) return callback(err);
-        ui[1][1]["data-commit-hash"] = hash;
-        if (hash !== repo.head) ui[1][1]["class"] += " staged";
-        ui[1].splice(3, 0, ["i.icon-fork.tight"]);
-        callback(null, ui);
+        onUi(ui);
       });
     });
+
+    function onUi(ui) {
+      ui[1][1]["data-commit-hash"] = hash;
+      if (hash !== repo.head) ui[1][1]["class"] += " staged";
+      ui[1].splice(3, 0, ["i.icon-fork.tight"]);
+      callback(null, ui);
+    }
+
   }
 
-  function renderNode(hash, mode, name, path) {
+  function renderNode(mode, name, path) {
     var icon = modes.isFile(mode) ? "doc" :
       mode === modes.sym ? "link" :
       openPaths[path] ? "folder-open" : "folder";
@@ -99,7 +108,6 @@ define("tree", function () {
     if (activePath === path) classes.push("activated");
 
     var rowProps = {
-      "data-hash": hash,
       "data-path": path,
       "data-mode": mode.toString(8),
       "class": classes.join(" ")
@@ -115,7 +123,7 @@ define("tree", function () {
   }
 
   function renderTree(repo, hash, name, path, callback) {
-    var ui = renderNode(hash, modes.tree, name, path);
+    var ui = renderNode(modes.tree, name, path);
     var open = openPaths[path];
     if (!open) return callback(null, ui);
     repo.loadAs("tree", hash, function (err, tree) {
@@ -128,7 +136,9 @@ define("tree", function () {
         var childPath = path ? path + "/" + name : name;
         var entry = tree[name];
         if (modes.isBlob(entry.mode)) {
-          return onChild(null, renderNode(entry.hash, entry.mode, name, childPath));
+          var childUi = renderNode(entry.mode, name, childPath);
+          childUi[1][1]["data-hash"] = entry.hash;
+          return onChild(null, childUi);
         }
         if (entry.mode === modes.tree) {
           return renderTree(repo, entry.hash, name, childPath, onChild);
@@ -181,7 +191,9 @@ define("tree", function () {
         if (repo.githubRoot) {
           var match = url.match(/github.com[:\/](.*?)(?:\.git)?$/);
           if (match) {
-            return callback(null, createGithubRepo(repo.githubToken, match[1]));
+            var submodule = createGithubRepo(repo.githubToken, match[1]);
+            repo.submodules[subPath] = submodule;
+            return callback(null, submodule);
           }
         }
         return callback(new Error("Missing submodule " + path));
@@ -191,7 +203,7 @@ define("tree", function () {
 
   function findJs(node) {
     while (node !== $.tree) {
-      var hash = node.getAttribute("data-hash");
+      var hash = node.getAttribute("data-path");
       if (hash) return node.dataset;
       node = node.parentElement;
     }
