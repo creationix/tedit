@@ -153,7 +153,7 @@ define("tree3", function () {
                 if (repo.githubRoot) {
                   var match = url.match(/github.com[:\/]([^.]*)/);
                   if (match) {
-                    repos[childPath] = createGithubRepo(match[1]);
+                    repos[childPath] = createGithubRepo(repo.githubToken, match[1]);
                     return renderTree(repo, hash, name, path, callback);
                   }
                 }
@@ -645,9 +645,16 @@ define("tree3", function () {
   }
 
   function liveMount() {
-    dialog.prompt("Enter github user/name path to mount.", "creationix/", function (path) {
-      if (!path) return;
-      var repo = createGithubRepo(path);
+    var token = prefs.get("token", "");
+    dialog.multiEntry("Mount Github Repo", [
+      {name: "token", type: "password", placeholder: "access token", required:true, value:token},
+      {name: "path", placeholder: "user/name", required:true},
+    ], function (result) {
+      if (!result) return;
+      var token = result.token;
+      prefs.set("token", token);
+      var path = result.path;
+      var repo = createGithubRepo(token, path);
       repo.readRef("refs/heads/master", function (err, hash) {
         if (err) throw err;
         var name = path.substr(path.lastIndexOf("/") + 1);
@@ -656,10 +663,12 @@ define("tree3", function () {
     });
   }
 
-  function createGithubRepo(path) {
+  function createGithubRepo(token, path) {
     var jsGithub = require('js-github');
-    var token = "a5bc78ce23d6f67a61610f9ea51edcabc6bd5e07";;
-    var repo = { githubRoot: path };
+    var repo = {
+      githubRoot: path,
+      githubToken: token
+    };
     jsGithub(repo, path, token);
     require('pathtoentry')(repo);
     return repo;

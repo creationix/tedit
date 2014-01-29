@@ -7,6 +7,7 @@ define("dialog", function () {
   // dialog.alert = alertDialog;
   dialog.prompt = promptDialog;
   dialog.confirm = confirmDialog;
+  dialog.multiEntry = multiEntry;
 
   return dialog;
 
@@ -64,6 +65,39 @@ define("dialog", function () {
       $.close();
       callback($.input.value);
     }
+  }
+
+  function multiEntry(title, entries, callback) {
+    var $ = dialog(title, ["form$form", {onsubmit: submit},
+      entries.map(function (entry, i) {
+        var row = [".input",
+          ["input.input-field", entry],
+        ];
+        if (i === entries.length - 1) {
+          row.push(["input.input-item", {type:"submit",value:"OK"}]);
+        }
+        return row;
+      })
+    ], onCancel);
+    $.form.elements[0].focus();
+
+    function onCancel() {
+      $.close();
+      callback();
+    }
+
+    function submit(evt) {
+      nullify(evt);
+      var result = {};
+      entries.forEach(function (entry, i) {
+        var value = $.form.elements[i].value;
+        result[entry.name] = value;
+      });
+      $.close();
+      callback(result);
+    }
+
+
   }
 
   function confirmDialog(question, callback) {
