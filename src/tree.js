@@ -134,35 +134,16 @@ define("tree", function () {
         }
         if (entry.mode === modes.commit) {
           var submodule = repos[childPath];
-          if (!submodule) {
-            var parentPath = findLongest(path);
-            var subPath = (path + "/" + name).substr(parentPath.length + 1);
-            return pathToEntry(parentPath + "/.gitmodules", function (err, entry, repo) {
-              if (err) throw err;
-              if (!entry || !modes.isFile(entry.mode)) throw new Error("Missing .gitmodules file");
-              repo.loadAs("text", entry.hash, function (err, text) {
-                if (err) throw err;
-                var meta = parseConfig(text);
-                var url;
-                for (var key in meta.submodule) {
-                  var entry = meta.submodule[key];
-                  if (entry.path !== subPath) continue;
-                  url = entry.url;
-                  break;
-                }
-                if (!url) throw new Error("Missing submodule " + subPath + " in .gitmodules");
-                if (repo.githubRoot) {
-                  var match = url.match(/github.com[:\/](.*?)(?:\.git)?$/);
-                  if (match) {
-                    repos[childPath] = createGithubRepo(repo.githubToken, match[1]);
-                    return renderTree(repo, hash, name, path, callback);
-                  }
-                }
-                throw new Error("Missing submodule " + childPath);
-              });
-            });
+          if (submodule) {
+            return renderCommit(submodule, entry.hash, name, childPath, onChild);
           }
-          return renderCommit(submodule, entry.hash, name, childPath, onChild);
+
+          return findSubmodule(childPath, function (err, submodule) {
+            if (err) throw err;
+            repos[childPath] = submodule;
+            return renderCommit(submodule, entry.hash, name, childPath, onChild);
+          });
+
         }
         function onChild(err, childUi) {
           if (err) throw err;
@@ -177,6 +158,35 @@ define("tree", function () {
     });
   }
 
+  function findSubmodule(path, callback) {
+    var parentPath = findLongest(path);
+    var subPath = (path).substr(parentPath.length + 1);
+    return pathToEntry(parentPath + "/.gitmodules", function (err, modEntry, repo) {
+      if (err) return callback(err);
+      if (!modEntry || !modes.isFile(modEntry.mode)) throw new Error("Missing .gitmodules file");
+      repo.loadAs("text", modEntry.hash, function (err, text) {
+        if (err) return callback(err);
+        var meta = parseConfig(text);
+        var url;
+        for (var key in meta.submodule) {
+          var item = meta.submodule[key];
+          if (item.path !== subPath) continue;
+          url = item.url;
+          break;
+        }
+        if (!url) {
+          return callback(new Error("Missing submodule " + subPath + " in .gitmodules"));
+        }
+        if (repo.githubRoot) {
+          var match = url.match(/github.com[:\/](.*?)(?:\.git)?$/);
+          if (match) {
+            return callback(null, createGithubRepo(repo.githubToken, match[1]));
+          }
+        }
+        return callback(new Error("Missing submodule " + path));
+      });
+    });
+  }
 
   function findJs(node) {
     while (node !== $.tree) {
