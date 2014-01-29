@@ -115,12 +115,13 @@ define("tree", function () {
   }
 
   function renderTree(repo, hash, name, path, callback) {
+    var ui = renderNode(hash, modes.tree, name, path);
+    var open = openPaths[path];
+    if (!open) return callback(null, ui);
     repo.loadAs("tree", hash, function (err, tree) {
       if (!tree) return callback(err || new Error("Missing tree " + hash));
-      var open = openPaths[path];
-      var ui = renderNode(hash, modes.tree, name, path);
       var names = Object.keys(tree);
-      if (!open || !names.length) return callback(null, ui);
+      if (!names.length) return callback(null, ui);
       var left = names.length;
       var children = new Array(left);
       Object.keys(tree).sort(pathCmp).forEach(function (name, i) {
