@@ -698,8 +698,13 @@ define("tree", function () {
           actions.push({icon:"ccw", label:"Revert all Changes", action: revertChanges});
         }
         actions.push({sep:true});
-        actions.push({icon:"download-cloud", label:"Pull from Remote"});
-        actions.push({icon:"upload-cloud", label:"Push to Remote"});
+        if (repo.githubRoot) {
+          actions.push({icon:"github", label:"Check for Updates"});
+        }
+        else {
+          actions.push({icon:"download-cloud", label:"Pull from Remote"});
+          actions.push({icon:"upload-cloud", label:"Push to Remote"});
+        }
       }
       if (mode === modes.tree) {
         type = node.commitHash ? "Submodule" : "Folder";
