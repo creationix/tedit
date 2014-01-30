@@ -757,8 +757,8 @@ define("tree", function () {
   function liveMount() {
     var token = prefs.get("token", "");
     dialog.multiEntry("Mount Github Repo", [
-      {name: "token", type: "password", placeholder: "access token", required:true, value:token},
       {name: "path", placeholder: "user/name", required:true},
+      {name: "token", type: "password", placeholder: "access token", required:true, value:token},
     ], function (result) {
       if (!result) return;
       var token = result.token;
