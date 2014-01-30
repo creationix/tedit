@@ -84,6 +84,7 @@ define("tree", function () {
 
     repo.loadAs("commit", hash, function (err, commit) {
       if (!commit) return callback(err || new Error("Missing commit " + hash));
+      repo.root = commit.tree;
       renderTree(repo, commit.tree, name, path, function (err, ui) {
         if (err) return callback(err);
         onUi(ui);
@@ -299,7 +300,8 @@ define("tree", function () {
         return loadDoc(doc);
       }
 
-      var mode = parseInt(node.mode, 8) === modes.sym ?
+      var mode = parseInt(node.mode, 8);
+      var aceMode = mode === modes.sym ?
         "ace/mode/text" : modelist.getModeForPath(name).mode;
 
       var code;
@@ -310,9 +312,10 @@ define("tree", function () {
         // Data is not unicode!
         return;
       }
-      doc = docPaths[path] = ace.createEditSession(code, mode);
+      doc = docPaths[path] = ace.createEditSession(code, aceMode);
       doc.setTabSize(2);
       doc.path = path;
+      doc.mode = mode;
       doc.on("change", changeSaver(doc));
       whitespace.detectIndentation(doc);
       loadDoc(doc);
@@ -367,93 +370,6 @@ define("tree", function () {
     return name.substr(name.lastIndexOf(".") + 1);
   }
 
-  function getChain(path, callback) {
-    var parts = path.split("/").filter(Boolean);
-    var chain = [];
-    var name = parts.shift();
-    path = name;
-    var root = roots[name];
-    var repo = root.repo;
-    return loadCommit(root.hash);
-
-    function loadCommit(hash) {
-      repo.loadAs("commit", hash, function (err, commit) {
-        if (!commit) return callback(err || new Error("Invalid commit " + hash));
-        chain.push({
-          repo: repo,
-          name: name,
-          commit: commit
-        });
-        loadTree(commit.tree, name);
-      });
-    }
-
-    function loadTree(hash) {
-      repo.loadAs("tree", hash, function (err, tree) {
-        if (!tree) return callback(err || new Error("Invalid tree " + hash));
-        chain.push({
-          repo: repo,
-          name: name,
-          tree: tree
-        });
-        if (!parts.length) return callback(null, chain);
-        name = parts.shift();
-        path += "/" + name;
-        var entry = tree[name];
-        if (!entry) return callback(new Error("Bad path " + path));
-        if (entry.mode === modes.commit) {
-          repo = repos[path];
-          if (!repo) return callback(new Error("Missing repo " + path));
-          return loadCommit(entry.hash);
-        }
-        if (entry.mode === modes.tree) {
-          return loadTree(entry.hash);
-        }
-        chain.push({
-          repo: repo,
-          name: name,
-          mode: entry.mode
-        });
-        callback(null, chain);
-      });
-    }
-  }
-
-  function saveChain(chain, name, hash, callback) {
-    pop();
-    function pop() {
-      var entry = chain.pop();
-      if (!entry) {
-        roots[name].hash = hash;
-        callback && callback();
-        return refresh();
-      }
-      if (entry.commit) {
-        var commit = entry.commit;
-        commit.tree = hash;
-        return entry.repo.saveAs("commit", commit, onSave);
-      }
-      var tree = entry.tree;
-      tree[name].hash = hash;
-      name = entry.name;
-      return entry.repo.saveAs("tree", tree, onSave);
-    }
-    function onSave(err, result) {
-      if (err) throw err;
-      hash = result;
-      pop();
-    }
-
-  }
-
-  function saveTree(chain) {
-    var entry = chain.pop();
-    entry.repo.saveAs("tree", entry.tree, function (err, hash) {
-      if (err) throw err;
-      saveChain(chain, entry.name, hash);
-    });
-  }
-
   function changeSaver(doc) {
     var timeout, chain, tree, value, name, dir;
 
@@ -468,25 +384,65 @@ define("tree", function () {
       value = doc.getValue();
       if (doc.savedValue === value) return;
       doc.savedValue = value;
-      var index = doc.path.lastIndexOf("/");
-      name = doc.path.substr(index + 1);
-      dir = doc.path.substr(0, index);
-      getChain(dir, onChain);
+      saveBlob(doc.path, doc.mode, value);
     }
+  }
 
-    function onChain(err, result) {
+  function updateRepo(repoPath, treeHash) {
+    console.log("updateRepo", {
+      repoPath: repoPath,
+      treeHash: treeHash
+    });
+    var repo = repos[repoPath];
+    repo.loadAs("commit", repo.head, function (err, commit) {
       if (err) throw err;
-      chain = result;
-      tree = chain[chain.length - 1];
-      tree.repo.saveAs("blob", value, onHash);
-    }
-    function onHash(err, hash) {
-      if (err) throw err;
-      tree.tree[name].hash = hash;
-      saveTree(chain);
-      chain = tree = value = name = dir = null;
-    }
+      commit.tree = treeHash;
+      repo.saveAs("commit", commit, function (err, hash) {
+        if (err) throw err;
+        var index = repoPath.lastIndexOf("/");
+        if (index < 0) {
+          roots[repoPath].hash = hash;
+          return refresh();
+        }
+        var parentPath = repoPath.substr(0, index);
+        updateTree(parentPath, [{
+          mode: modes.tree,
+          path: repoPath,
+          hash: hash
+        }]);
+      });
+    });
+  }
 
+  // Modify a tree entry by path (and save it's parents)
+  function updateTree(path, entries) {
+    var repoPath = findLongest(path);
+    // Trim the prefix from the paths
+    entries.forEach(function (entry) {
+      entry.path = entry.path.substr(repoPath.length + 1);
+    });
+    var repo = repos[repoPath];
+    entries.base = repo.root;
+    repo.createTree(entries, function (err, hash) {
+      if (err) throw err;
+      updateRepo(repoPath, hash);
+    });
+  }
+
+  function saveBlob(path, mode, value) {
+    var repoPath = findLongest(path);
+    var localPath = path.substr(repoPath.length + 1);
+    var repo = repos[repoPath];
+    var entries = [{
+      mode: mode,
+      path: localPath,
+      content: value
+    }];
+    entries.base = repo.root;
+    repo.createTree(entries, function (err, hash) {
+      if (err) throw err;
+      updateRepo(repoPath, hash);
+    });
   }
 
   function commitChanges(node) {
@@ -646,6 +602,7 @@ define("tree", function () {
       var entry = chain.pop();
       var name = entry.name;
       var mode = entry.mode === modes.exec ? modes.blob : modes.exec;
+      // TODO: change .mode in doc if there is one
       chain[chain.length - 1].tree[name].mode = mode;
       saveTree(chain);
     });

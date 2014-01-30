@@ -7,7 +7,7 @@ define("main", function () {
     require('prefs').init,
     require('indexeddb').init
   ], function () {
-    // Load the main GUI components
+    // // Load the main GUI components
     require('tree');
     require('editor');
     require('slider');
