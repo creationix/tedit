@@ -188,6 +188,7 @@ define("tree2", function () {
       }
 
       function onHead(err, hash) {
+        if (!hash) fail($, err || new Error("Missing master ref"));
         if (config.head !== hash) {
           config.head = config.current = hash;
           dirtyConfig = true;
