@@ -255,7 +255,7 @@ define("encoders", function () {
   function formatDate(date) {
     var offset = date.timeZoneOffset || 0;
     var neg = "-";
-    if (offset <= 0) offset = -offset;
+    if (offset < 0) offset = -offset;
     else neg = "+";
     offset = neg + two(Math.floor(offset / 60)) + two(offset % 60);
     var seconds = Math.floor(date.getTime() / 1000);
