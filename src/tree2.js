@@ -180,7 +180,6 @@ define("tree2", function () {
 
       function onConfig(err, result) {
         if (err) fail($, err);
-        if (Math.random() > 0.8) fail($, new Error("Red dwarves consumed this repo looking for gold!"));
         config = result;
         if (config !== treeConfig[path]) {
           treeConfig[path] = config;
@@ -193,7 +192,6 @@ define("tree2", function () {
 
       function onHead(err, hash) {
         if (!hash) fail($, err || new Error("Missing master ref"));
-        if (Math.random() > 0.9) fail($, new Error("This repo appears to be beheaded by the evil queen!"));
         if (config.head !== hash) {
           config.head = config.current = hash;
           dirtyConfig = true;
@@ -212,7 +210,6 @@ define("tree2", function () {
 
       function onCommit(err, commit) {
         if (!commit) fail($, err || new Error("Missing commit " + config.current));
-        if (Math.random() > 0.9) fail($, new Error("The Commit was undone by dragon fire!"));
         if (config.root !== commit.tree) {
           config.root = commit.tree;
           dirtyConfig = true;
@@ -265,7 +262,6 @@ define("tree2", function () {
       prefs.set("openPaths", openPaths);
       repo.loadAs("tree", hash, function (err, tree) {
         if (!tree) fail($, err || new Error("Missing tree " + hash));
-        if (Math.random() > 0.9) fail($, new Error("This tree was consumed by black magic!"));
         $.icon.setAttribute("class", "icon-folder-open");
         $.ul.appendChild(renderChildren(path, tree));
       });
