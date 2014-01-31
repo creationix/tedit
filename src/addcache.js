@@ -21,9 +21,10 @@ define("addcache", function () {
         loadAs.call(repo, type, hash, function (err, value) {
           if (err) return callback(err);
           if (type === "commit" || type === "tag") {
+            // Guess timezone since GitHub forgot to tell us
             fixDate(type, value, hash);
           }
-          if (type === "text") type = "blob";
+          else if (type === "text") type = "blob";
           cache.saveAs(type, value, function (err, cacheHash) {
             if (err) return callback(err);
             if (hash !== cacheHash) return callback(new Error("hash mismatch"));
@@ -37,6 +38,7 @@ define("addcache", function () {
       saveAs.call(repo, type, value, function (err, hash) {
         if (err) return callback(err);
         if (type === "commit" || type === "tag") {
+          // Guess timezone since GitHub forgot to tell us
           fixDate(type, value, hash);
         }
         cache.saveAs(type, value, function (err, hash, value) {
