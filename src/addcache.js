@@ -25,11 +25,10 @@ define("addcache", function () {
             fixDate(type, value, hash);
           }
           else if (type === "text") type = "blob";
-          cache.saveAs(type, value, function (err, cacheHash) {
+          cache.saveAs(type, value, function (err) {
             if (err) return callback(err);
-            if (hash !== cacheHash) return callback(new Error("hash mismatch"));
             callback(null, value, hash);
-          });
+          }, hash);
         });
       });
     }
@@ -49,21 +48,24 @@ define("addcache", function () {
     }
   }
 
+  // GitHub has a nasty habit of stripping whitespace from messages and loosing
+  // the timezone.  Thies information is required to make our hashes match up, so
+  // we guess it by mutating the value till the hash matches.
   function fixDate(type, value, hash) {
-    for (var offset = -720; offset < 720; offset += 30) {
-      if (type === "commit") {
-        value.author.date.timeZoneOffset = offset;
-        value.committer.date.timeZoneOffset = offset;
+    // Add up to 2 extra newlines and try all 24 30-minutes timezone offsets.
+    for (var x = 0; x < 3; x++) {
+      for (var i = -720; i < 720; i += 30) {
+        if (type === "commit") {
+          value.author.date.timeZoneOffset = i;
+          value.committer.date.timeZoneOffset = i;
+        }
+        else if (type === "tag") {
+          value.tagger.date.timeZoneOffset = i;
+        }
+        if (hash === hashAs(type, value)) return;
       }
-      else if (type === "tag") {
-        value.tagger.date.timeZoneOffset = offset;
-      }
-      var testHash = hashAs(type, value);
-      if (testHash === hash) {
-        console.log("TIME FIXED", offset)
-        return;
-      }
+      value.message += "\n";
     }
-    console.error("UNABLE TO GUESS TIMEZONE")
+    console.error("UNABLE TO FIX VALUE, FORCING HASH");
   }
 });

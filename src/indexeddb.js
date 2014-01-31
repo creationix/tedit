@@ -55,12 +55,12 @@ define("indexeddb", function () {
     console.error("error", evt.target.error);
   }
 
-  function saveAs(type, body, callback) {
+  function saveAs(type, body, callback, forcedHash) {
     if (!callback) return saveAs.bind(null, type, body);
     var hash;
     try {
       body = encoders.normalizeAs(type, body);
-      hash = encoders.hashAs(type, body);
+      hash = forcedHash || encoders.hashAs(type, body);
     }
     catch (err) { return callback(err); }
     var trans = db.transaction(["objects"], "readwrite");
