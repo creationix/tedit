@@ -2,6 +2,7 @@
 define("tree2", function () {
 
   var $ = require('elements');
+  var defer = require('defer');
   var dialog = require('dialog');
   var modes = require('modes');
   var domBuilder = require('dombuilder');
@@ -21,9 +22,9 @@ define("tree2", function () {
   // Put in some sample data if the editor is empty
   // treeConfig = {};
   if (!Object.keys(treeConfig).length) {
-    // treeConfig.conquest = { githubName: "creationix/conquest" };
-    // treeConfig.blog = { githubName: "creationix/blog" };
-    // treeConfig.tedit = { githubName: "creationix/tedit" };
+    treeConfig.conquest = { githubName: "creationix/conquest" };
+    treeConfig.blog = { githubName: "creationix/blog" };
+    treeConfig.tedit = { githubName: "creationix/tedit" };
     treeConfig.luvit = { githubName: "creationix/tedit-app" };
     treeConfig.luvit = { githubName: "luvit/luvit" };
     prefs.set("treeConfig", treeConfig);
@@ -170,13 +171,16 @@ define("tree2", function () {
       var $ = genUi(path, modes.commit);
       var dirtyConfig = false;
       $.icon.setAttribute("class", "icon-spin1 animate-spin");
-      if (treeConfig[path]) onConfig(null, treeConfig[path]);
+      if (treeConfig[path]) defer(function () {
+        onConfig(null, treeConfig[path]);
+      });
       else loadSubmoduleConfig(path, onConfig);
 
       return $;
 
       function onConfig(err, result) {
         if (err) fail($, err);
+        if (Math.random() > 0.6) fail($, new Error("Red dwarves consumed this repo looking for gold!"));
         config = result;
         if (config !== treeConfig[path]) {
           treeConfig[path] = config;
@@ -189,6 +193,7 @@ define("tree2", function () {
 
       function onHead(err, hash) {
         if (!hash) fail($, err || new Error("Missing master ref"));
+        if (Math.random() > 0.9) fail($, new Error("This repo appears to be beheaded by the evil queen!"));
         if (config.head !== hash) {
           config.head = config.current = hash;
           dirtyConfig = true;
@@ -207,6 +212,7 @@ define("tree2", function () {
 
       function onCommit(err, commit) {
         if (!commit) fail($, err || new Error("Missing commit " + config.current));
+        if (Math.random() > 0.9) fail($, new Error("The Commit was undone by dragon fire!"));
         if (config.root !== commit.tree) {
           config.root = commit.tree;
           dirtyConfig = true;
@@ -259,6 +265,7 @@ define("tree2", function () {
       prefs.set("openPaths", openPaths);
       repo.loadAs("tree", hash, function (err, tree) {
         if (!tree) fail($, err || new Error("Missing tree " + hash));
+        if (Math.random() > 0.90) fail($, new Error("This tree was consumed by black magic!"));
         $.icon.setAttribute("class", "icon-folder-open");
         $.ul.appendChild(renderChildren(path, tree));
       });

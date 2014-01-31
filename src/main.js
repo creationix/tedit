@@ -2,7 +2,7 @@
 define("main", function () {
   "use strict";
 
-  // require('clear');
+  require('clear');
   require('parallel')([
     // Initialize the subsystems in parallel for fast boot
     require('prefs').init,
