@@ -9,7 +9,7 @@ define("document", function () {
 
     this.path = path;
     this.mode = mode;
-    console.log("INITIAL", {path:path,mode:mode,body:body});
+    // console.log("INITIAL");
   }
   Doc.prototype.setPath = function (path) {
     this.path = path;
@@ -24,8 +24,8 @@ define("document", function () {
     console.log("body changed");
   };
   Doc.prototype.activate = function () {
-    console.log("ACTIVATE", this);
-    editor.setDoc(this);
+    // console.log("ACTIVATE");
+    // editor.setDoc(this);
   };
 
   return newDoc;

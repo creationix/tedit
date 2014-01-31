@@ -19,17 +19,12 @@ define("tree2", function () {
   var treeConfig = prefs.get("treeConfig", {});
 
   // Put in some sample data if the editor is empty
+  // treeConfig = {};
   if (!Object.keys(treeConfig).length) {
-    treeConfig.conquest = {
-      current: "703bfa9bfee7032a71f7ecf5c979d05475760abd",
-      head: "703bfa9bfee7032a71f7ecf5c979d05475760abd",
-      githubName: "creationix/conquest"
-    };
-    treeConfig.blog = {
-      current: "84668ad9cfbd02b2ccf68fa3ab913cecce931f6d",
-      head: "84668ad9cfbd02b2ccf68fa3ab913cecce931f6d",
-      githubName: "creationix/blog"
-    };
+    treeConfig.conquest = { githubName: "creationix/conquest" };
+    treeConfig.blog = { githubName: "creationix/blog" };
+    treeConfig.tedit = { githubName: "creationix/tedit" };
+    treeConfig.luvit = { githubName: "luvit/luvit" };
     prefs.set("treeConfig", treeConfig);
   }
 
@@ -102,12 +97,7 @@ define("tree2", function () {
       var config = {
         githubName: match[1]
       };
-      var repo = repos[path] = createRepo(config);
-      repo.readRef("refs/heads/master", function (err, hash) {
-        if (err) return callback(err);
-        config.head = config.current = hash;
-        callback(null, config);
-      });
+      callback(null, config);
     }
   }
 
@@ -127,128 +117,215 @@ define("tree2", function () {
     require('read-combiner')(repo);
 
     // Add delay to all I/O operations for debugging
-    require('delay')(repo, 200);
+    // require('delay')(repo, 1000);
     return repo;
   }
 
   function render() {
-    var names = Object.keys(treeConfig).filter(function (path) {
+    var roots = Object.keys(treeConfig).filter(function (path) {
       return path.indexOf("/") < 0;
+    }).map(function (name) {
+      return renderRepo(name);
     });
-    var left = names.length;
-    var roots = new Array(left);
-    names.forEach(function (name, i) {
-      renderRepo(name, function (err, root) {
-        if (err) throw err;
-        roots[i] = root;
-        if (--left) return;
-        swap();
-      });
-    });
-
-    function swap() {
-      $.tree.textContent = "";
-      $.tree.appendChild(domBuilder(roots));
-    }
+    // Replace the tree with the new roots
+    while ($.tree.firstChild) $.tree.removeChild($.tree.firstChild);
+    $.tree.appendChild(domBuilder(roots));
   }
 
-  function renderRepo(path, callback) {
+  function genUi(path, mode) {
+    var $ = {};
+    var name = path.substr(path.lastIndexOf("/") + 1);
+    var icon = modes.isFile(mode) ? "doc" :
+      mode === modes.sym ? "link" : "folder";
+    var spanProps = {title:path};
+    if (mode === modes.exec) spanProps["class"] = "executable";
+    var ui = ["li$el",
+      [".row$row",
+        ["i$icon.icon-" + icon],
+        ["span$span", spanProps, name]
+      ]
+    ];
+    if (mode === modes.commit) {
+      ui[1].splice(2, 0, ["i$fork.icon-fork.tight"]);
+    }
+    if (mode === modes.commit || mode === modes.tree) {
+      ui.push(["ul$ul"]);
+    }
+    domBuilder(ui, $);
+    return $;
+  }
+
+  function nullify(evt) {
+    evt.preventDefault();
+    evt.stopPropagation();
+  }
+
+  function renderRepo(path) {
     var config, repo;
-    if (treeConfig[path]) onConfig(null, treeConfig[path]);
-    else loadSubmoduleConfig(path, onConfig);
+    return renderCommit(path).el;
 
-    function onConfig(err, result) {
-      if (err) return callback(err);
-      config = result;
-      repo = repos[path] || (repos[path] = createRepo(config));
-      treeConfig[path] = config;
-      prefs.set("treeConfig", treeConfig);
-      repo.loadAs("commit", config.current, onCommit);
+    // Render the UI for repo and submodule roots
+    function renderCommit(path) {
+      var $ = genUi(path, modes.commit);
+      var dirtyConfig = false;
+      $.icon.setAttribute("class", "icon-spin1 animate-spin");
+      if (treeConfig[path]) onConfig(null, treeConfig[path]);
+      else loadSubmoduleConfig(path, onConfig);
+
+      return $;
+
+      function onConfig(err, result) {
+        if (err) fail($, err);
+        config = result;
+        if (config !== treeConfig[path]) {
+          treeConfig[path] = config;
+          dirtyConfig = true;
+        }
+        repo = repos[path] || (repos[path] = createRepo(config));
+        if (config.head) return onHead(null, config.head);
+        repo.readRef("refs/heads/master", onHead);
+      }
+
+      function onHead(err, hash) {
+        if (config.head !== hash) {
+          config.head = config.current = hash;
+          dirtyConfig = true;
+        }
+        else if (!config.current) {
+          config.current = config.head;
+          dirtyConfig = true;
+        }
+        $.fork.setAttribute("title", "commit " + config.current);
+        if (config.current !== config.head) {
+          $.row.classList.add("staged");
+        }
+
+        repo.loadAs("commit", config.current, onCommit);
+      }
+
+      function onCommit(err, commit) {
+        if (!commit) fail($, err || new Error("Missing commit " + config.current));
+        if (config.root !== commit.tree) {
+          config.root = commit.tree;
+          dirtyConfig = true;
+        }
+        if (dirtyConfig) prefs.set("treeConfig", treeConfig);
+        $.icon.setAttribute("title", "tree " + config.root);
+        $.row.addEventListener("click", onTreeClicker(path, commit.tree, $), false);
+        if (openPaths[path]) openTree(path, commit.tree, $);
+        else $.icon.setAttribute("class", "icon-folder");
+      }
+
     }
 
-    function onCommit(err, commit) {
-      if (!commit) return callback(err || new Error("Missing commit " + config.current));
-      config.root = commit.tree;
-      renderTree(commit.tree, path, onUi);
+    function renderChildren(parentPath, tree) {
+      return domBuilder(Object.keys(tree).map(function (name) {
+        var entry = tree[name];
+        var path = parentPath + "/" + name;
+        if (entry.mode === modes.commit) return renderRepo(path, entry);
+        if (entry.mode === modes.tree) return renderTree(path, entry);
+        if (modes.isBlob(entry.mode)) return renderBlob(path, entry);
+        fail($, new Error("Invalid mode " + entry.mode));
+      }));
     }
 
-    function onUi(err, ui) {
-      if (err) return callback(err);
-      if (config.current !== config.head) ui[1][1]["class"] += " staged";
-      ui[1].splice(3, 0, ["i.icon-fork.tight"]);
-      callback(null, ui);
+    function renderBlob(path, entry) {
+      var $ = genUi(path, entry.mode, {});
+      $.icon.setAttribute("title", "blob " + entry.hash);
+      return $.el;
     }
 
-    function renderNode(mode, path) {
-      var name = path.substr(path.lastIndexOf("/") + 1);
-      var icon = modes.isFile(mode) ? "doc" :
-        mode === modes.sym ? "link" :
-        openPaths[path] ? "folder-open" : "folder";
-      var classes = ["row"];
-      if (selectedPath === path) classes.push("selected");
-      if (activePath === path) classes.push("activated");
+    function renderTree(path, entry) {
+      var $ = genUi(path, entry.mode);
+      $.icon.setAttribute("title", "tree " + entry.hash);
+      $.row.addEventListener("click", onTreeClicker(path, entry.hash, $), false);
+      if (openPaths[path]) openTree(path, entry.hash, $);
+      return $.el;
+    }
 
-      var rowProps = {
-        "class": classes.join(" ")
+    function onTreeClicker(path, hash, $) {
+      return function (evt) {
+        nullify(evt);
+        if (openPaths[path]) closeTree(path, hash, $);
+        else openTree(path, hash, $);
       };
-      var spanProps = {};
-      if (mode === modes.exec) spanProps["class"] = "executable";
-      return ["li",
-        ["div", rowProps,
-          ["i.icon-" + icon],
-          ["span", spanProps, name]
-        ]
-      ];
     }
 
-    function renderTree(hash, path, callback) {
-      var ui = renderNode(modes.tree, path);
-      ui[1][1].onclick = function (evt) {
-        evt.stopPropagation();
-        evt.preventDefault();
-        if (openPaths[path]) delete openPaths[path];
-        else openPaths[path] = true;
-        prefs.set("openPaths", openPaths);
-        render();
-      };
-      var open = openPaths[path];
-      if (!open) return callback(null, ui);
+    function openTree(path, hash, $) {
+      $.icon.setAttribute("class", "icon-spin1 animate-spin");
+      openPaths[path] = true;
+      prefs.set("openPaths", openPaths);
       repo.loadAs("tree", hash, function (err, tree) {
-        if (!tree) return callback(err || new Error("Missing tree " + hash));
-        var names = Object.keys(tree);
-        if (!names.length) return callback(null, ui);
-        var left = names.length;
-        var children = new Array(left);
-        Object.keys(tree).sort(pathCmp).forEach(function (name, i) {
-          var childPath = path ? path + "/" + name : name;
-          var entry = tree[name];
-          if (modes.isBlob(entry.mode)) {
-            var childUi = renderNode(entry.mode, childPath);
-            childUi[1][1]["data-hash"] = entry.hash;
-            childUi[1][1].onclick = function (evt) {
-              evt.stopPropagation();
-              evt.preventDefault();
-              activate(childPath, entry, repo);
-            };
-            return onChild(null, childUi);
-          }
-          if (entry.mode === modes.tree) {
-            return renderTree(entry.hash, childPath, onChild);
-          }
-          if (entry.mode === modes.commit) {
-            return renderRepo(childPath, onChild);
-          }
-          function onChild(err, childUi) {
-            if (err) throw err;
-            children[i] = childUi;
-            if (--left) return;
-            ui.push(["ul", children]);
-            callback(null, ui);
-          }
-        });
+        if (!tree) fail($, err || new Error("Missing tree " + hash));
+        $.icon.setAttribute("class", "icon-folder-open");
+        $.ul.appendChild(renderChildren(path, tree));
       });
     }
+
+    function closeTree(path, hash, $) {
+      $.icon.setAttribute("class", "icon-folder");
+      while ($.ul.firstChild) $.ul.removeChild($.ul.firstChild);
+      delete openPaths[path];
+      prefs.set("openPaths", openPaths);
+    }
   }
+
+  function fail($, err) {
+    $.icon.setAttribute("class", "icon-attention");
+    $.icon.setAttribute("title", err.toString());
+    throw err;
+  }
+
+
+
+  //   function renderTree(hash, path, callback) {
+  //     var ui = renderNode(modes.tree, path);
+  //     ui[1][1].onclick = function (evt) {
+  //       evt.stopPropagation();
+  //       evt.preventDefault();
+  //       if (openPaths[path]) delete openPaths[path];
+  //       else openPaths[path] = true;
+  //       prefs.set("openPaths", openPaths);
+  //       render();
+  //     };
+  //     var open = openPaths[path];
+  //     if (!open) return callback(null, ui);
+  //     repo.loadAs("tree", hash, function (err, tree) {
+  //       if (!tree) return callback(err || new Error("Missing tree " + hash));
+  //       var names = Object.keys(tree);
+  //       if (!names.length) return callback(null, ui);
+  //       var left = names.length;
+  //       var children = new Array(left);
+  //       Object.keys(tree).sort(pathCmp).forEach(function (name, i) {
+  //         var childPath = path ? path + "/" + name : name;
+  //         var entry = tree[name];
+  //         if (modes.isBlob(entry.mode)) {
+  //           var childUi = renderNode(entry.mode, childPath);
+  //           childUi[1][1]["data-hash"] = entry.hash;
+  //           childUi[1][1].onclick = function (evt) {
+  //             evt.stopPropagation();
+  //             evt.preventDefault();
+  //             activate(childPath, entry, repo);
+  //           };
+  //           return onChild(null, childUi);
+  //         }
+  //         if (entry.mode === modes.tree) {
+  //           return renderTree(entry.hash, childPath, onChild);
+  //         }
+  //         if (entry.mode === modes.commit) {
+  //           return renderRepo(childPath, onChild);
+  //         }
+  //         function onChild(err, childUi) {
+  //           if (err) throw err;
+  //           children[i] = childUi;
+  //           if (--left) return;
+  //           ui.push(["ul", children]);
+  //           callback(null, ui);
+  //         }
+  //       });
+  //     });
+  //   }
+
 
   function activate(path, entry, repo) {
     if (activePath === path) {
