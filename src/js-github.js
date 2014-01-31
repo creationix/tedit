@@ -42,7 +42,7 @@ define("js-github", function () {
     repo.saveAs = saveAs;         // (type, value) -> hash
     repo.readRef = readRef;       // (ref) -> hash
     repo.updateRef = updateRef;   // (ref, hash)
-    repo.createTree = createTree; // (base_hash, entries) -> hash
+    repo.createTree = createTree; // (entries) -> hash
 
     function loadAs(type, hash, callback) {
       if (!callback) return loadAs.bind(null, type, hash);
@@ -161,6 +161,7 @@ define("js-github", function () {
       function onParents() {
         Object.keys(parents).forEach(function (parentPath) {
           left++;
+          // TODO: remove this dependency on pathToEntry
           repo.pathToEntry(root, parentPath, function (err, entry) {
             if (err) return callback(err);
             var tree = entry.tree;
