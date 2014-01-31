@@ -52,11 +52,11 @@ define("js-github", function () {
       function onValue(err, result) {
         if (result === undefined) return callback(err);
         var body;
-        try {
-          body = decoders[type].call(repo, result);
-        }
-        catch (err) {
-          return callback(err);
+        try { body = decoders[type].call(repo, result); }
+        catch (err) { return callback(err); }
+        if (hashAs(typeName, body) !== hash) {
+          if (fixDate(type, body, hash)) console.warn(type + " repaired", hash);
+          else console.error("Unable to repair " + type, hash);
         }
         return callback(null, body, hash);
       }
@@ -220,6 +220,27 @@ define("js-github", function () {
 
   };
 
+  // GitHub has a nasty habit of stripping whitespace from messages and loosing
+  // the timezone.  This information is required to make our hashes match up, so
+  // we guess it by mutating the value till the hash matches.
+  // If we're unable to match, we will just force the hash when saving to the cache.
+  function fixDate(type, value, hash) {
+    if (type !== "commit" && type !== "tag") return;
+    // Add up to 2 extra newlines and try all 30-minutes timezone offsets.
+    for (var x = 0; x < 3; x++) {
+      for (var i = -720; i < 720; i += 30) {
+        if (type === "commit") {
+          value.author.date.timeZoneOffset = i;
+          value.committer.date.timeZoneOffset = i;
+        }
+        else if (type === "tag") {
+          value.tagger.date.timeZoneOffset = i;
+        }
+        if (hash === hashAs(type, value)) return true;
+      }
+      value.message += "\n";
+    }
+  }
 
   function mapTreeEntry(entry) {
     if (!entry.mode) throw new TypeError("Invalid entry");
