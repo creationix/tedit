@@ -23,6 +23,7 @@ define("addcache", function () {
           if (type === "commit" || type === "tag") {
             fixDate(type, value, hash);
           }
+          if (type === "text") type = "blob";
           cache.saveAs(type, value, function (err, cacheHash) {
             if (err) return callback(err);
             if (hash !== cacheHash) return callback(new Error("hash mismatch"));
