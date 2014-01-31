@@ -39,7 +39,7 @@ define("encoders", function () {
     }
 
     var date = new Date("Fri Jan 17 09:33:29 2014");
-    date.timeZoneOffset = 6 * 60;
+    date.timeZoneOffset = -6 * 60;
     // Test commit encoding
     hash = hashAs("commit", normalizeCommit({
       tree: hash,
@@ -56,7 +56,7 @@ define("encoders", function () {
 
     // Test annotated tag encoding
     date = new Date("Fri Jan 17 09:46:16 2014");
-    date.timeZoneOffset = 6 * 60;
+    date.timeZoneOffset = -6 * 60;
     hash = hashAs("tag", normalizeTag({
       object: hash,
       type: "commit",
@@ -254,14 +254,9 @@ define("encoders", function () {
 
   function formatDate(date) {
     var offset = date.timeZoneOffset || 0;
-    var neg;
-    if (offset <= 0) {
-      neg = "+";
-      offset = -offset;
-    }
-    else {
-      neg = "-";
-    }
+    var neg = "-";
+    if (offset <= 0) offset = -offset;
+    else neg = "+";
     offset = neg + two(Math.floor(offset / 60)) + two(offset % 60);
     var seconds = Math.floor(date.getTime() / 1000);
     return seconds + " " + offset;

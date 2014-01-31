@@ -360,11 +360,13 @@ define("js-github", function () {
 
   function parseDate(string) {
     // TODO: test this once GitHub adds timezone information
-    var match = string.match(/-?[0-9]{2}:[0-9]{2}$/);
+    var match = string.match(/(-?)([0-9]{2}):([0-9]{2})$/);
     var date = new Date(string);
     date.timeZoneOffset = 0;
     if (match) {
-      date.timeZoneOffset = parseInt(match[0].replace(":30", ".5").replace(":00", ".0"), 10) * 60;
+      date.timeZoneOffset = (match[1] === "-" ? -1 : 1) * (
+        parseInt(match[2], 10) * 60 + parseInt(match[3], 10)
+      );
     }
     return date;
   }
