@@ -36,6 +36,8 @@ define("editor", function () {
     if (!doc) doc = session;
     currentDoc = doc;
 
+    var text;
+
     if ("tiled" in doc) {
       // This is an image url.
       if (textMode) {

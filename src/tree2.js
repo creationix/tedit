@@ -8,6 +8,7 @@ define("tree2", function () {
   var parseConfig = require('parseconfig');
   var prefs = require('prefs');
   var pathCmp = require('encoders').pathCmp;
+  var newDoc = require('document');
 
   // Memory for opened trees.  Accessed by path
   var openPaths = prefs.get("openPaths", {});
@@ -34,6 +35,9 @@ define("tree2", function () {
 
   // Live repos accessed by path
   var repos = {};
+
+  // docs by path
+  var docPaths = {};
 
   // Oauth token for github API calls
   var githubToken = prefs.get("githubToken");
@@ -218,6 +222,11 @@ define("tree2", function () {
           if (modes.isBlob(entry.mode)) {
             var childUi = renderNode(entry.mode, childPath);
             childUi[1][1]["data-hash"] = entry.hash;
+            childUi[1][1].onclick = function (evt) {
+              evt.stopPropagation();
+              evt.preventDefault();
+              activate(childPath, entry, repo);
+            };
             return onChild(null, childUi);
           }
           if (entry.mode === modes.tree) {
@@ -234,6 +243,37 @@ define("tree2", function () {
             callback(null, ui);
           }
         });
+      });
+    }
+  }
+
+  function activate(path, entry, repo) {
+    if (activePath === path) {
+      activePath = null;
+      return render();
+    }
+    activePath = path;
+    render();
+    var doc = docPaths[path];
+    if (doc) {
+      if (doc.path !== path) doc.setPath(path);
+      if (doc.mode !== entry.mode) doc.setMode(entry.mode);
+      if (doc.hash !== entry.hash) {
+        repo.loadAs("blob", entry.hash, function (err, body) {
+          if (err) throw err;
+          doc.hash = entry.hash;
+          doc.setBody(body);
+          doc.activate();
+        });
+      }
+      else doc.activate();
+    }
+    else {
+      repo.loadAs("blob", entry.hash, function (err, body) {
+        if (err) throw err;
+        doc = docPaths[path] = newDoc(path, entry.mode, body);
+        doc.hash = entry.hash;
+        doc.activate();
       });
     }
   }
