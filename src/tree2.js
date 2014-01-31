@@ -118,6 +118,8 @@ define("tree2", function () {
     }
     // Add pathToEntry API and cache non-blob types in ram
     require('pathtoentry')(repo);
+    // Cache github objects locally in indexeddb
+    require('addcache')(repo, require('indexeddb'));
     // Combine concurrent read requests for the same hash
     require('read-combiner')(repo);
     return repo;
