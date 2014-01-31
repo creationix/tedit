@@ -180,7 +180,7 @@ define("tree2", function () {
 
       function onConfig(err, result) {
         if (err) fail($, err);
-        if (Math.random() > 0.6) fail($, new Error("Red dwarves consumed this repo looking for gold!"));
+        if (Math.random() > 0.8) fail($, new Error("Red dwarves consumed this repo looking for gold!"));
         config = result;
         if (config !== treeConfig[path]) {
           treeConfig[path] = config;
@@ -265,7 +265,7 @@ define("tree2", function () {
       prefs.set("openPaths", openPaths);
       repo.loadAs("tree", hash, function (err, tree) {
         if (!tree) fail($, err || new Error("Missing tree " + hash));
-        if (Math.random() > 0.90) fail($, new Error("This tree was consumed by black magic!"));
+        if (Math.random() > 0.9) fail($, new Error("This tree was consumed by black magic!"));
         $.icon.setAttribute("class", "icon-folder-open");
         $.ul.appendChild(renderChildren(path, tree));
       });
