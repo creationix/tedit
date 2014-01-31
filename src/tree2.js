@@ -25,7 +25,7 @@ define("tree2", function () {
     treeConfig.conquest = { githubName: "creationix/conquest" };
     treeConfig.blog = { githubName: "creationix/blog" };
     treeConfig.tedit = { githubName: "creationix/tedit" };
-    treeConfig.luvit = { githubName: "creationix/tedit-app" };
+    treeConfig["tedit-app"] = { githubName: "creationix/tedit-app" };
     treeConfig.luvit = { githubName: "luvit/luvit" };
     prefs.set("treeConfig", treeConfig);
   }
