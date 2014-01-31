@@ -3,16 +3,18 @@ define("indexeddb", function () {
   "use strict";
 
   var encoders = require('encoders');
-  var sha1 = require('sha1');
   var binary = require('binary');
   var db;
 
   mixin.init = init;
+
+  mixin.loadAs = loadAs;
+  mixin.saveAs = saveAs;
   return mixin;
 
   function init(callback) {
 
-    var db = null;
+    db = null;
     var request = indexedDB.open("tedit", 1);
 
     // We can only create Object stores in a versionchange transaction.
@@ -41,8 +43,8 @@ define("indexeddb", function () {
   }
 
 
-  function mixin(repo, url) {
-    repo.refPrefix = sha1(url);
+  function mixin(repo, prefix) {
+    repo.refPrefix = prefix;
     repo.saveAs = saveAs;
     repo.loadAs = loadAs;
     repo.readRef = readRef;
@@ -50,11 +52,11 @@ define("indexeddb", function () {
   }
 
   function onError(evt) {
-    console.error(evt.target.error);
+    console.error("error", evt.target.error);
   }
 
   function saveAs(type, body, callback) {
-    if (!callback) return saveAs.bind(this, type, body);
+    if (!callback) return saveAs.bind(null, type, body);
     var hash;
     try {
       body = encoders.normalizeAs(type, body);
@@ -75,7 +77,7 @@ define("indexeddb", function () {
   }
 
   function loadAs(type, hash, callback) {
-    if (!callback) return loadAs.bind(this, type, hash);
+    if (!callback) return loadAs.bind(null, type, hash);
     console.log("LOAD", type, hash);
     var trans = db.transaction(["objects"], "readwrite");
     var store = trans.objectStore("objects");
@@ -87,10 +89,13 @@ define("indexeddb", function () {
         type = "blob";
         entry.body = binary.toUnicode(entry.body);
       }
+      else if (type !== "blob") {
+        entry.body = encoders.normalizeAs(type, entry.body);
+      }
       if (type !== entry.type) {
         return callback(new TypeError("Type mismatch"));
       }
-      callback(null, entry.body);
+      callback(null, entry.body, hash);
     };
     request.onerror = function(evt) {
       callback(new Error(evt.value));
