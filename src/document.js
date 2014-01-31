@@ -3,6 +3,7 @@ define("document", function () {
   "use strict";
 
   var editor = require('editor');
+  var active = null;
 
   function Doc(path, mode, body) {
 

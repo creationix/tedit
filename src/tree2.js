@@ -125,6 +125,9 @@ define("tree2", function () {
     require('pathtoentry')(repo);
     // Combine concurrent read requests for the same hash
     require('read-combiner')(repo);
+
+    // Add 500ms delay to all I/O operations for debugging
+    require('delay')(repo, 200);
     return repo;
   }
 
