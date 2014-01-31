@@ -38,22 +38,25 @@ define("encoders", function () {
       throw new Error("Invalid tree hash");
     }
 
+    var date = new Date("Fri Jan 17 09:33:29 2014");
+    date.timeZoneOffset = 6 * 60;
     // Test commit encoding
     hash = hashAs("commit", normalizeCommit({
       tree: hash,
       author: {
         name: "Tim Caswell",
         email: "tim@creationix.com",
-        date: new Date("Fri Jan 17 09:33:29 2014")
+        date: date
       },
       message: "Test Commit\n"
     }));
     if (hash !== "05d04f9b583335a82100e7c5158a6149e4f57d7a") {
-      // TODO: make this work with computers in any time zone!
-      // throw new Error("Invalid commit hash");
+      throw new Error("Invalid commit hash");
     }
 
     // Test annotated tag encoding
+    date = new Date("Fri Jan 17 09:46:16 2014");
+    date.timeZoneOffset = 6 * 60;
     hash = hashAs("tag", normalizeTag({
       object: hash,
       type: "commit",
@@ -61,13 +64,12 @@ define("encoders", function () {
       tagger: {
         name: "Tim Caswell",
         email: "tim@creationix.com",
-        date: new Date("Fri Jan 17 09:46:16 2014")
+        date: date,
       },
       message: "Tag it!\n"
     }));
     if (hash !== "d2f2d639e67abb8b5c4f8e93722971dc02ad7311") {
-      // TODO: make this work with computers in any time zone!
-      // throw new Error("Invalid annotated tag hash");
+      throw new Error("Invalid annotated tag hash");
     }
   }
 
@@ -246,10 +248,23 @@ define("encoders", function () {
     return string.replace(/(?:^[\.,:;<>"']+|[\0\n<>]+|[\.,:;<>"']+$)/gm, "");
   }
 
+  function two(num) {
+    return (num < 10 ? "0" : "") + num;
+  }
+
   function formatDate(date) {
-    var timezone = (date.timeZoneoffset || date.getTimezoneOffset()) / 60;
+    var offset = date.timeZoneOffset || 0;
+    var neg;
+    if (offset <= 0) {
+      neg = "+";
+      offset = -offset;
+    }
+    else {
+      neg = "-";
+    }
+    offset = neg + two(Math.floor(offset / 60)) + two(offset % 60);
     var seconds = Math.floor(date.getTime() / 1000);
-    return seconds + " " + (timezone > 0 ? "-0" : "0") + timezone + "00";
+    return seconds + " " + offset;
   }
 
 });
