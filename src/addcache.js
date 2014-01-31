@@ -49,8 +49,9 @@ define("addcache", function () {
   }
 
   // GitHub has a nasty habit of stripping whitespace from messages and loosing
-  // the timezone.  Thies information is required to make our hashes match up, so
+  // the timezone.  This information is required to make our hashes match up, so
   // we guess it by mutating the value till the hash matches.
+  // If we're unable to match, we will just force the hash when saving to the cache.
   function fixDate(type, value, hash) {
     // Add up to 2 extra newlines and try all 24 30-minutes timezone offsets.
     for (var x = 0; x < 3; x++) {
