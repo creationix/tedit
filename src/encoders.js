@@ -219,8 +219,15 @@ define("encoders", function () {
     return binary.encodeUtf8(str);
   }
 
+  // Tree entries are sorted by the byte sequence that comprises
+  // the entry name. However, for the purposes of the sort
+  // comparison, entries for tree objects are compared as if the
+  // entry name byte sequence has a trailing ASCII '/' (0x2f).
   function pathCmp(a, b) {
-    a += "/"; b += "/";
+    // TODO: this spec seems to be wrong.  It doesn't match the sort order used
+    // by real git.
+    // a = binary.encodeUtf8(a) + "/";
+    // b = binary.encodeUtf8(b) + "/";
     return a < b ? -1 : a > b ? 1 : 0;
   }
 
