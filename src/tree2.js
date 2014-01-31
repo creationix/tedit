@@ -21,9 +21,9 @@ define("tree2", function () {
   // Put in some sample data if the editor is empty
   // treeConfig = {};
   if (!Object.keys(treeConfig).length) {
-    treeConfig.conquest = { githubName: "creationix/conquest" };
-    treeConfig.blog = { githubName: "creationix/blog" };
-    treeConfig.tedit = { githubName: "creationix/tedit" };
+    // treeConfig.conquest = { githubName: "creationix/conquest" };
+    // treeConfig.blog = { githubName: "creationix/blog" };
+    // treeConfig.tedit = { githubName: "creationix/tedit" };
     treeConfig.luvit = { githubName: "luvit/luvit" };
     prefs.set("treeConfig", treeConfig);
   }
@@ -270,9 +270,11 @@ define("tree2", function () {
     }
   }
 
+  // A more user friendly throw that shows the source of the error visually
+  // to the user with a short message.
   function fail($, err) {
     $.icon.setAttribute("class", "icon-attention");
-    $.icon.setAttribute("title", err.toString());
+    $.icon.setAttribute("title", $.icon.getAttribute("title") + "\n" + err.toString());
     throw err;
   }
 
@@ -327,35 +329,35 @@ define("tree2", function () {
   //   }
 
 
-  function activate(path, entry, repo) {
-    if (activePath === path) {
-      activePath = null;
-      return render();
-    }
-    activePath = path;
-    render();
-    var doc = docPaths[path];
-    if (doc) {
-      if (doc.path !== path) doc.setPath(path);
-      if (doc.mode !== entry.mode) doc.setMode(entry.mode);
-      if (doc.hash !== entry.hash) {
-        repo.loadAs("blob", entry.hash, function (err, body) {
-          if (err) throw err;
-          doc.hash = entry.hash;
-          doc.setBody(body);
-          doc.activate();
-        });
-      }
-      else doc.activate();
-    }
-    else {
-      repo.loadAs("blob", entry.hash, function (err, body) {
-        if (err) throw err;
-        doc = docPaths[path] = newDoc(path, entry.mode, body);
-        doc.hash = entry.hash;
-        doc.activate();
-      });
-    }
-  }
+  // function activate(path, entry, repo) {
+  //   if (activePath === path) {
+  //     activePath = null;
+  //     return render();
+  //   }
+  //   activePath = path;
+  //   render();
+  //   var doc = docPaths[path];
+  //   if (doc) {
+  //     if (doc.path !== path) doc.setPath(path);
+  //     if (doc.mode !== entry.mode) doc.setMode(entry.mode);
+  //     if (doc.hash !== entry.hash) {
+  //       repo.loadAs("blob", entry.hash, function (err, body) {
+  //         if (err) throw err;
+  //         doc.hash = entry.hash;
+  //         doc.setBody(body);
+  //         doc.activate();
+  //       });
+  //     }
+  //     else doc.activate();
+  //   }
+  //   else {
+  //     repo.loadAs("blob", entry.hash, function (err, body) {
+  //       if (err) throw err;
+  //       doc = docPaths[path] = newDoc(path, entry.mode, body);
+  //       doc.hash = entry.hash;
+  //       doc.activate();
+  //     });
+  //   }
+  // }
 
 });
