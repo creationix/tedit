@@ -2,7 +2,7 @@
 define("clear", function () {
   "use strict";
   indexedDB.deleteDatabase("tedit");
-  console.log("tedit IDB deleted");
+  console.warn("tedit IDB deleted");
   chrome.storage.local.clear();
-  console.log("chrome local storage cleared");
+  console.warn("chrome local storage cleared");
 });
