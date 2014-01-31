@@ -98,8 +98,7 @@ define("tree2", function () {
       var config = {
         githubName: match[1]
       };
-      // TODO: reuse this repo
-      var repo = createRepo(config);
+      var repo = repos[path] = createRepo(config);
       repo.readRef("refs/heads/master", function (err, hash) {
         if (err) return callback(err);
         config.head = config.current = hash;
@@ -112,14 +111,14 @@ define("tree2", function () {
     var repo = {};
     if (config.githubName) {
       require('js-github')(repo, config.githubName, githubToken);
+      // Cache github objects locally in indexeddb
+      require('addcache')(repo, require('indexeddb'));
     }
     else {
       require('indexeddb')(repo, config.idbName);
     }
     // Add pathToEntry API and cache non-blob types in ram
     require('pathtoentry')(repo);
-    // Cache github objects locally in indexeddb
-    require('addcache')(repo, require('indexeddb'));
     // Combine concurrent read requests for the same hash
     require('read-combiner')(repo);
     return repo;
@@ -155,6 +154,8 @@ define("tree2", function () {
       if (err) return callback(err);
       config = result;
       repo = repos[path] || (repos[path] = createRepo(config));
+      treeConfig[path] = config;
+      prefs.set("treeConfig", treeConfig);
       repo.loadAs("commit", config.current, onCommit);
     }
 
