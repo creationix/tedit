@@ -119,7 +119,7 @@ define("tree2", function () {
     require('read-combiner')(repo);
 
     // Add delay to all I/O operations for debugging
-    // require('delay')(repo, 1000);
+    require('delay')(repo, 1000);
     return repo;
   }
 
@@ -217,6 +217,7 @@ define("tree2", function () {
         if (dirtyConfig) prefs.set("treeConfig", treeConfig);
         $.icon.setAttribute("title", "tree " + config.root);
         $.row.addEventListener("click", onTreeClicker(path, commit.tree, $), false);
+        $.row.addEventListener("contextmenu", onTreeContexter(path, commit.tree, $, true), false);
         if (openPaths[path]) openTree(path, commit.tree, $);
         else $.icon.setAttribute("class", "icon-folder");
       }
@@ -244,6 +245,7 @@ define("tree2", function () {
       var $ = genUi(path, entry.mode);
       $.icon.setAttribute("title", "tree " + entry.hash);
       $.row.addEventListener("click", onTreeClicker(path, entry.hash, $), false);
+      $.row.addEventListener("contextmenu", onTreeContexter(path, entry.hash, $), false);
       if (openPaths[path]) openTree(path, entry.hash, $);
       return $.el;
     }
@@ -253,6 +255,13 @@ define("tree2", function () {
         nullify(evt);
         if (openPaths[path]) closeTree(path, hash, $);
         else openTree(path, hash, $);
+      };
+    }
+
+    function onTreeContexter(path, hash, $, isRoot) {
+      return function (evt) {
+        nullify(evt);
+        console.log("context", path, hash, isRoot);
       };
     }
 
