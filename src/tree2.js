@@ -37,7 +37,7 @@ define("tree2", function () {
   // docs by path
   var docPaths = {};
 
-  $.tree.addEventListener("contextmenu", onContexter(), false);
+  $.tree.addEventListener("contextmenu", onGlobalContext, false);
 
   // Oauth token for github API calls
   var githubToken = prefs.get("githubToken");
@@ -277,7 +277,6 @@ define("tree2", function () {
       };
     }
 
-
     function openTree(path, hash, $) {
       $.icon.setAttribute("class", "icon-spin1 animate-spin");
       openPaths[path] = true;
@@ -295,18 +294,15 @@ define("tree2", function () {
       delete openPaths[path];
       prefs.set("openPaths", openPaths);
     }
-  }
 
-  function onContexter(node) {
-    return function (evt) {
-      nullify(evt);
-      var actions = [];
-      if (node) {
+    function onContexter(node) {
+      return function (evt) {
+        nullify(evt);
+        var actions = [];
         var type;
         actions.push({icon:"globe", label:"Serve Over HTTP"});
         actions.push({icon:"hdd", label:"Live Export to Disk"});
         if (node.mode === modes.commit) {
-          var config = treeConfig[node.path];
           if (config.head !== config.current) {
             actions.push({sep:true});
             actions.push({icon:"floppy", label:"Commit Changes"});
@@ -354,16 +350,19 @@ define("tree2", function () {
           actions.push({icon:"pencil", label:"Rename Repo"});
           actions.push({icon:"trash", label:"Remove Repo"});
         }
-      }
-      else {
-        actions.push({icon:"git", label: "Create Empty Git Repo"});
-        actions.push({icon:"hdd", label:"Create Repo From Folder"});
-        actions.push({icon:"fork", label: "Clone Remote Repo"});
-        actions.push({icon:"github", label: "Live Mount Github Repo"});
-      }
+        contextMenu(evt, node, actions);
+      };
+    }
+  }
 
-      contextMenu(evt, node, actions);
-    };
+  function onGlobalContext(evt) {
+    nullify(evt);
+    contextMenu(evt, null, [
+      {icon:"git", label: "Create Empty Git Repo"},
+      {icon:"hdd", label:"Create Repo From Folder"},
+      {icon:"fork", label: "Clone Remote Repo"},
+      {icon:"github", label: "Live Mount Github Repo"}
+    ]);
   }
 
   // A more user friendly throw that shows the source of the error visually
