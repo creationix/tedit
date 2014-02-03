@@ -28,6 +28,7 @@ define("modes", function () {
     },
     tree:    040000,
     blob:   0100644,
+    file:   0100644,
     exec:   0100755,
     sym:    0120000,
     commit: 0160000
