@@ -314,6 +314,17 @@ define("tree2", function () {
       });
     }
 
+    function checkHead(node) {
+      repo.readRef("refs/heads/master", function (err, hash) {
+        if (!hash) fail(node.$, err || new Error("Missing master branch"));
+        if (config.head !== hash) {
+          config.head = hash;
+          prefs.set("treeConfig", treeConfig);
+          render();
+        }
+      });
+    }
+
     function toggleExec(node) {
       updateTree(node.$, [{
         path: node.localPath,
@@ -399,7 +410,7 @@ define("tree2", function () {
           }
           actions.push({sep:true});
           if (config.githubName) {
-            actions.push({icon:"github", label:"Check for Updates"});
+            actions.push({icon:"github", label:"Check for Updates", action: checkHead});
           }
           else {
             actions.push({icon:"download-cloud", label:"Pull from Remote"});
