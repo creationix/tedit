@@ -165,12 +165,13 @@ define("tree2", function () {
     evt.stopPropagation();
   }
 
-  function renderRepo(path) {
+  function renderRepo(repoPath, repoHash, onChange) {
     var config, repo;
-    return renderCommit(path).el;
+    var commitNode = renderCommit(repoPath, repoHash);
+    return commitNode.el;
 
     // Render the UI for repo and submodule roots
-    function renderCommit(path) {
+    function renderCommit(path, hash) {
       var $ = genUi(path, modes.commit);
       var dirtyConfig = false;
       $.icon.setAttribute("class", "icon-spin1 animate-spin");
@@ -186,6 +187,10 @@ define("tree2", function () {
         config = result;
         if (config !== treeConfig[path]) {
           treeConfig[path] = config;
+          dirtyConfig = true;
+        }
+        if (hash && config.current !== hash) {
+          config.current = hash;
           dirtyConfig = true;
         }
         repo = repos[path] || (repos[path] = createRepo(config));
@@ -213,12 +218,8 @@ define("tree2", function () {
 
       function onCommit(err, commit) {
         if (!commit) fail($, err || new Error("Missing commit " + config.current));
-        if (config.root !== commit.tree) {
-          config.root = commit.tree;
-          dirtyConfig = true;
-        }
         if (dirtyConfig) prefs.set("treeConfig", treeConfig);
-        $.icon.setAttribute("title", "tree " + config.root);
+        $.icon.setAttribute("title", "tree " + commit.tree);
         $.row.addEventListener("click", onTreeClicker(path, commit.tree, $), false);
         $.row.addEventListener("contextmenu", onContexter({
           $: $,
@@ -236,11 +237,22 @@ define("tree2", function () {
       return domBuilder(Object.keys(tree).map(function (name) {
         var entry = tree[name];
         var path = parentPath + "/" + name;
-        if (entry.mode === modes.commit) return renderRepo(path, entry);
+        if (entry.mode === modes.commit) return renderRepo(path, entry.hash, onChanger(path));
         if (entry.mode === modes.tree) return renderTree(path, entry);
         if (modes.isBlob(entry.mode)) return renderBlob(path, entry);
         fail($, new Error("Invalid mode " + entry.mode));
       }));
+    }
+
+    function onChanger(path) {
+      var localPath = path.substr(repoPath.length + 1);
+      return function (hash) {
+        updateTree(commitNode, [{
+          path: localPath,
+          mode: modes.commit,
+          hash: hash
+        }]);
+      };
     }
 
     function renderBlob(path, entry) {
@@ -295,7 +307,91 @@ define("tree2", function () {
       prefs.set("openPaths", openPaths);
     }
 
+    function revertChanges(node) {
+      dialog.confirm("Are you sure you want to loose all uncommitted changes?", function (confirm) {
+        if (!confirm) return;
+        node.$.icon.setAttribute("class", "icon-spin1 animate-spin");
+        return repo.updateRef("refs/tags/current", config.head, onCurrent);
+      });
+
+      function onCurrent(err) {
+        if (err) fail($, err);
+        config.current = config.head;
+        render();
+      }
+    }
+
+    function toggleExec(node) {
+      updateTree(node.$, [{
+        path: node.localPath,
+        mode: node.mode === modes.exec ? modes.file : modes.exec,
+        hash: node.hash
+      }]);
+    }
+
+    function updateTree($, entries) {
+      // The current and head commits
+      var current, head;
+      $.icon.setAttribute("class", "icon-spin1 animate-spin");
+
+      repo.loadAs("commit", config.current, onCurrent);
+
+      function onCurrent(err, commit) {
+        if (!commit) fail($, err || new Error("Missing commit " + config.current));
+        current = commit;
+        // Base the tree update on the currently saved state.
+        entries.base = commit.tree;
+        if (config.head === config.current) {
+          head = current;
+          repo.createTree(entries, onTree);
+        }
+        else {
+          repo.loadAs("commit", config.head, onHead);
+        }
+      }
+
+      function onHead(err, commit) {
+        if (!commit) fail($, err || new Error("Missing commit " + config.current));
+        head = commit;
+        repo.createTree(entries, onTree);
+      }
+
+      function onTree(err, root) {
+        if (err) fail($, err);
+        if (root === head.tree) setCurrent(config.head);
+        else setTree(root);
+      }
+    }
+
+    function setTree(root) {
+      var $ = commitNode;
+      $.icon.setAttribute("class", "icon-spin1 animate-spin");
+      repo.saveAs("commit", {
+        tree: root,
+        author: {name:"Tedit AutoCommit",email:"tedit@creationix.com"},
+        parent: config.head,
+        message: "Uncommitted changes in tedit"
+      }, onCommit);
+
+      function onCommit(err, result) {
+        if (err) fail($, err);
+        setCurrent(result);
+      }
+    }
+
+    function setCurrent(hash) {
+      var $ = commitNode;
+      $.icon.setAttribute("class", "icon-spin1 animate-spin");
+      if (onChange) return onChange(hash);
+      return repo.updateRef("refs/tags/current", hash, function (err) {
+        if (err) fail($, err);
+        config.current = hash;
+        render();
+      });
+    }
+
     function onContexter(node) {
+      node.localPath = node.path.substr(repoPath.length + 1);
       return function (evt) {
         nullify(evt);
         var actions = [];
@@ -306,7 +402,7 @@ define("tree2", function () {
           if (config.head !== config.current) {
             actions.push({sep:true});
             actions.push({icon:"floppy", label:"Commit Changes"});
-            actions.push({icon:"ccw", label:"Revert all Changes"});
+            actions.push({icon:"ccw", label:"Revert all Changes", action: revertChanges});
           }
           actions.push({sep:true});
           if (config.githubName) {
@@ -336,7 +432,7 @@ define("tree2", function () {
           var label = (node.mode === modes.exec) ?
             "Make not Executable" :
             "Make Executable";
-          actions.push({icon:"asterisk", label: label});
+          actions.push({icon:"asterisk", label: label, action: toggleExec});
         }
         else if (node.mode === modes.sym) {
           type = "SymLink";
@@ -373,56 +469,9 @@ define("tree2", function () {
     throw err;
   }
 
-
-
-  //   function renderTree(hash, path, callback) {
-  //     var ui = renderNode(modes.tree, path);
-  //     ui[1][1].onclick = function (evt) {
-  //       evt.stopPropagation();
-  //       evt.preventDefault();
-  //       else openPaths[path] = true;
-  //       prefs.set("openPaths", openPaths);
-  //       render();
-  //     };
-  //     var open = openPaths[path];
-  //     if (!open) return callback(null, ui);
-  //     repo.loadAs("tree", hash, function (err, tree) {
-  //       if (!tree) return callback(err || new Error("Missing tree " + hash));
-  //       var names = Object.keys(tree);
-  //       if (!names.length) return callback(null, ui);
-  //       var left = names.length;
-  //       var children = new Array(left);
-  //       Object.keys(tree).sort(pathCmp).forEach(function (name, i) {
-  //         var childPath = path ? path + "/" + name : name;
-  //         var entry = tree[name];
-  //         if (modes.isBlob(entry.mode)) {
-  //           var childUi = renderNode(entry.mode, childPath);
-  //           childUi[1][1]["data-hash"] = entry.hash;
-  //           childUi[1][1].onclick = function (evt) {
-  //             evt.stopPropagation();
-  //             evt.preventDefault();
-  //             activate(childPath, entry, repo);
-  //           };
-  //           return onChild(null, childUi);
-  //         }
-  //         if (entry.mode === modes.tree) {
-  //           return renderTree(entry.hash, childPath, onChild);
-  //         }
-  //         if (entry.mode === modes.commit) {
-  //           return renderRepo(childPath, onChild);
-  //         }
-  //         function onChild(err, childUi) {
-  //           if (err) throw err;
-  //           children[i] = childUi;
-  //           if (--left) return;
-  //           ui.push(["ul", children]);
-  //           callback(null, ui);
-  //         }
-  //       });
-  //     });
-  //   }
-
-
+  function dirname(path) {
+    return path.substr(0, path.lastIndexOf("/"));
+  }
   // function activate(path, entry, repo) {
   //   if (activePath === path) {
   //     activePath = null;
