@@ -310,15 +310,8 @@ define("tree2", function () {
     function revertChanges(node) {
       dialog.confirm("Are you sure you want to loose all uncommitted changes?", function (confirm) {
         if (!confirm) return;
-        node.$.icon.setAttribute("class", "icon-spin1 animate-spin");
-        return repo.updateRef("refs/tags/current", config.head, onCurrent);
+        setCurrent(config.head);
       });
-
-      function onCurrent(err) {
-        if (err) fail($, err);
-        config.current = config.head;
-        render();
-      }
     }
 
     function toggleExec(node) {
