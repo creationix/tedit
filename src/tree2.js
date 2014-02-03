@@ -10,6 +10,7 @@ define("tree2", function () {
   var prefs = require('prefs');
   var pathCmp = require('encoders').pathCmp;
   var newDoc = require('document');
+  var contextMenu = require('context-menu');
 
   // Memory for opened trees.  Accessed by path
   var openPaths = prefs.get("openPaths", {});
@@ -35,6 +36,8 @@ define("tree2", function () {
 
   // docs by path
   var docPaths = {};
+
+  $.tree.addEventListener("contextmenu", onContexter(), false);
 
   // Oauth token for github API calls
   var githubToken = prefs.get("githubToken");
@@ -119,7 +122,7 @@ define("tree2", function () {
     require('read-combiner')(repo);
 
     // Add delay to all I/O operations for debugging
-    require('delay')(repo, 1000);
+    // require('delay')(repo, 300);
     return repo;
   }
 
@@ -217,7 +220,12 @@ define("tree2", function () {
         if (dirtyConfig) prefs.set("treeConfig", treeConfig);
         $.icon.setAttribute("title", "tree " + config.root);
         $.row.addEventListener("click", onTreeClicker(path, commit.tree, $), false);
-        $.row.addEventListener("contextmenu", onTreeContexter(path, commit.tree, $, true), false);
+        $.row.addEventListener("contextmenu", onContexter({
+          $: $,
+          path: path,
+          mode: modes.commit,
+          hash: commit.current
+        }), false);
         if (openPaths[path]) openTree(path, commit.tree, $);
         else $.icon.setAttribute("class", "icon-folder");
       }
@@ -238,6 +246,12 @@ define("tree2", function () {
     function renderBlob(path, entry) {
       var $ = genUi(path, entry.mode, {});
       $.icon.setAttribute("title", "blob " + entry.hash);
+      $.row.addEventListener("contextmenu", onContexter({
+        $: $,
+        path: path,
+        mode: entry.mode,
+        hash: entry.hash
+      }), false);
       return $.el;
     }
 
@@ -245,7 +259,12 @@ define("tree2", function () {
       var $ = genUi(path, entry.mode);
       $.icon.setAttribute("title", "tree " + entry.hash);
       $.row.addEventListener("click", onTreeClicker(path, entry.hash, $), false);
-      $.row.addEventListener("contextmenu", onTreeContexter(path, entry.hash, $), false);
+      $.row.addEventListener("contextmenu", onContexter({
+        $: $,
+        path: path,
+        mode: entry.mode,
+        hash: entry.hash
+      }), false);
       if (openPaths[path]) openTree(path, entry.hash, $);
       return $.el;
     }
@@ -258,12 +277,6 @@ define("tree2", function () {
       };
     }
 
-    function onTreeContexter(path, hash, $, isRoot) {
-      return function (evt) {
-        nullify(evt);
-        console.log("context", path, hash, isRoot);
-      };
-    }
 
     function openTree(path, hash, $) {
       $.icon.setAttribute("class", "icon-spin1 animate-spin");
@@ -284,6 +297,75 @@ define("tree2", function () {
     }
   }
 
+  function onContexter(node) {
+    return function (evt) {
+      nullify(evt);
+      var actions = [];
+      if (node) {
+        var type;
+        actions.push({icon:"globe", label:"Serve Over HTTP"});
+        actions.push({icon:"hdd", label:"Live Export to Disk"});
+        if (node.mode === modes.commit) {
+          var config = treeConfig[node.path];
+          if (config.head !== config.current) {
+            actions.push({sep:true});
+            actions.push({icon:"floppy", label:"Commit Changes"});
+            actions.push({icon:"ccw", label:"Revert all Changes"});
+          }
+          actions.push({sep:true});
+          if (config.githubName) {
+            actions.push({icon:"github", label:"Check for Updates"});
+          }
+          else {
+            actions.push({icon:"download-cloud", label:"Pull from Remote"});
+            actions.push({icon:"upload-cloud", label:"Push to Remote"});
+          }
+        }
+        if (node.mode === modes.tree || node.mode === modes.commit) {
+          type = node.mode === modes.commit ? "Submodule" : "Folder";
+          if (openPaths[node.path]) {
+            actions.push({sep:true});
+            actions.push({icon:"doc", label:"Create File"});
+            actions.push({icon:"folder", label:"Create Folder"});
+            actions.push({icon:"link", label:"Create SymLink"});
+            actions.push({sep:true});
+            actions.push({icon:"fork", label: "Add Submodule"});
+            actions.push({icon:"folder", label:"Import Folder"});
+            actions.push({icon:"docs", label:"Import File(s)"});
+          }
+        }
+        else if (modes.isFile(node.mode)) {
+          type = "File";
+          actions.push({sep:true});
+          var label = (node.mode === modes.exec) ?
+            "Make not Executable" :
+            "Make Executable";
+          actions.push({icon:"asterisk", label: label});
+        }
+        else if (node.mode === modes.sym) {
+          type = "SymLink";
+        }
+        actions.push({sep:true});
+        if (node.path.indexOf("/") >= 0) {
+          actions.push({icon:"pencil", label:"Rename " + type});
+          actions.push({icon:"trash", label:"Delete " + type});
+        }
+        else {
+          actions.push({icon:"pencil", label:"Rename Repo"});
+          actions.push({icon:"trash", label:"Remove Repo"});
+        }
+      }
+      else {
+        actions.push({icon:"git", label: "Create Empty Git Repo"});
+        actions.push({icon:"hdd", label:"Create Repo From Folder"});
+        actions.push({icon:"fork", label: "Clone Remote Repo"});
+        actions.push({icon:"github", label: "Live Mount Github Repo"});
+      }
+
+      contextMenu(evt, node, actions);
+    };
+  }
+
   // A more user friendly throw that shows the source of the error visually
   // to the user with a short message.
   function fail($, err) {
@@ -299,7 +381,6 @@ define("tree2", function () {
   //     ui[1][1].onclick = function (evt) {
   //       evt.stopPropagation();
   //       evt.preventDefault();
-  //       if (openPaths[path]) delete openPaths[path];
   //       else openPaths[path] = true;
   //       prefs.set("openPaths", openPaths);
   //       render();
