@@ -15,9 +15,11 @@ define("pathtoentry", function () {
     if (!repo.submodules) repo.submodules = {};
     repo.pathToEntry = pathToEntry;
     var loadAs = repo.loadAs;
-    repo.loadAs = loadAsCached;
+    if (loadAs) repo.loadAs = loadAsCached;
     var saveAs = repo.saveAs;
-    repo.saveAs = saveAsCached;
+    if (saveAs) repo.saveAs = saveAsCached;
+    var createTree = repo.createTree;
+    if (createTree) repo.createTree = createTreeCached;
 
     // Monkeypatch loadAs to cache non-blobs
     function loadAsCached(type, hash, callback) {
@@ -48,6 +50,18 @@ define("pathtoentry", function () {
         if (err) return callback(err);
         cache[hash] = body;
         callback(null, hash, body);
+      });
+    }
+
+    // Monkeypatch saveAs to cache non-blobs
+    function createTreeCached(entries, callback) {
+      if (!callback) {
+        return createTreeCached.bind(repo, entries);
+      }
+      createTree.call(repo, entries, function (err, hash, tree) {
+        if (err) return callback(err);
+        cache[hash] = tree;
+        callback(null, hash, tree);
       });
     }
 

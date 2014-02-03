@@ -38,11 +38,11 @@ define("js-github", function () {
 
     var apiRequest = xhr(root, accessToken);
 
-    repo.loadAs = loadAs;         // (type, hash) -> value
-    repo.saveAs = saveAs;         // (type, value) -> hash
+    repo.loadAs = loadAs;         // (type, hash) -> value, hash
+    repo.saveAs = saveAs;         // (type, value) -> hash, value
     repo.readRef = readRef;       // (ref) -> hash
-    repo.updateRef = updateRef;   // (ref, hash)
-    repo.createTree = createTree; // (entries) -> hash
+    repo.updateRef = updateRef;   // (ref, hash) -> hash
+    repo.createTree = createTree; // (entries) -> hash, tree
 
     function loadAs(type, hash, callback) {
       if (!callback) return loadAs.bind(null, type, hash);
@@ -109,7 +109,7 @@ define("js-github", function () {
 
       function onWrite(err, result) {
         if (err) return callback(err);
-        return callback(null, result.sha);
+        return callback(null, result.sha, decoders.tree(result));
       }
     }
 
@@ -214,7 +214,7 @@ define("js-github", function () {
 
       function onResult(err) {
         if (err) return callback(err);
-        callback();
+        callback(null, hash);
       }
     }
 
