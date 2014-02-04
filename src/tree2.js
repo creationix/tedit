@@ -397,7 +397,7 @@ define("tree2", function () {
     }
 
     function revertChanges() {
-      dialog.confirm("Are you sure you want to loose all uncommitted changes?", function (confirm) {
+      dialog.confirm("Are you sure you want to lose all uncommitted changes?", function (confirm) {
         if (!confirm) return;
         setCurrent(config.head);
       });
