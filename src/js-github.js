@@ -104,7 +104,6 @@ define("js-github", function () {
     function fastUpdateTree(entries, callback) {
       var request = { tree: entries.map(mapTreeEntry) };
       if (entries.base) request.base_tree = entries.base;
-      console.log(request)
 
       apiRequest("POST", "/repos/:root/git/trees", request, onWrite);
 
@@ -160,16 +159,12 @@ define("js-github", function () {
       if (!left) onParents();
 
       function onParents() {
-        console.log({
-          parents:parents,
-        })
         Object.keys(parents).forEach(function (parentPath) {
           left++;
           // TODO: remove this dependency on pathToEntry
           repo.pathToEntry(root, parentPath, function (err, entry) {
             if (err) return callback(err);
             var tree = entry.tree;
-            console.log("BEFORE", JSON.stringify(tree))
             var commands = parents[parentPath];
             commands.del.forEach(function (name) {
               delete tree[name];
@@ -177,8 +172,7 @@ define("js-github", function () {
             for (var name in commands.add) {
               tree[name] = commands.add[name];
             }
-            console.log("AFTER", JSON.stringify(tree))
-            repo.saveAs("tree", tree, function (err, hash) {
+            repo.saveAs("tree", tree, function (err, hash, tree) {
               if (err) return callback(err);
               other.push({
                 path: parentPath,
@@ -187,6 +181,9 @@ define("js-github", function () {
               });
               if (!--left) {
                 other.base = entries.base;
+                if (other.length === 1 && other[0].path === "") {
+                  return callback(null, hash, tree);
+                }
                 fastUpdateTree(other, callback);
               }
             });
