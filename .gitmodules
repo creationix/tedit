@@ -1,0 +1,3 @@
+[submodule "filters"]
+	path = filters
+	url = git@github.com:creationix/my-filters.git
