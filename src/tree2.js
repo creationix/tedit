@@ -11,6 +11,7 @@ define("tree2", function () {
   var prefs = require('prefs');
   var pathCmp = require('encoders').pathCmp;
   var newDoc = require('document');
+  var clone = require('clone');
   var contextMenu = require('context-menu');
 
   // Memory for opened trees.  Accessed by path
@@ -227,7 +228,10 @@ define("tree2", function () {
 
       function onHead(err, hash) {
         if (err) fail($, err);
-        if (hash === undefined) return createTemp();
+        if (hash === undefined) {
+          if (config.url) return clone(repo, config.url, onHead);
+          return createTemp();
+        }
         if (hash && config.head !== hash) {
           config.head = config.current = hash;
           dirtyConfig = true;
@@ -679,10 +683,27 @@ define("tree2", function () {
     });
   }
 
+  function cloneMount() {
+    dialog.multiEntry("Clone Remote Repo", [
+      {name: "url", placeholder: "git@hostname:path/to/repo.git", required:true},
+      {name: "name", placeholder: "localname"}
+    ], function (result) {
+      var url = result.url;
+      var name = result.name;
+      if (!name) {
+        name = url.replace(/\.git$/, '');
+        name = name.substr(name.lastIndexOf("/") + 1);
+      }
+      treeConfig[name] = { url: url };
+      render();
+    });
+  }
+
   function liveMount() {
     var githubToken = prefs.get("githubToken", "");
     dialog.multiEntry("Mount Github Repo", [
       {name: "path", placeholder: "user/name", required:true},
+      {name: "name", placeholder: "localname"},
       {name: "token", placeholder: "Enter github auth token", required:true, value: githubToken}
     ], function (result) {
       if (!result) return;
@@ -690,7 +711,7 @@ define("tree2", function () {
         prefs.set("githubToken", result.token);
       }
       var path = result.path;
-      var name = path.substring(path.lastIndexOf("/") + 1);
+      var name = result.name || path.substring(path.lastIndexOf("/") + 1);
       treeConfig[name] = {
         githubName: path
       };
@@ -704,7 +725,7 @@ define("tree2", function () {
     contextMenu(evt, null, [
       {icon:"git", label: "Create Empty Git Repo", action: createEmpty},
       {icon:"hdd", label:"Create Repo From Folder"},
-      {icon:"fork", label: "Clone Remote Repo"},
+      {icon:"fork", label: "Clone Remote Repo", action: cloneMount},
       {icon:"github", label: "Live Mount Github Repo", action: liveMount}
     ]);
   }
@@ -715,10 +736,6 @@ define("tree2", function () {
     $.icon.setAttribute("class", "icon-attention");
     $.icon.setAttribute("title", $.icon.getAttribute("title") + "\n" + err.toString());
     throw err;
-  }
-
-  function clone(repo, url, callback) {
-    console.log("TODO: clone", url);
   }
 
   // function activate(path, entry, repo) {
