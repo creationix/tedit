@@ -219,9 +219,30 @@ define("tree2", function () {
         repo.readRef("refs/heads/master", onHead);
       }
 
+      function createTemp() {
+        repo.saveAs("tree", [], function (err, hash) {
+          if (err) fail($, err);
+          repo.saveAs("commit", {
+            tree: hash,
+            author: {
+              name: "Tedit",
+              email: "tedit@creationix.com"
+            },
+            message: "Initial Empty Commit"
+          }, function (err, hash) {
+            if (err) fail($, err);
+            config.current = hash;
+            config.head = null;
+            dirtyConfig = true;
+            onHead(null, config.head);
+          });
+        });
+      }
+
       function onHead(err, hash) {
-        if (!hash) fail($, err || new Error("Missing master ref"));
-        if (config.head !== hash) {
+        if (err) fail($, err);
+        if (hash === undefined) return createTemp();
+        if (hash && config.head !== hash) {
           config.head = config.current = hash;
           dirtyConfig = true;
         }
@@ -640,10 +661,18 @@ define("tree2", function () {
     }
   }
 
+  function createEmpty() {
+    dialog.prompt("Enter name for empty repo", "", function (name) {
+      treeConfig[name] = {};
+      render();
+    });
+  }
+
+
   function onGlobalContext(evt) {
     nullify(evt);
     contextMenu(evt, null, [
-      {icon:"git", label: "Create Empty Git Repo"},
+      {icon:"git", label: "Create Empty Git Repo", action: createEmpty},
       {icon:"hdd", label:"Create Repo From Folder"},
       {icon:"fork", label: "Clone Remote Repo"},
       {icon:"github", label: "Live Mount Github Repo"}
@@ -658,9 +687,6 @@ define("tree2", function () {
     throw err;
   }
 
-  function dirname(path) {
-    return path.substr(0, path.lastIndexOf("/"));
-  }
   // function activate(path, entry, repo) {
   //   if (activePath === path) {
   //     activePath = null;
