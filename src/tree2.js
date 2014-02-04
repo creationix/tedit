@@ -21,17 +21,6 @@ define("tree2", function () {
   // State for repos in tree.
   var treeConfig = prefs.get("treeConfig", {});
 
-  // Put in some sample data if the editor is empty
-  // treeConfig = {};
-  if (!Object.keys(treeConfig).length) {
-    treeConfig.conquest = { githubName: "creationix/conquest" };
-    treeConfig.blog = { githubName: "creationix/blog" };
-    treeConfig.tedit = { githubName: "creationix/tedit" };
-    treeConfig["tedit-app"] = { githubName: "creationix/tedit-app" };
-    treeConfig.luvit = { githubName: "luvit/luvit" };
-    prefs.set("treeConfig", treeConfig);
-  }
-
   // Live repos accessed by path
   var repos = {};
 
@@ -40,14 +29,7 @@ define("tree2", function () {
 
   $.tree.addEventListener("contextmenu", onGlobalContext, false);
 
-  // Oauth token for github API calls
-  var githubToken = prefs.get("githubToken");
-  if (githubToken) return render();
-  dialog.prompt("Enter github Auth Token", "", function (token) {
-    if (!token) return;
-    prefs.set("githubToken", githubToken = token);
-    render();
-  });
+  render();
 
   function loadSubmoduleConfig(path, callback) {
     // Find the longest
@@ -115,21 +97,22 @@ define("tree2", function () {
 
   function configFromUrl(url, parent) {
     if (!parent.githubName) {
-      throw new Error("TODO: clone submodule");
+      return {
+        idbName: (Math.random() * 0x100000000).toString(36),
+        url: url
+      };
     }
     var match = url.match(/github.com[:\/](.*?)(?:\.git)?$/);
     if (!match) {
       throw new Error(url + " is not a github repo");
     }
-    var config = {
-      githubName: match[1]
-    };
-    return config;
+    return { githubName: match[1] };
   }
 
   function createRepo(config) {
     var repo = {};
     if (config.githubName) {
+      var githubToken = prefs.get("githubToken", "");
       require('js-github')(repo, config.githubName, githubToken);
       // Github has this built-in, but it's currently very buggy
       require('createtree')(repo);
@@ -228,7 +211,7 @@ define("tree2", function () {
           repo.saveAs("commit", {
             tree: hash,
             author: {
-              name: "Tedit",
+              name: "AutoInit",
               email: "tedit@creationix.com"
             },
             message: "Initial Empty Commit"
@@ -458,10 +441,19 @@ define("tree2", function () {
     }
 
     function addSubmodule(node) {
-      var url, childPath, meta;
-      dialog.prompt("Enter URL for submodule", "", function (result) {
+      var url, name, childPath, meta, childRepo;
+      dialog.multiEntry("Add a submodule", [
+        {name: "url", placeholder: "git@hostname:path/to/repo.git", required:true},
+        {name: "name", placeholder: "localname"}
+      ], function (result) {
         if (!result) return;
-        url = result;
+        node.$.icon.setAttribute("class", "icon-spin1 animate-spin");
+        url = result.url;
+        name = result.name;
+        if (!name) {
+          name = url.replace(/\.git$/, '');
+          name = name.substr(name.lastIndexOf("/") + 1);
+        }
         loadFile(".gitmodules", onConfig);
       });
 
@@ -479,14 +471,11 @@ define("tree2", function () {
         if (/^[a-z0-9_-]+\/[a-z0-9_-]+$/.test(url)) {
           url = "git@github.com:" + url + ".git";
         }
-        var name = url.replace(/\.git$/, '');
-        name = name.substr(name.lastIndexOf("/") + 1);
         childPath = node.localPath ? node.localPath + "/" + name : name;
         meta.submodule[childPath] = {
           path: childPath,
           url: url
         };
-        var childRepo;
         try { childRepo = createRepo(configFromUrl(url, config)); }
         catch(err) { fail(node.$, err); }
 
@@ -494,7 +483,8 @@ define("tree2", function () {
       }
 
       function onRef(err, hash) {
-        if (!hash) fail(node.$, err || new Error("No master in child repo"));
+        if (err) fail(node.$, err);
+        if (!hash) return clone(childRepo, url, onRef);
         updateTree(node.$, [
           { path: ".gitmodules",
             mode: modes.file,
@@ -589,7 +579,10 @@ define("tree2", function () {
       $.icon.setAttribute("class", "icon-spin1 animate-spin");
       repo.saveAs("commit", {
         tree: root,
-        author: {name:"Tedit AutoCommit",email:"tedit@creationix.com"},
+        author: {
+          name: "AutoCommit",
+          email: "tedit@creationix.com"
+        },
         parent: config.head,
         message: "Uncommitted changes in tedit"
       }, onCommit);
@@ -649,7 +642,6 @@ define("tree2", function () {
             actions.push({sep:true});
             actions.push({icon:"fork", label: "Add Submodule", action: addSubmodule});
             actions.push({icon:"folder", label:"Import Folder"});
-            actions.push({icon:"docs", label:"Import File(s)"});
           }
         }
         else if (modes.isFile(node.mode)) {
@@ -681,7 +673,27 @@ define("tree2", function () {
 
   function createEmpty() {
     dialog.prompt("Enter name for empty repo", "", function (name) {
+      if (!name) return;
       treeConfig[name] = {};
+      render();
+    });
+  }
+
+  function liveMount() {
+    var githubToken = prefs.get("githubToken", "");
+    dialog.multiEntry("Mount Github Repo", [
+      {name: "path", placeholder: "user/name", required:true},
+      {name: "token", placeholder: "Enter github auth token", required:true, value: githubToken}
+    ], function (result) {
+      if (!result) return;
+      if (result.token !== githubToken) {
+        prefs.set("githubToken", result.token);
+      }
+      var path = result.path;
+      var name = path.substring(path.lastIndexOf("/") + 1);
+      treeConfig[name] = {
+        githubName: path
+      };
       render();
     });
   }
@@ -693,7 +705,7 @@ define("tree2", function () {
       {icon:"git", label: "Create Empty Git Repo", action: createEmpty},
       {icon:"hdd", label:"Create Repo From Folder"},
       {icon:"fork", label: "Clone Remote Repo"},
-      {icon:"github", label: "Live Mount Github Repo"}
+      {icon:"github", label: "Live Mount Github Repo", action: liveMount}
     ]);
   }
 
@@ -703,6 +715,10 @@ define("tree2", function () {
     $.icon.setAttribute("class", "icon-attention");
     $.icon.setAttribute("title", $.icon.getAttribute("title") + "\n" + err.toString());
     throw err;
+  }
+
+  function clone(repo, url, callback) {
+    console.log("TODO: clone", url);
   }
 
   // function activate(path, entry, repo) {
