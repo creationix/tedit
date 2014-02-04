@@ -7,6 +7,7 @@ define("tree2", function () {
   var modes = require('modes');
   var domBuilder = require('dombuilder');
   var parseConfig = require('parseconfig');
+  var encodeConfig = require('encodeconfig');
   var prefs = require('prefs');
   var pathCmp = require('encoders').pathCmp;
   var newDoc = require('document');
@@ -62,9 +63,18 @@ define("tree2", function () {
     var parent = treeConfig[parentPath];
     var parentRepo = repos[parentPath];
 
-    parentRepo.loadAs("tree", parent.root, function (err, tree) {
+    parentRepo.loadAs("commit", parent.current, onCommit);
+
+    function onCommit(err, commit) {
+      if (!commit) {
+        return callback(err || new Error("Missing commit " + parent.current));
+      }
+      parentRepo.loadAs("tree", commit.tree, onTree);
+    }
+
+    function onTree(err, tree) {
       if (!tree) {
-        return callback(err || new Error("Missing tree " + parent.root));
+        return callback(err || new Error("Missing tree"));
       }
       var entry = tree[".gitmodules"];
       if (!entry || !modes.isFile(entry.mode)) {
@@ -89,21 +99,32 @@ define("tree2", function () {
         }
         onUrl(url);
       });
-    });
+    }
 
     function onUrl(url) {
-      if (!parent.githubName) {
-        return callback(new Error("TODO: clone submodule"));
+      var config;
+      try {
+        config = configFromUrl(url, parent);
       }
-      var match = url.match(/github.com[:\/](.*?)(?:\.git)?$/);
-      if (!match) {
-        return callback(new Error(url + " is not a github repo"));
+      catch (err) {
+        return callback(err);
       }
-      var config = {
-        githubName: match[1]
-      };
       callback(null, config);
     }
+  }
+
+  function configFromUrl(url, parent) {
+    if (!parent.githubName) {
+      throw new Error("TODO: clone submodule");
+    }
+    var match = url.match(/github.com[:\/](.*?)(?:\.git)?$/);
+    if (!match) {
+      throw new Error(url + " is not a github repo");
+    }
+    var config = {
+      githubName: match[1]
+    };
+    return config;
   }
 
   function createRepo(config) {
@@ -400,6 +421,57 @@ define("tree2", function () {
       });
     }
 
+    function addSubmodule(node) {
+      var url, childPath, meta;
+      dialog.prompt("Enter URL for submodule", "", function (result) {
+        if (!result) return;
+        url = result;
+        loadFile(".gitmodules", onConfig);
+      });
+
+      function onConfig(err, text) {
+        if (err) fail(node.$, err);
+        if (text) {
+          try { meta = parseConfig(text); }
+          catch (err) { fail(node.$, err); }
+        }
+        else {
+          meta = {};
+        }
+        if (!meta.submodule) meta.submodule = {};
+        // Assume github if user/name combo is given
+        if (/^[a-z0-9_-]+\/[a-z0-9_-]+$/.test(url)) {
+          url = "git@github.com:" + url + ".git";
+        }
+        var name = url.replace(/\.git$/, '');
+        name = name.substr(name.lastIndexOf("/") + 1);
+        childPath = node.localPath ? node.localPath + "/" + name : name;
+        meta.submodule[childPath] = {
+          path: childPath,
+          url: url
+        };
+        var childRepo;
+        try { childRepo = createRepo(configFromUrl(url, config)); }
+        catch(err) { fail(node.$, err); }
+
+        childRepo.readRef("refs/heads/master", onRef);
+      }
+
+      function onRef(err, hash) {
+        if (!hash) fail(node.$, err || new Error("No master in child repo"));
+        updateTree(node.$, [
+          { path: ".gitmodules",
+            mode: modes.file,
+            content: encodeConfig(meta)
+          },
+          { path: childPath,
+            mode: modes.commit,
+            hash: hash
+          }
+        ]);
+
+      }
+    }
 
     function toggleExec(node) {
       updateTree(node.$, [{
@@ -426,6 +498,20 @@ define("tree2", function () {
           path: node.localPath
         }]);
       });
+    }
+
+    function loadFile(path, callback) {
+      repo.loadAs("commit", config.current, onCommit);
+
+      function onCommit(err, commit) {
+        if (!commit) return callback(err || new Error("Missing commit " + config.current));
+        repo.pathToEntry(commit.tree, path, onEntry);
+      }
+
+      function onEntry(err, entry) {
+        if (!entry) return callback(err || new Error("Can't find path " + path));
+        repo.loadAs("text", entry.hash, callback);
+      }
     }
 
     function updateTree($, entries) {
@@ -524,7 +610,7 @@ define("tree2", function () {
             actions.push({icon:"folder", label:"Create Folder", action: createFolder});
             actions.push({icon:"link", label:"Create SymLink", action: createSymLink});
             actions.push({sep:true});
-            actions.push({icon:"fork", label: "Add Submodule"});
+            actions.push({icon:"fork", label: "Add Submodule", action: addSubmodule});
             actions.push({icon:"folder", label:"Import Folder"});
             actions.push({icon:"docs", label:"Import File(s)"});
           }
