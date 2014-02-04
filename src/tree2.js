@@ -729,6 +729,20 @@ define("tree2", function () {
     });
   }
 
+  function removeAll() {
+    indexedDB.deleteDatabase("tedit");
+    var githubToken = prefs.get("githubToken", "");
+    var userName = prefs.get("userName", "");
+    var userEmail = prefs.get("userEmail", "");
+    chrome.storage.local.clear();
+    prefs.init(function () {
+      console.log("Restoring user information");
+      prefs.set("githubToken", githubToken);
+      prefs.set("userName", userName);
+      prefs.set("userEmail", userEmail);
+      chrome.runtime.reload()
+    });
+  }
 
   function onGlobalContext(evt) {
     nullify(evt);
@@ -736,7 +750,8 @@ define("tree2", function () {
       {icon:"git", label: "Create Empty Git Repo", action: createEmpty},
       {icon:"hdd", label:"Create Repo From Folder"},
       {icon:"fork", label: "Clone Remote Repo", action: cloneMount},
-      {icon:"github", label: "Live Mount Github Repo", action: liveMount}
+      {icon:"github", label: "Live Mount Github Repo", action: liveMount},
+      {icon:"ccw", label: "Remove All", action: removeAll}
     ]);
   }
 
