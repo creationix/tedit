@@ -131,11 +131,14 @@ define("tree2", function () {
     var repo = {};
     if (config.githubName) {
       require('js-github')(repo, config.githubName, githubToken);
+      // Github has this built-in, but it's currently very buggy
+      require('createtree')(repo);
       // Cache github objects locally in indexeddb
       require('addcache')(repo, require('indexeddb'));
     }
     else {
       require('indexeddb')(repo, config.idbName);
+      require('createtree')(repo);
     }
     // Add pathToEntry API and cache non-blob types in ram
     require('pathtoentry')(repo);
@@ -263,11 +266,18 @@ define("tree2", function () {
         if (dirtyConfig) prefs.set("treeConfig", treeConfig);
         $.icon.setAttribute("title", "tree " + commit.tree);
         $.row.addEventListener("click", onTreeClicker(path, commit.tree, $), false);
-        $.row.addEventListener("contextmenu", makeMenu({
+        $.fork.addEventListener("contextmenu", makeMenu({
           $: $,
           path: path,
           mode: modes.commit,
-          hash: commit.current
+          hash: config.current
+        }), false);
+
+        $.row.addEventListener("contextmenu", makeMenu({
+          $: $,
+          path: path,
+          mode: modes.tree,
+          hash: commit.tree
         }), false);
         if (openPaths[path]) openTree(path, commit.tree, $);
         else $.icon.setAttribute("class", "icon-folder");
@@ -530,7 +540,7 @@ define("tree2", function () {
       }
 
       function onEntry(err, entry) {
-        if (!entry) return callback(err || new Error("Can't find path " + path));
+        if (!entry) return callback(err);
         repo.loadAs("text", entry.hash, callback);
       }
     }
@@ -606,15 +616,12 @@ define("tree2", function () {
         nullify(evt);
         var actions = [];
         var type;
-        actions.push({icon:"globe", label:"Serve Over HTTP"});
-        actions.push({icon:"hdd", label:"Live Export to Disk"});
         if (node.mode === modes.commit) {
           if (config.head !== config.current) {
-            actions.push({sep:true});
             actions.push({icon:"floppy", label:"Commit Changes", action: commitChanges});
             actions.push({icon:"ccw", label:"Revert all Changes", action: revertChanges});
+            actions.push({sep:true});
           }
-          actions.push({sep:true});
           if (config.githubName) {
             actions.push({icon:"github", label:"Check for Updates", action: checkHead});
           }
@@ -623,8 +630,12 @@ define("tree2", function () {
             actions.push({icon:"upload-cloud", label:"Push to Remote"});
           }
         }
-        if (node.mode === modes.tree || node.mode === modes.commit) {
-          type = node.mode === modes.commit ? "Submodule" : "Folder";
+        else {
+          actions.push({icon:"globe", label:"Serve Over HTTP"});
+          actions.push({icon:"hdd", label:"Live Export to Disk"});
+        }
+        if (node.mode === modes.tree) {
+          type = "Folder";
           if (openPaths[node.path]) {
             actions.push({sep:true});
             actions.push({icon:"doc", label:"Create File", action: createFile});
@@ -647,14 +658,16 @@ define("tree2", function () {
         else if (node.mode === modes.sym) {
           type = "SymLink";
         }
-        actions.push({sep:true});
-        if (node.path.indexOf("/") >= 0) {
-          actions.push({icon:"pencil", label:"Rename " + type, action: renameEntry});
-          actions.push({icon:"trash", label:"Delete " + type, action: removeEntry});
-        }
-        else {
-          actions.push({icon:"pencil", label:"Rename Repo"});
-          actions.push({icon:"trash", label:"Remove Repo"});
+        if (node.mode !== modes.commit) {
+          actions.push({sep:true});
+          if (node.path.indexOf("/") >= 0) {
+            actions.push({icon:"pencil", label:"Rename " + type, action: renameEntry});
+            actions.push({icon:"trash", label:"Delete " + type, action: removeEntry});
+          }
+          else {
+            actions.push({icon:"pencil", label:"Rename Repo"});
+            actions.push({icon:"trash", label:"Remove Repo"});
+          }
         }
         contextMenu(evt, node, actions);
       };
