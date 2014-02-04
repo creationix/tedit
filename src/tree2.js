@@ -689,6 +689,7 @@ define("tree2", function () {
     dialog.prompt("Enter name for empty repo", "", function (name) {
       if (!name) return;
       treeConfig[name] = {};
+      openPaths[name] = true;
       render();
     });
   }
@@ -725,6 +726,7 @@ define("tree2", function () {
       treeConfig[name] = {
         githubName: path
       };
+      openPaths[name] = true;
       render();
     });
   }
