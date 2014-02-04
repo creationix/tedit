@@ -221,7 +221,7 @@ define("tree2", function () {
         if (dirtyConfig) prefs.set("treeConfig", treeConfig);
         $.icon.setAttribute("title", "tree " + commit.tree);
         $.row.addEventListener("click", onTreeClicker(path, commit.tree, $), false);
-        $.row.addEventListener("contextmenu", onContexter({
+        $.row.addEventListener("contextmenu", makeMenu({
           $: $,
           path: path,
           mode: modes.commit,
@@ -258,7 +258,7 @@ define("tree2", function () {
     function renderBlob(path, entry) {
       var $ = genUi(path, entry.mode, {});
       $.icon.setAttribute("title", "blob " + entry.hash);
-      $.row.addEventListener("contextmenu", onContexter({
+      $.row.addEventListener("contextmenu", makeMenu({
         $: $,
         path: path,
         mode: entry.mode,
@@ -271,7 +271,7 @@ define("tree2", function () {
       var $ = genUi(path, entry.mode);
       $.icon.setAttribute("title", "tree " + entry.hash);
       $.row.addEventListener("click", onTreeClicker(path, entry.hash, $), false);
-      $.row.addEventListener("contextmenu", onContexter({
+      $.row.addEventListener("contextmenu", makeMenu({
         $: $,
         path: path,
         mode: entry.mode,
@@ -307,7 +307,44 @@ define("tree2", function () {
       prefs.set("openPaths", openPaths);
     }
 
-    function revertChanges(node) {
+    function commitChanges(node) {
+      var $ = node.$, current;
+      var userEmail, userName;
+      repo.loadAs("commit", config.current, onCurrent);
+
+      function onCurrent(err, result) {
+        if (!result) fail($, err || new Error("Missing commit " + config.current));
+        current = result;
+        userName = prefs.get("userName", "");
+        userEmail = prefs.get("userEmail", "");
+        dialog.multiEntry("Enter Commit Message", [
+          {name: "message", placeholder: "Details about commit.", required:true},
+          {name: "name", placeholder: "Full Name", required:true, value:userName},
+          {name: "email", placeholder: "email@provider.com", required:true, value:userEmail},
+        ], onResult);
+      }
+      function onResult(result) {
+        if (!result) return;
+        if (result.name !== userName) prefs.set("userName", result.name);
+        if (result.email !== userEmail) prefs.set("userEmail", result.email);
+        repo.saveAs("commit", {
+          tree: current.tree,
+          author: {
+            name: result.name,
+            email: result.email
+          },
+          parent: config.head,
+          message: result.message
+        }, onSave);
+      }
+
+      function onSave(err, hash) {
+        if (err) fail($, err);
+        setCurrent(hash, true);
+      }
+    }
+
+    function revertChanges() {
       dialog.confirm("Are you sure you want to loose all uncommitted changes?", function (confirm) {
         if (!confirm) return;
         setCurrent(config.head);
@@ -331,6 +368,15 @@ define("tree2", function () {
         mode: node.mode === modes.exec ? modes.file : modes.exec,
         hash: node.hash
       }]);
+    }
+
+    function removeEntry(node) {
+      dialog.confirm("Are you sure you want to remove " + node.path + "?", function (confirm) {
+        if (!confirm) return;
+        updateTree(node.$, [{
+          path: node.localPath
+        }]);
+      });
     }
 
     function updateTree($, entries) {
@@ -383,18 +429,22 @@ define("tree2", function () {
       }
     }
 
-    function setCurrent(hash) {
+    function setCurrent(hash, isHead) {
       var $ = commitNode;
       $.icon.setAttribute("class", "icon-spin1 animate-spin");
       if (onChange) return onChange(hash);
-      return repo.updateRef("refs/tags/current", hash, function (err) {
+
+      var ref = isHead ? "refs/heads/master" : "refs/tags/current";
+
+      return repo.updateRef(ref, hash, function (err) {
         if (err) fail($, err);
         config.current = hash;
+        if (isHead) config.head = hash;
         render();
       });
     }
 
-    function onContexter(node) {
+    function makeMenu(node) {
       node.localPath = node.path.substr(repoPath.length + 1);
       return function (evt) {
         nullify(evt);
@@ -405,7 +455,7 @@ define("tree2", function () {
         if (node.mode === modes.commit) {
           if (config.head !== config.current) {
             actions.push({sep:true});
-            actions.push({icon:"floppy", label:"Commit Changes"});
+            actions.push({icon:"floppy", label:"Commit Changes", action: commitChanges});
             actions.push({icon:"ccw", label:"Revert all Changes", action: revertChanges});
           }
           actions.push({sep:true});
@@ -444,7 +494,7 @@ define("tree2", function () {
         actions.push({sep:true});
         if (node.path.indexOf("/") >= 0) {
           actions.push({icon:"pencil", label:"Rename " + type});
-          actions.push({icon:"trash", label:"Delete " + type});
+          actions.push({icon:"trash", label:"Delete " + type, action: removeEntry});
         }
         else {
           actions.push({icon:"pencil", label:"Rename Repo"});
