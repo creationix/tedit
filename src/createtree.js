@@ -14,8 +14,8 @@ define("createtree", function () {
       // Tree paths that we need loaded
       var toLoad = {};
       function markTree(path) {
-        if (toLoad[path]) return;
         while(true) {
+          if (toLoad[path]) return;
           toLoad[path] = true;
           trees[path] = {
             add: [],
