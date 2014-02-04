@@ -234,7 +234,7 @@ define("tree2", function () {
     }
 
     function renderChildren(parentPath, tree) {
-      return domBuilder(Object.keys(tree).map(function (name) {
+      return domBuilder(Object.keys(tree).sort(pathCmp).map(function (name) {
         var entry = tree[name];
         var path = parentPath + "/" + name;
         if (entry.mode === modes.commit) return renderRepo(path, entry.hash, onChanger(path));
@@ -362,12 +362,61 @@ define("tree2", function () {
       });
     }
 
+    function createFile(node) {
+      dialog.prompt("Enter name for new file", "", function (name) {
+        if (!name) return;
+        updateTree(node.$, [{
+          path: node.localPath ? node.localPath + "/" + name : name,
+          mode: modes.file,
+          content: ""
+        }]);
+      });
+    }
+
+    function createFolder(node) {
+      dialog.prompt("Enter name for new folder", "", function (name) {
+        if (!name) return;
+        repo.saveAs("tree", [], function (err, hash) {
+          if (err) fail(node.$, err);
+          openPaths[node.path + "/" + name] = true;
+          prefs.set("openPaths", openPaths);
+          updateTree(node.$, [{
+            path: node.localPath ? node.localPath + "/" + name : name,
+            mode: modes.tree,
+            hash: hash
+          }]);
+        });
+      });
+    }
+
+    function createSymLink(node) {
+      dialog.prompt("Enter name for new symlink", "", function (name) {
+        if (!name) return;
+        updateTree(node.$, [{
+          path: node.localPath ? node.localPath + "/" + name : name,
+          mode: modes.sym,
+          content: ""
+        }]);
+      });
+    }
+
+
     function toggleExec(node) {
       updateTree(node.$, [{
         path: node.localPath,
         mode: node.mode === modes.exec ? modes.file : modes.exec,
         hash: node.hash
       }]);
+    }
+
+    function renameEntry(node) {
+      dialog.prompt("Enter new name", node.localPath, function (newPath) {
+        if (!newPath || newPath === node.localPath) return;
+        updateTree(node.$, [
+          {path: node.localPath},
+          {path: newPath, mode: node.mode, hash: node.hash}
+        ]);
+      });
     }
 
     function removeEntry(node) {
@@ -471,9 +520,9 @@ define("tree2", function () {
           type = node.mode === modes.commit ? "Submodule" : "Folder";
           if (openPaths[node.path]) {
             actions.push({sep:true});
-            actions.push({icon:"doc", label:"Create File"});
-            actions.push({icon:"folder", label:"Create Folder"});
-            actions.push({icon:"link", label:"Create SymLink"});
+            actions.push({icon:"doc", label:"Create File", action: createFile});
+            actions.push({icon:"folder", label:"Create Folder", action: createFolder});
+            actions.push({icon:"link", label:"Create SymLink", action: createSymLink});
             actions.push({sep:true});
             actions.push({icon:"fork", label: "Add Submodule"});
             actions.push({icon:"folder", label:"Import Folder"});
@@ -493,7 +542,7 @@ define("tree2", function () {
         }
         actions.push({sep:true});
         if (node.path.indexOf("/") >= 0) {
-          actions.push({icon:"pencil", label:"Rename " + type});
+          actions.push({icon:"pencil", label:"Rename " + type, action: renameEntry});
           actions.push({icon:"trash", label:"Delete " + type, action: removeEntry});
         }
         else {

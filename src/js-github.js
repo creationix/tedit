@@ -108,7 +108,7 @@ define("js-github", function () {
       apiRequest("POST", "/repos/:root/git/trees", request, onWrite);
 
       function onWrite(err, result) {
-        if (err) return callback(err);
+        if (!result) return callback(err || new Error("Problem creating tree"));
         return callback(null, result.sha, decoders.tree(result));
       }
     }
@@ -138,11 +138,10 @@ define("js-github", function () {
         if (!parent) return true;
         var name = entry.path.substr(entry.path.lastIndexOf("/") + 1);
         if (entry.hash) {
-          parent.add.push({
-            name: name,
+          parent.add[name] = {
             mode: entry.mode,
             hash: entry.hash
-          });
+          };
           return false;
         }
         left++;
@@ -253,6 +252,9 @@ define("js-github", function () {
       mode: mode,
       type: modeToType[mode]
     };
+    // Magic hash for empty file since github rejects empty contents.
+    if (entry.content === "") entry.hash = "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391";
+
     if (entry.hash) item.sha = entry.hash;
     else item.content = entry.content;
     return  item;
