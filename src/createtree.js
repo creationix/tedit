@@ -123,7 +123,7 @@ define("createtree", function () {
         var parents = {};
         paths.forEach(function (path) {
           if (!path) return;
-          var parent = name.substring(0, name.lastIndexOf("/"));
+          var parent = path.substring(0, path.lastIndexOf("/"));
           parents[parent] = true;
         });
         return paths.filter(function (path) {
