@@ -12,7 +12,9 @@ define("tree2", function () {
   var pathCmp = require('encoders').pathCmp;
   var newDoc = require('document');
   var clone = require('clone');
+  var startServer = require('startserver');
   var contextMenu = require('context-menu');
+  var fail = require('fail');
 
   // Memory for opened trees.  Accessed by path
   var openPaths = prefs.get("openPaths", {});
@@ -31,6 +33,10 @@ define("tree2", function () {
   $.tree.addEventListener("contextmenu", onGlobalContext, false);
 
   render();
+
+  return {
+    fail: fail
+  };
 
   function loadSubmoduleConfig(path, callback) {
     // Find the longest
@@ -406,6 +412,10 @@ define("tree2", function () {
       });
     }
 
+    function serveHttp(node) {
+      startServer(repo, config, node);
+    }
+
     function createFile(node) {
       dialog.prompt("Enter name for new file", "", function (name) {
         if (!name) return;
@@ -633,7 +643,7 @@ define("tree2", function () {
           }
         }
         else {
-          actions.push({icon:"globe", label:"Serve Over HTTP"});
+          actions.push({icon:"globe", label:"Serve Over HTTP", action: serveHttp});
           actions.push({icon:"hdd", label:"Live Export to Disk"});
         }
         if (node.mode === modes.tree) {
@@ -730,13 +740,6 @@ define("tree2", function () {
     ]);
   }
 
-  // A more user friendly throw that shows the source of the error visually
-  // to the user with a short message.
-  function fail($, err) {
-    $.icon.setAttribute("class", "icon-attention");
-    $.icon.setAttribute("title", $.icon.getAttribute("title") + "\n" + err.toString());
-    throw err;
-  }
 
   // function activate(path, entry, repo) {
   //   if (activePath === path) {
