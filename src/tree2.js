@@ -404,12 +404,17 @@ define("tree2", function () {
     }
 
     function checkHead(node) {
+      var old = node.$.icon.getAttribute("class");
+      node.$.icon.setAttribute("class", "icon-spin1 animate-spin");
       repo.readRef("refs/heads/master", function (err, hash) {
         if (!hash) fail(node.$, err || new Error("Missing master branch"));
         if (config.head !== hash) {
           config.head = hash;
           prefs.set("treeConfig", treeConfig);
           render();
+        }
+        else {
+          node.$.icon.setAttribute("class", old);
         }
       });
     }
