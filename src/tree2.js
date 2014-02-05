@@ -15,11 +15,13 @@ define("tree2", function () {
   var startServer = require('startserver');
   var contextMenu = require('context-menu');
   var fail = require('fail');
+  var editor = require('editor');
 
   // Memory for opened trees.  Accessed by path
   var openPaths = prefs.get("openPaths", {});
   // Paths to the currently selected or active tree
-  var selectedPath, activePath;
+  var selected, active, activePath;
+
 
   // State for repos in tree.
   var treeConfig = prefs.get("treeConfig", {});
@@ -228,7 +230,6 @@ define("tree2", function () {
           }, function (err, hash) {
             if (err) fail($, err);
             config.current = hash;
-            config.head = null;
             dirtyConfig = true;
             onHead(null, config.head);
           });
@@ -237,15 +238,15 @@ define("tree2", function () {
 
       function onHead(err, hash) {
         if (err) fail($, err);
-        if (hash === undefined) {
+        if (!hash) {
           if (config.url) return clone(repo, config.url, onHead);
-          return createTemp();
+          if (!config.current) return createTemp();
         }
-        if (hash && config.head !== hash) {
-          config.head = config.current = hash;
+        else if (config.head === undefined) {
+          config.head = hash;
           dirtyConfig = true;
         }
-        else if (!config.current) {
+        if (!config.current) {
           config.current = config.head;
           dirtyConfig = true;
         }
@@ -306,12 +307,28 @@ define("tree2", function () {
     function renderBlob(path, entry) {
       var $ = genUi(path, entry.mode, {});
       $.icon.setAttribute("title", "blob " + entry.hash);
-      $.row.addEventListener("contextmenu", makeMenu({
-        $: $,
-        path: path,
-        mode: entry.mode,
-        hash: entry.hash
-      }), false);
+      var node;
+      if (activePath === path) {
+        node = active;
+        active.$ = $;
+        active.path = path;
+        active.mode = entry.mode;
+        active.hash = entry.hash;
+        activate(node);
+      }
+      else {
+        node = {
+          $: $,
+          path: path,
+          mode: entry.mode,
+          hash: entry.hash
+        };
+      }
+      $.row.addEventListener("click", function (evt) {
+        nullify(evt);
+        activate(node);
+      }, false);
+      $.row.addEventListener("contextmenu", makeMenu(node), false);
       return $.el;
     }
 
@@ -629,6 +646,55 @@ define("tree2", function () {
       });
     }
 
+    function activate(node) {
+      var old = active;
+      if (active === node) {
+        active = null;
+        activePath = null;
+      }
+      else {
+        active = node;
+        activePath = node.path;
+      }
+      if (old) old.$.row.classList.remove("active");
+      if (!active) return editor.setDoc();
+      active.$.row.classList.add("active");
+      var doc = docPaths[active.path];
+      if (doc) {
+        if (doc.path !== active.path) doc.setPath(active.path);
+        if (doc.mode !== active.mode) doc.setMode(active.mode);
+        doc.$ = node.$;
+        if (doc.hash !== active.hash) {
+          repo.loadAs("blob", active.hash, function (err, body) {
+            if (err) throw err;
+            doc.hash = active.hash;
+            doc.setBody(body);
+            doc.activate();
+          });
+        }
+        else doc.activate();
+      }
+      else {
+        repo.loadAs("blob", active.hash, function (err, body) {
+          if (err) throw err;
+          doc = docPaths[active.path] = newDoc(active.path, active.mode, body);
+          doc.onBlur = function (code) {
+            if (doc.code === code) return;
+            updateTree(active.$, [
+              {path:node.localPath,mode:node.mode,content:code}
+            ]);
+          };
+          doc.onChange = function (code) {
+            if (doc.code === code) active.$.row.classList.remove("dirty");
+            else active.$.row.classList.add("dirty");
+          };
+          doc.hash = active.hash;
+          doc.activate();
+        });
+      }
+    }
+
+
     function makeMenu(node) {
       node.localPath = node.path.substr(repoPath.length + 1);
       return function (evt) {
@@ -764,37 +830,5 @@ define("tree2", function () {
       {icon:"ccw", label: "Remove All", action: removeAll}
     ]);
   }
-
-
-  // function activate(path, entry, repo) {
-  //   if (activePath === path) {
-  //     activePath = null;
-  //     return render();
-  //   }
-  //   activePath = path;
-  //   render();
-  //   var doc = docPaths[path];
-  //   if (doc) {
-  //     if (doc.path !== path) doc.setPath(path);
-  //     if (doc.mode !== entry.mode) doc.setMode(entry.mode);
-  //     if (doc.hash !== entry.hash) {
-  //       repo.loadAs("blob", entry.hash, function (err, body) {
-  //         if (err) throw err;
-  //         doc.hash = entry.hash;
-  //         doc.setBody(body);
-  //         doc.activate();
-  //       });
-  //     }
-  //     else doc.activate();
-  //   }
-  //   else {
-  //     repo.loadAs("blob", entry.hash, function (err, body) {
-  //       if (err) throw err;
-  //       doc = docPaths[path] = newDoc(path, entry.mode, body);
-  //       doc.hash = entry.hash;
-  //       doc.activate();
-  //     });
-  //   }
-  // }
 
 });

@@ -4,7 +4,10 @@ define("editor", function () {
 
   var $ = require('elements');
   var whitespace = ace.require('ace/ext/whitespace');
+  var themes = ace.require('ace/ext/themelist').themes;
   var domBuilder = require('dombuilder');
+  var prefs = require('prefs');
+  var themeIndex = prefs.get("themeIndex", 0);
   // Put sample content and liven the editor
 
   var code = jack.toString().substr(20);
@@ -12,16 +15,54 @@ define("editor", function () {
   code = code.split("\n").map(function (line) { return line.substr(4); }).join("\n");
 
   var editor = ace.edit($.editor);
-  editor.setValue(code, 1);
-  editor.setTheme("ace/theme/ambiance");
-  // editor.setShowInvisibles(true);
+  var theme = themes[themeIndex];
+  editor.setTheme(theme.theme);
+  editor.on("blur", function () {
+    if (currentDoc && currentDoc.onBlur) currentDoc.onBlur(currentDoc.session.getValue());
+  });
+  editor.on("change", function () {
+    if (currentDoc && currentDoc.onChange) currentDoc.onChange(currentDoc.session.getValue());
+  });
+  editor.commands.addCommand({
+    name: 'save',
+    bindKey: {win: 'Ctrl-S',  mac: 'Command-S'},
+    exec: function() {
+      if (currentDoc && currentDoc.onBlur) currentDoc.onBlur(currentDoc.session.getValue());
+    },
+    readOnly: false
+  });
+  editor.commands.addCommand({
+    name: 'theme',
+    bindKey: {win: 'Ctrl-B',  mac: 'Command-B'},
+    exec: function() {
+      themeIndex = (themeIndex + 1) % themes.length;
+      prefs.set("themeIndex", themeIndex);
+      var theme = themes[themeIndex];
+      editor.setTheme(theme.theme);
+    },
+    readOnly: false
+  });
+  editor.commands.addCommand({
+    name: 'theme-back',
+    bindKey: {win: 'Ctrl-Shift-B',  mac: 'Command-Shift-B'},
+    exec: function() {
+      themeIndex = (themeIndex - 1);
+      if (themeIndex < 0) themeIndex += themes.length;
+      prefs.set("themeIndex", themeIndex);
+      var theme = themes[themeIndex];
+      editor.setTheme(theme.theme);
+    },
+    readOnly: false
+  });
 
   var textMode = true;
   var currentDoc = null;
 
-  var session = ace.createEditSession(code, "ace/mode/jack");
-  whitespace.detectIndentation(session);
-  session.path = "Tedit";
+  var fallback = {
+    session: ace.createEditSession(code, "ace/mode/jack"),
+    path: "Tedit"
+  };
+  whitespace.detectIndentation(fallback.session);
 
   $.image.addEventListener("click", function (evt) {
     evt.stopPropagation();
@@ -33,40 +74,40 @@ define("editor", function () {
   }, false);
 
   editor.setDoc = function (doc) {
-    if (!doc) doc = session;
+    if (!doc) doc = fallback;
     currentDoc = doc;
 
-    var text;
+    if (doc.session) {
+      editor.setSession(doc.session);
+    }
+    updateTitle(doc.path);
 
-    if ("tiled" in doc) {
-      // This is an image url.
-      if (textMode) {
-        textMode = false;
-        $.preview.style.display = "block";
-        $.editor.style.display = "none";
-      }
-      return updateImage();
-    }
-    if (!textMode) {
-      textMode = true;
-      $.preview.style.display = "none";
-      $.editor.style.display = "block";
-    }
-    editor.setSession(doc);
-    if (!doc.updateTitle) doc.updateTitle = updateTitle;
-    doc.updateTitle();
+    // if ("tiled" in doc) {
+    //   // This is an image url.
+    //   if (textMode) {
+    //     textMode = false;
+    //     $.preview.style.display = "block";
+    //     $.editor.style.display = "none";
+    //   }
+    //   return updateImage();
+    // }
+    // if (!textMode) {
+    //   textMode = true;
+    //   $.preview.style.display = "none";
+    //   $.editor.style.display = "block";
+    // }
+    // editor.setSession(doc);
+    // if (!doc.updateTitle) doc.updateTitle = updateTitle;
+    // doc.updateTitle();
   };
 
-  function updateTitle() {
-    var doc = this;
-    if (currentDoc !== doc) return;
-    var index = doc.path.lastIndexOf("/");
+  function updateTitle(path) {
+    var index = path.lastIndexOf("/");
     $.titlebar.textContent = "";
     $.titlebar.appendChild(domBuilder([
-      ["span.fade", doc.path.substr(0, index + 1)],
-      ["span", doc.path.substr(index + 1)],
+      ["span.fade", path.substr(0, index + 1)],
+      ["span", path.substr(index + 1)],
     ]));
-
   }
 
   editor.setDoc();

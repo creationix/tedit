@@ -63,7 +63,7 @@ body {
   border-radius: 0.4em;
   padding: 0 0.4em;
 }
-.tree .row.activated {
+.tree .row.active {
   background-color: #333;
 }
 .tree .row.selected, .tree .row:hover {

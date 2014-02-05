@@ -24,11 +24,11 @@ define("zoom", function () {
 
   function onKey(evt) {
     // Ctrl-0
-    if (evt.ctrlKey && evt.keyCode === 48) reset();
+    if (evt.ctrlKey && !evt.shiftKey && evt.keyCode === 48) reset();
     // Ctrl-"+"
-    else if (evt.ctrlKey && evt.keyCode === 187) bigger();
+    else if (evt.ctrlKey && !evt.shiftKey && evt.keyCode === 187) bigger();
     // Ctrl-"-"
-    else if (evt.ctrlKey && evt.keyCode === 189) smaller();
+    else if (evt.ctrlKey && !evt.shiftKey && evt.keyCode === 189) smaller();
     // Ctrl-Shift-R
     else if (evt.ctrlKey && evt.shiftKey && evt.keyCode === 82) chrome.runtime.reload();
     // Ignore and let rest of app handle it.
