@@ -11,7 +11,7 @@ define("row", function () {
 
   // This represents trees, commits, files, and symlinks.
   // Any of it's properties can be read or written and auto-updates the UI
-  function makeRow(path, mode, hash) {
+  function makeRow(path, mode, hash, parent) {
     if (typeof path !== "string") throw new TypeError("path must be a string");
     if (typeof mode !== "number") throw new TypeError("mode must be a number");
     var errorMessage = "",
@@ -84,9 +84,29 @@ define("row", function () {
       },
       addChild: addChild,
       removeChild: removeChild,
-      reset: reset
+      removeChildren: removeChildren,
+      // return next row in list
+      get next() {
+        return parent && parent.before(node);
+      },
+      // return previous row in list
+      get prev() {
+        return parent && parent.after(node);
+      },
+      // return last child
+      get last() {
+        return children && children.length && children[children.length - 1];
+      },
+      // return first child
+      get first() {
+        return children && children.length && children[0];
+      },
+      // Get node after specefied child
+      after: after,
+      // Get node before specefied child
+      before: before,
     };
-    Object.freeze(node); // Make sure this isn't used as a data bucket.
+    $.el.js = node;
     updateAll();
     return node;
 
@@ -119,8 +139,6 @@ define("row", function () {
     }
 
     function updatePath() {
-      // Update data-path that's used by event delegation to find this node.
-      $.row.setAttribute("data-path", path);
       // Update the UI to show the short-name
       $.span.textContent = path.substring(path.lastIndexOf("/") + 1);
     }
@@ -183,15 +201,24 @@ define("row", function () {
       return child;
     }
 
-    function reset(newPath, newMode, newHash) {
-      path = newPath;
-      mode = newMode;
-      hash = newHash;
-      if (children && children.length) {
-        children.length = 0;
-        while ($.ul.firstChild) $.ul.removeChild($.ul.firstChild);
+    function removeChildren() {
+      if (!children) return;
+      children.length = 0;
+      while ($.ul.firstChild) $.ul.removeChild($.ul.firstChild);
+    }
+
+    function after(child) {
+      var index = children.indexOf(child);
+      if (index < children.length - 1) {
+        return children[index + 1];
       }
-      updateAll();
+      throw "TODO: Implement after jump";
+    }
+
+    function before(child) {
+      var index = children.indexOf(child);
+      if (index > 1) return children[index - 1];
+      throw "TODO: Implement before jump";
     }
   }
 

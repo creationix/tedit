@@ -32,6 +32,9 @@ define("js-github", function () {
     text: decodeText
   };
 
+  var emptyBlob = hashAs("blob", "");
+  var emptyTree = hashAs("tree", []);
+
 
   // Implement the js-git object interface using github APIs
   return function (repo, root, accessToken) {
@@ -47,6 +50,8 @@ define("js-github", function () {
     function loadAs(type, hash, callback) {
       if (!callback) return loadAs.bind(null, type, hash);
       var typeName = type === "text" ? "blob" : type;
+      // Github doesn't like empty trees, but we know them already.
+      if (type === "tree" && hash === emptyTree) return callback(null, {}, hash);
       apiRequest("GET", "/repos/:root/git/" + typeName + "s/" + hash, onValue);
 
       function onValue(err, result) {
@@ -75,7 +80,7 @@ define("js-github", function () {
 
       // Github doesn't allow creating empty trees.
       if (type === "tree" && request.tree.length === 0) {
-        return callback(null, hashAs("tree", []), body);
+        return callback(null, emptyTree, body);
       }
       var typeName = type === "text" ? "blobs" : type + "s";
       return apiRequest("POST", "/repos/:root/git/" + typeName, request, onWrite);
@@ -253,7 +258,7 @@ define("js-github", function () {
       type: modeToType[mode]
     };
     // Magic hash for empty file since github rejects empty contents.
-    if (entry.content === "") entry.hash = "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391";
+    if (entry.content === "") entry.hash = emptyBlob;
 
     if (entry.hash) item.sha = entry.hash;
     else item.content = entry.content;

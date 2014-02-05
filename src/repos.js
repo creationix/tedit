@@ -7,6 +7,7 @@ define("repos", function () {
   var encodeConfig = require('encodeconfig');
   var importEntry = require('importfs');
   var clone = require('clone');
+  var modes = require('modes');
   var repos = {};
 
   return {
@@ -61,8 +62,8 @@ define("repos", function () {
       if (!config.current) {
         if (config.head) config.current = config.head;
         else if (config.url) return clone(repo, config, onHead);
-        else if (config.entry) return importEntry(repo, config.entry, onCurrent);
-        else return initEmpty(repo, onCurrent);
+        else if (config.entry) return importEntry(repo, config.entry, onTree);
+        else return initEmpty(repo, null, onCurrent);
       }
       prefs.save();
       var pair = {
@@ -70,6 +71,11 @@ define("repos", function () {
         config: config
       };
       callback(null, pair);
+    }
+
+    function onTree(err, hash) {
+      if (err) return callback(err);
+      initEmpty(repo, hash, onCurrent);
     }
 
   }
@@ -183,7 +189,8 @@ define("repos", function () {
   }
 
 
-  function initEmpty(repo, callback) {
+  function initEmpty(repo, tree, callback) {
+    if (tree) return onTree(null, tree);
     return repo.saveAs("tree", [], onTree);
 
     function onTree(err, hash) {

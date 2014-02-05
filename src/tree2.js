@@ -4,7 +4,7 @@ define("tree2", function () {
   var $ = require('elements');
   var modes = require('modes');
   var domBuilder = require('dombuilder');
-  var makeNewRow = require('row');
+  var makeRow = require('row');
   var dialog = require('dialog');
   var prefs = require('prefs');
   var newDoc = require('document');
@@ -22,15 +22,30 @@ define("tree2", function () {
   // docs by path
   var docPaths = {};
 
-  var nodes = {};
-
   $.tree.addEventListener("contextmenu", onGlobalContext, false);
+  $.tree.addEventListener("click", onGlobalClick, false);
 
   render();
 
+  function findNode(element) {
+    while (element !== $.tree) {
+      if (element.js) return element.js;
+      element = element.parentNode;
+    }
+  }
+
+  function onGlobalClick(evt) {
+    var node = findNode(evt.target);
+    if (!node) return;
+    nullify(evt);
+    node.onClick();
+  }
 
   function render() {
-    var roots = repos.mapRootNames(renderRepo);
+    var roots = repos.mapRootNames(function (name) {
+      var node = renderRepo(name);
+      return node.el;
+    });
     // Replace the tree with the new roots
     while ($.tree.firstChild) $.tree.removeChild($.tree.firstChild);
     $.tree.appendChild(domBuilder(roots));
@@ -39,16 +54,15 @@ define("tree2", function () {
   function renderRepo(repoPath, repoHash) {
     var config, repo;
     var root = renderCommit(repoPath, repoHash);
-    root.addEventListener("click", onClick, false);
-    // root.addEventListener("contextmenu", onContextMenu, false);
     return root;
 
     // Render the UI for repo and submodule roots
     function renderCommit(path, hash) {
       var node = makeRow(path, modes.commit, hash);
+      node.onClick = onClick.bind(null, node);
       node.busy = true;
       repos.loadConfig(path, hash, onConfig);
-      return node.el;
+      return node;
 
       function onConfig(err, pair) {
         if (err) fail(node, err);
@@ -58,7 +72,8 @@ define("tree2", function () {
         if (config.current !== config.head) {
           node.staged = true;
         }
-        node.busy = false;
+        if (openPaths[repoPath]) openTree(node);
+        else node.busy = false;
       }
     }
 
@@ -71,16 +86,23 @@ define("tree2", function () {
           child = renderRepo(path, entry.hash);
         }
         else {
-          child = makeRow(path, entry.mode, entry.hash);
+          child = makeRow(path, entry.mode, entry.hash, parent);
+          child.onClick = onClick.bind(null, child);
+
+          if (openPaths[path]) openTree(child);
         }
         parent.addChild(child);
       });
     }
 
-
-    function onClick(evt) {
-      var match = findRow(root, evt.target);
-      console.log(match);
+    function onClick(node) {
+      if (modes.isBlob(node.mode)) {
+        console.log("TODO: open file");
+      }
+      else {
+        if (node.open) closeTree(node);
+        else openTree(node);
+      }
     }
 
 
@@ -104,16 +126,37 @@ define("tree2", function () {
     //   };
     // }
 
-    // function openTree(node) {
-    //   node.busy = true;
-    //   openPaths[node.path] = true;
-    //   prefs.set("openPaths", openPaths);
-    //   repo.loadAs("tree", node.hash, function (err, tree) {
-    //     if (!tree) fail(node, err || new Error("Missing tree " + node.hash));
-    //     renderChildren(node, tree);
-    //     node.busy = false;
-    //   });
-    // }
+    function openTree(node) {
+      if (node.open) return;
+      node.busy = true;
+      openPaths[node.path] = true;
+      prefs.save();
+      if (node.mode === modes.commit) {
+        return repo.loadAs("commit", node.hash, onCommit);
+      }
+      return repo.loadAs("tree", node.hash, onTree);
+
+      function onCommit(err, commit) {
+        if (!commit) fail(node, err || new Error("Missing commit"));
+        node.treeHash = commit.tree;
+        return repo.loadAs("tree", commit.tree, onTree);
+      }
+
+      function onTree(err, tree) {
+        if (!tree) fail(node, err || new Error("Missing tree"));
+        node.open = true;
+        renderChildren(node, tree);
+        node.busy = false;
+      }
+    }
+
+    function closeTree(node) {
+      if (!node.open) return;
+      delete openPaths[node.path];
+      prefs.save();
+      node.open = false;
+      node.removeChildren();
+    }
 
     // function closeTree(path, hash, $) {
     //   $.icon.setAttribute("class", "icon-folder");
@@ -514,28 +557,7 @@ define("tree2", function () {
     evt.stopPropagation();
   }
 
-  function makeRow(path, mode, hash) {
-    var node = nodes[path];
-    if (node) {
-      node.reset(path, mode, hash);
-      return node;
-    }
-    node = makeNewRow(path, mode, hash);
-    nodes[path] = node;
-    return node;
-  }
 
-  function findRow(root, element) {
-    while (element !== root) {
-      var path = element.dataset.path;
-      if (path) {
-        var match = repos.splitPath(path);
-        match.node = nodes[path];
-        return match;
-      }
-      element = element.parentNode;
-    }
-  }
 
 
 
