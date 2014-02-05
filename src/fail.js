@@ -4,9 +4,8 @@ define("fail", function () {
   return fail;
   // A more user friendly throw that shows the source of the error visually
   // to the user with a short message.
-  function fail($, err) {
-    $.icon.setAttribute("class", "icon-attention");
-    $.icon.setAttribute("title", $.icon.getAttribute("title") + "\n" + err.toString());
+  function fail(node, err) {
+    node.errorMessage = err.toString();
     throw err;
   }
 });

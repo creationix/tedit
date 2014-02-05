@@ -2,10 +2,11 @@
 define("tree2", function () {
 
   var $ = require('elements');
-  var defer = require('defer');
-  var dialog = require('dialog');
   var modes = require('modes');
   var domBuilder = require('dombuilder');
+  var makeRow = require('row');
+  var defer = require('defer');
+  var dialog = require('dialog');
   var parseConfig = require('parseconfig');
   var encodeConfig = require('encodeconfig');
   var prefs = require('prefs');
@@ -156,29 +157,6 @@ define("tree2", function () {
     $.tree.appendChild(domBuilder(roots));
   }
 
-  function genUi(path, mode) {
-    var $ = {};
-    var name = path.substr(path.lastIndexOf("/") + 1);
-    var icon = modes.isFile(mode) ? "doc" :
-      mode === modes.sym ? "link" : "folder";
-    var spanProps = {title:path};
-    if (mode === modes.exec) spanProps["class"] = "executable";
-    var ui = ["li$el",
-      [".row$row",
-        ["i$icon.icon-" + icon],
-        ["span$span", spanProps, name]
-      ]
-    ];
-    if (mode === modes.commit) {
-      ui[1].splice(2, 0, ["i$fork.icon-fork.tight"]);
-    }
-    if (mode === modes.commit || mode === modes.tree) {
-      ui.push(["ul$ul"]);
-    }
-    domBuilder(ui, $);
-    return $;
-  }
-
   function nullify(evt) {
     evt.preventDefault();
     evt.stopPropagation();
@@ -191,18 +169,18 @@ define("tree2", function () {
 
     // Render the UI for repo and submodule roots
     function renderCommit(path, hash) {
-      var $ = genUi(path, modes.commit);
+      var node = makeRow(path, modes.commit);
       var dirtyConfig = false;
-      $.icon.setAttribute("class", "icon-spin1 animate-spin");
+      node.busy = true;
       if (treeConfig[path]) defer(function () {
         onConfig(null, treeConfig[path]);
       });
       else loadSubmoduleConfig(path, onConfig);
 
-      return $;
+      return node;
 
       function onConfig(err, result) {
-        if (err) fail($, err);
+        if (err) fail(node, err);
         config = result;
         if (config !== treeConfig[path]) {
           treeConfig[path] = config;
@@ -219,7 +197,7 @@ define("tree2", function () {
 
       function createTemp() {
         repo.saveAs("tree", [], function (err, hash) {
-          if (err) fail($, err);
+          if (err) fail(node, err);
           repo.saveAs("commit", {
             tree: hash,
             author: {
@@ -228,7 +206,7 @@ define("tree2", function () {
             },
             message: "Initial Empty Commit"
           }, function (err, hash) {
-            if (err) fail($, err);
+            if (err) fail(node, err);
             config.current = hash;
             dirtyConfig = true;
             onHead(null, config.head);
@@ -237,7 +215,7 @@ define("tree2", function () {
       }
 
       function onHead(err, hash) {
-        if (err) fail($, err);
+        if (err) fail(node, err);
         if (!hash) {
           if (config.url) return clone(repo, config.url, onHead);
           if (!config.current) return createTemp();
@@ -250,47 +228,32 @@ define("tree2", function () {
           config.current = config.head;
           dirtyConfig = true;
         }
-        $.fork.setAttribute("title", "commit " + config.current);
+        node.commitHash = config.current;
         if (config.current !== config.head) {
-          $.row.classList.add("staged");
+          node.staged = true;
         }
 
         repo.loadAs("commit", config.current, onCommit);
       }
 
       function onCommit(err, commit) {
-        if (!commit) fail($, err || new Error("Missing commit " + config.current));
+        if (!commit) fail(node, err || new Error("Missing commit " + config.current));
         if (dirtyConfig) prefs.set("treeConfig", treeConfig);
-        $.icon.setAttribute("title", "tree " + commit.tree);
-        $.row.addEventListener("click", onTreeClicker(path, commit.tree, $), false);
-        $.fork.addEventListener("contextmenu", makeMenu({
-          $: $,
-          path: path,
-          mode: modes.commit,
-          hash: config.current
-        }), false);
-
-        $.row.addEventListener("contextmenu", makeMenu({
-          $: $,
-          path: path,
-          mode: modes.tree,
-          hash: commit.tree
-        }), false);
-        if (openPaths[path]) openTree(path, commit.tree, $);
-        else $.icon.setAttribute("class", "icon-folder");
+        node.hash = commit.tree;
+        if (openPaths[path]) openTree(node);
+        else node.busy = false;
       }
 
     }
 
-    function renderChildren(parentPath, tree) {
-      return domBuilder(Object.keys(tree).sort(pathCmp).map(function (name) {
+    function renderChildren(parent, tree) {
+      Object.keys(tree).forEach(function (name) {
         var entry = tree[name];
-        var path = parentPath + "/" + name;
-        if (entry.mode === modes.commit) return renderRepo(path, entry.hash, onChanger(path));
-        if (entry.mode === modes.tree) return renderTree(path, entry);
-        if (modes.isBlob(entry.mode)) return renderBlob(path, entry);
-        fail($, new Error("Invalid mode " + entry.mode));
-      }));
+        var path = parent.path + "/" + name;
+        var child = makeRow(path, entry.mode);
+        child.hash = entry.hash;
+        parent.addChild(child);
+      });
     }
 
     function onChanger(path) {
@@ -304,48 +267,6 @@ define("tree2", function () {
       };
     }
 
-    function renderBlob(path, entry) {
-      var $ = genUi(path, entry.mode, {});
-      $.icon.setAttribute("title", "blob " + entry.hash);
-      var node;
-      if (activePath === path) {
-        node = active;
-        active.$ = $;
-        active.path = path;
-        active.mode = entry.mode;
-        active.hash = entry.hash;
-        activate(node);
-      }
-      else {
-        node = {
-          $: $,
-          path: path,
-          mode: entry.mode,
-          hash: entry.hash
-        };
-      }
-      $.row.addEventListener("click", function (evt) {
-        nullify(evt);
-        activate(node);
-      }, false);
-      $.row.addEventListener("contextmenu", makeMenu(node), false);
-      return $.el;
-    }
-
-    function renderTree(path, entry) {
-      var $ = genUi(path, entry.mode);
-      $.icon.setAttribute("title", "tree " + entry.hash);
-      $.row.addEventListener("click", onTreeClicker(path, entry.hash, $), false);
-      $.row.addEventListener("contextmenu", makeMenu({
-        $: $,
-        path: path,
-        mode: entry.mode,
-        hash: entry.hash
-      }), false);
-      if (openPaths[path]) openTree(path, entry.hash, $);
-      return $.el;
-    }
-
     function onTreeClicker(path, hash, $) {
       return function (evt) {
         nullify(evt);
@@ -354,14 +275,14 @@ define("tree2", function () {
       };
     }
 
-    function openTree(path, hash, $) {
-      $.icon.setAttribute("class", "icon-spin1 animate-spin");
-      openPaths[path] = true;
+    function openTree(node) {
+      node.busy = true;
+      openPaths[node.path] = true;
       prefs.set("openPaths", openPaths);
-      repo.loadAs("tree", hash, function (err, tree) {
-        if (!tree) fail($, err || new Error("Missing tree " + hash));
-        $.icon.setAttribute("class", "icon-folder-open");
-        $.ul.appendChild(renderChildren(path, tree));
+      repo.loadAs("tree", node.hash, function (err, tree) {
+        if (!tree) fail(node, err || new Error("Missing tree " + node.hash));
+        renderChildren(node, tree);
+        node.busy = false;
       });
     }
 
@@ -378,7 +299,7 @@ define("tree2", function () {
       repo.loadAs("commit", config.current, onCurrent);
 
       function onCurrent(err, result) {
-        if (!result) fail($, err || new Error("Missing commit " + config.current));
+        if (!result) fail(node, err || new Error("Missing commit " + config.current));
         current = result;
         userName = prefs.get("userName", "");
         userEmail = prefs.get("userEmail", "");
@@ -404,7 +325,7 @@ define("tree2", function () {
       }
 
       function onSave(err, hash) {
-        if (err) fail($, err);
+        if (err) fail(node, err);
         setCurrent(hash, true);
       }
     }
@@ -420,7 +341,7 @@ define("tree2", function () {
       var old = node.$.icon.getAttribute("class");
       node.$.icon.setAttribute("class", "icon-spin1 animate-spin");
       repo.readRef("refs/heads/master", function (err, hash) {
-        if (!hash) fail(node.$, err || new Error("Missing master branch"));
+        if (!hash) fail(node, err || new Error("Missing master branch"));
         if (config.head !== hash) {
           config.head = hash;
           prefs.set("treeConfig", treeConfig);
@@ -451,7 +372,7 @@ define("tree2", function () {
       dialog.prompt("Enter name for new folder", "", function (name) {
         if (!name) return;
         repo.saveAs("tree", [], function (err, hash) {
-          if (err) fail(node.$, err);
+          if (err) fail(node, err);
           openPaths[node.path + "/" + name] = true;
           prefs.set("openPaths", openPaths);
           updateTree(node.$, [{
@@ -492,10 +413,10 @@ define("tree2", function () {
       });
 
       function onConfig(err, text) {
-        if (err) fail(node.$, err);
+        if (err) fail(node, err);
         if (text) {
           try { meta = parseConfig(text); }
-          catch (err) { fail(node.$, err); }
+          catch (err) { fail(node, err); }
         }
         else {
           meta = {};
@@ -511,13 +432,13 @@ define("tree2", function () {
           url: url
         };
         try { childRepo = createRepo(configFromUrl(url, config)); }
-        catch(err) { fail(node.$, err); }
+        catch(err) { fail(node, err); }
 
         childRepo.readRef("refs/heads/master", onRef);
       }
 
       function onRef(err, hash) {
-        if (err) fail(node.$, err);
+        if (err) fail(node, err);
         if (!hash) return clone(childRepo, url, onRef);
         updateTree(node.$, [
           { path: ".gitmodules",
@@ -574,16 +495,16 @@ define("tree2", function () {
       }
     }
 
-    function updateTree($, entries) {
+    function updateTree(node, entries) {
       // The current and head commits
       var current, head;
       $.icon.setAttribute("class", "icon-spin1 animate-spin");
 
-      if (!config.current) fail($, new Error("config.current is not set!"));
+      if (!config.current) fail(node, new Error("config.current is not set!"));
       repo.loadAs("commit", config.current, onCurrent);
 
       function onCurrent(err, commit) {
-        if (!commit) fail($, err || new Error("Missing commit " + config.current));
+        if (!commit) fail(node, err || new Error("Missing commit " + config.current));
         current = commit;
         // Base the tree update on the currently saved state.
         entries.base = commit.tree;
@@ -598,13 +519,13 @@ define("tree2", function () {
       }
 
       function onHead(err, commit) {
-        if (err) fail($, err);
+        if (err) fail(node, err);
         head = commit;
         repo.createTree(entries, onTree);
       }
 
       function onTree(err, root) {
-        if (err) fail($, err);
+        if (err) fail(node, err);
         if (head && root === head.tree) setCurrent(config.head);
         else setTree(root);
       }
@@ -625,7 +546,7 @@ define("tree2", function () {
       repo.saveAs("commit", commit, onCommit);
 
       function onCommit(err, result) {
-        if (err) fail($, err);
+        if (err) fail(node, err);
         console.log("current", result);
         setCurrent(result);
       }
@@ -639,7 +560,7 @@ define("tree2", function () {
       var ref = isHead ? "refs/heads/master" : "refs/tags/current";
 
       return repo.updateRef(ref, hash, function (err) {
-        if (err) fail($, err);
+        if (err) fail(node, err);
         config.current = hash;
         if (isHead) config.head = hash;
         render();

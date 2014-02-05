@@ -57,12 +57,6 @@ body {
 .tree .row.staged {
   font-weight: bold;
 }
-.tree .row span.executable {
-  background-color: #464D32;
-  color: #fff;
-  border-radius: 0.4em;
-  padding: 0 0.4em;
-}
 .tree .row.active {
   background-color: #333;
 }
@@ -85,7 +79,7 @@ body {
   color: #cda869;
 }
 .tree .icon-doc,
-.tree .icon-doc-text {
+.tree .icon-asterisk {
   color: #EED1B3;
 }
 .tree .icon-fork {

@@ -4,10 +4,11 @@ define("editor", function () {
 
   var $ = require('elements');
   var whitespace = ace.require('ace/ext/whitespace');
-  var themes = ace.require('ace/ext/themelist').themes;
+  var themes = ace.require('ace/ext/themelist').themesByName;
+  var names = Object.keys(themes);
   var domBuilder = require('dombuilder');
   var prefs = require('prefs');
-  var themeIndex = prefs.get("themeIndex", 0);
+  var themeIndex = prefs.get("themeIndex", names.indexOf("clouds_midnight"));
   // Put sample content and liven the editor
 
   var code = jack.toString().substr(20);
@@ -15,7 +16,7 @@ define("editor", function () {
   code = code.split("\n").map(function (line) { return line.substr(4); }).join("\n");
 
   var editor = ace.edit($.editor);
-  var theme = themes[themeIndex];
+  var theme = themes[names[themeIndex]];
   editor.setTheme(theme.theme);
   editor.on("blur", function () {
     if (currentDoc && currentDoc.onBlur) currentDoc.onBlur(currentDoc.session.getValue());
@@ -35,9 +36,9 @@ define("editor", function () {
     name: 'theme',
     bindKey: {win: 'Ctrl-B',  mac: 'Command-B'},
     exec: function() {
-      themeIndex = (themeIndex + 1) % themes.length;
+      themeIndex = (themeIndex + 1) % names.length;
       prefs.set("themeIndex", themeIndex);
-      var theme = themes[themeIndex];
+      var theme = themes[names[themeIndex]];
       editor.setTheme(theme.theme);
     },
     readOnly: false
@@ -47,9 +48,9 @@ define("editor", function () {
     bindKey: {win: 'Ctrl-Shift-B',  mac: 'Command-Shift-B'},
     exec: function() {
       themeIndex = (themeIndex - 1);
-      if (themeIndex < 0) themeIndex += themes.length;
+      if (themeIndex < 0) themeIndex += names.length;
       prefs.set("themeIndex", themeIndex);
-      var theme = themes[themeIndex];
+      var theme = themes[names[themeIndex]];
       editor.setTheme(theme.theme);
     },
     readOnly: false
