@@ -60,6 +60,7 @@ define("tree2", function () {
     function renderCommit(path, hash) {
       var node = makeRow(path, modes.commit, hash);
       node.onClick = onClick.bind(null, node);
+      node.makeMenu = makeMenu.bind(null, node);
       node.busy = true;
       repos.loadConfig(path, hash, onConfig);
       return node;
@@ -88,6 +89,7 @@ define("tree2", function () {
         else {
           child = makeRow(path, entry.mode, entry.hash, parent);
           child.onClick = onClick.bind(null, child);
+          child.makeMenu = makeMenu.bind(null, child);
 
           if (openPaths[path]) openTree(child);
         }
@@ -157,13 +159,6 @@ define("tree2", function () {
       node.open = false;
       node.removeChildren();
     }
-
-    // function closeTree(path, hash, $) {
-    //   $.icon.setAttribute("class", "icon-folder");
-    //   while ($.ul.firstChild) $.ul.removeChild($.ul.firstChild);
-    //   delete openPaths[path];
-    //   prefs.set("openPaths", openPaths);
-    // }
 
     // function commitChanges(node) {
     //   var $ = node.$, current;
@@ -488,67 +483,63 @@ define("tree2", function () {
     // }
 
 
-    // function makeMenu(node) {
-    //   node.localPath = node.path.substr(repoPath.length + 1);
-    //   return function (evt) {
-    //     nullify(evt);
-    //     var actions = [];
-    //     var type;
-    //     if (node.mode === modes.commit) {
-    //       if (config.head !== config.current) {
-    //         actions.push({icon:"floppy", label:"Commit Changes", action: commitChanges});
-    //         actions.push({icon:"ccw", label:"Revert all Changes", action: revertChanges});
-    //         actions.push({sep:true});
-    //       }
-    //       if (config.githubName) {
-    //         actions.push({icon:"github", label:"Check for Updates", action: checkHead});
-    //       }
-    //       else {
-    //         actions.push({icon:"download-cloud", label:"Pull from Remote"});
-    //         actions.push({icon:"upload-cloud", label:"Push to Remote"});
-    //       }
-    //     }
-    //     else {
-    //       actions.push({icon:"globe", label:"Serve Over HTTP", action: serveHttp});
-    //       actions.push({icon:"hdd", label:"Live Export to Disk"});
-    //     }
-    //     if (node.mode === modes.tree) {
-    //       type = "Folder";
-    //       if (openPaths[node.path]) {
-    //         actions.push({sep:true});
-    //         actions.push({icon:"doc", label:"Create File", action: createFile});
-    //         actions.push({icon:"folder", label:"Create Folder", action: createFolder});
-    //         actions.push({icon:"link", label:"Create SymLink", action: createSymLink});
-    //         actions.push({sep:true});
-    //         actions.push({icon:"fork", label: "Add Submodule", action: addSubmodule});
-    //         actions.push({icon:"folder", label:"Import Folder"});
-    //       }
-    //     }
-    //     else if (modes.isFile(node.mode)) {
-    //       type = "File";
-    //       actions.push({sep:true});
-    //       var label = (node.mode === modes.exec) ?
-    //         "Make not Executable" :
-    //         "Make Executable";
-    //       actions.push({icon:"asterisk", label: label, action: toggleExec});
-    //     }
-    //     else if (node.mode === modes.sym) {
-    //       type = "SymLink";
-    //     }
-    //     if (node.mode !== modes.commit) {
-    //       actions.push({sep:true});
-    //       if (node.path.indexOf("/") >= 0) {
-    //         actions.push({icon:"pencil", label:"Rename " + type, action: renameEntry});
-    //         actions.push({icon:"trash", label:"Delete " + type, action: removeEntry});
-    //       }
-    //       else {
-    //         actions.push({icon:"pencil", label:"Rename Repo"});
-    //         actions.push({icon:"trash", label:"Remove Repo"});
-    //       }
-    //     }
-    //     contextMenu(evt, node, actions);
-    //   };
-    // }
+    function makeMenu(node) {
+      var actions = [];
+      var type;
+      if (node.mode === modes.commit) {
+        if (config.head !== config.current) {
+          actions.push({icon:"floppy", label:"Commit Changes"});
+          actions.push({icon:"ccw", label:"Revert all Changes"});
+          actions.push({sep:true});
+        }
+        if (config.githubName) {
+          actions.push({icon:"github", label:"Check for Updates"});
+        }
+        else {
+          actions.push({icon:"download-cloud", label:"Pull from Remote"});
+          actions.push({icon:"upload-cloud", label:"Push to Remote"});
+        }
+      }
+      else {
+        actions.push({icon:"globe", label:"Serve Over HTTP"});
+        actions.push({icon:"hdd", label:"Live Export to Disk"});
+      }
+      if (node.mode === modes.tree) {
+        type = "Folder";
+        if (openPaths[node.path]) {
+          actions.push({sep:true});
+          actions.push({icon:"doc", label:"Create File"});
+          actions.push({icon:"folder", label:"Create Folder"});
+          actions.push({icon:"link", label:"Create SymLink"});
+          actions.push({sep:true});
+          actions.push({icon:"fork", label: "Add Submodule"});
+          actions.push({icon:"folder", label:"Import Folder"});
+        }
+      }
+      else if (modes.isFile(node.mode)) {
+        type = "File";
+        actions.push({sep:true});
+        var label = (node.mode === modes.exec) ?
+          "Make not Executable" :
+          "Make Executable";
+        actions.push({icon:"asterisk", label: label});
+      }
+      else if (node.mode === modes.sym) {
+        type = "SymLink";
+      }
+      if (node.mode !== modes.commit) {
+        actions.push({sep:true});
+        if (node.path.indexOf("/") >= 0) {
+          actions.push({icon:"pencil", label:"Rename " + type});
+          actions.push({icon:"trash", label:"Delete " + type});
+        }
+        else {
+          actions.push({icon:"pencil", label:"Rename Repo"});
+          actions.push({icon:"trash", label:"Remove Repo"});
+        }
+      }
+      return actions;
+    }
   }
 
 
@@ -628,13 +619,17 @@ define("tree2", function () {
 
   function onGlobalContext(evt) {
     nullify(evt);
-    contextMenu(evt, null, [
+    var node = findNode(evt.target);
+    var menu;
+    if (node) menu = node.makeMenu();
+    else menu = [
       {icon:"git", label: "Create Empty Git Repo", action: createEmpty},
       {icon:"hdd", label:"Create Repo From Folder", action: createFromFolder},
       {icon:"fork", label: "Clone Remote Repo", action: createClone},
       {icon:"github", label: "Live Mount Github Repo", action: createGithubMount},
       {icon:"ccw", label: "Remove All", action: removeAll}
-    ]);
+    ];
+    contextMenu(evt, null, menu);
   }
 
 });
