@@ -86,7 +86,7 @@ body {
   color: #FF9D90;
 }
 .tree .tight {
-  margin: 0 -3px;
+  margin-left: -6px;
 }
 
 ::-webkit-scrollbar {

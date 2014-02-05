@@ -15,6 +15,7 @@ define("row", function () {
     if (typeof path !== "string") throw new TypeError("path must be a string");
     if (typeof mode !== "number") throw new TypeError("mode must be a number");
     var errorMessage = "",
+        treeHash,
         open = false,
         busy = false,
         active = false,
@@ -22,7 +23,7 @@ define("row", function () {
         dirty = false,
         staged = false;
     var $ = {};
-    var children = [];
+    var children;
     var node = {
       el: domBuilder(["li$el", ["$row", ["i$icon"], ["span$span"]]], $),
       get path() { return path; },
@@ -71,19 +72,22 @@ define("row", function () {
         hash = value;
         updateIcon();
       },
+      get treeHash() { return treeHash; },
+      set treeHash(value) {
+        treeHash = value;
+        updateIcon();
+      },
       get errorMessage() { return errorMessage; },
       set errorMessage(value) {
         errorMessage = value;
         updateIcon();
       },
       addChild: addChild,
-      removeChild: removeChild
+      removeChild: removeChild,
+      reset: reset
     };
     Object.freeze(node); // Make sure this isn't used as a data bucket.
-    updateIcon();
-    updatePath();
-    updateRow();
-    updateUl();
+    updateAll();
     return node;
 
     function updateIcon() {
@@ -99,6 +103,19 @@ define("row", function () {
       var title = modes.toType(mode) + " " + hash;
       if (errorMessage) title += "\n" + errorMessage;
       $.icon.setAttribute("title", title);
+      if (mode !== modes.commit) {
+        if ($.folder) {
+          $.row.removeChild($.folder);
+          delete $.folder;
+        }
+      }
+      else {
+        if (!$.folder) {
+          $.row.insertBefore(domBuilder(["i$folder"], $), $.span);
+        }
+        $.folder.setAttribute("class", "icon-folder" + (open ? "-open" : "") + " tight");
+        $.folder.setAttribute("title", "tree " + treeHash);
+      }
     }
 
     function updatePath() {
@@ -122,11 +139,20 @@ define("row", function () {
         if ($.ul) {
           $.el.removeChild($.ul);
           delete $.ul;
+          children = null;
         }
       }
       else if (!$.ul) {
         $.el.appendChild(domBuilder(["ul$ul"], $));
+        children = [];
       }
+    }
+
+    function updateAll() {
+      updateIcon();
+      updatePath();
+      updateRow();
+      updateUl();
     }
 
     function addChild(child) {
@@ -155,6 +181,17 @@ define("row", function () {
       children.splice(index, 1);
       $.ul.removeChild(child.el);
       return child;
+    }
+
+    function reset(newPath, newMode, newHash) {
+      path = newPath;
+      mode = newMode;
+      hash = newHash;
+      if (children && children.length) {
+        children.length = 0;
+        while ($.ul.firstChild) $.ul.removeChild($.ul.firstChild);
+      }
+      updateAll();
     }
   }
 

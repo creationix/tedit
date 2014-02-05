@@ -16,7 +16,7 @@ define("repos", function () {
     createFromFolder: createFromFolder,
     createClone: createClone,
     createGithubMount: createGithubMount,
-    getPair: getPair,
+    splitPath: splitPath,
   };
 
   // Map the names ot the root repos (useful for rendering a tree)
@@ -102,11 +102,21 @@ define("repos", function () {
   }
 
   // Given a global path, return {repo:repo,config:config}
-  function getPair(path) {
-    if (treeConfig[path]) path = findRoot(path);
+  function splitPath(path) {
+    var root;
+    if (treeConfig[path]) {
+      root = path;
+      path = "";
+    }
+    else {
+      root = findRoot(path);
+      path = path.substring(root.length + 1);
+    }
     return {
-      repo: repos[path],
-      config: treeConfig[path]
+      root: root,
+      path: path,
+      repo: repos[root],
+      config: treeConfig[root]
     };
   }
 
