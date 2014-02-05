@@ -44,6 +44,7 @@ define("indexeddb", function () {
 
 
   function mixin(repo, prefix) {
+    if (!prefix) throw new Error("Prefix required");
     repo.refPrefix = prefix;
     repo.saveAs = saveAs;
     repo.loadAs = loadAs;

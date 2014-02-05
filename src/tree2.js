@@ -105,7 +105,6 @@ define("tree2", function () {
   function configFromUrl(url, parent) {
     if (!parent.githubName) {
       return {
-        idbName: (Math.random() * 0x100000000).toString(36),
         url: url
       };
     }
@@ -127,7 +126,11 @@ define("tree2", function () {
       require('addcache')(repo, require('indexeddb'));
     }
     else {
-      require('indexeddb')(repo, config.idbName);
+      if (!config.prefix) {
+        config.prefix = (Math.random() * 0x100000000).toString(36);
+        prefs.set("treeConfig", treeConfig);
+      }
+      require('indexeddb')(repo, config.prefix);
       require('createtree')(repo);
     }
     // Add pathToEntry API and cache non-blob types in ram
@@ -559,6 +562,7 @@ define("tree2", function () {
       var current, head;
       $.icon.setAttribute("class", "icon-spin1 animate-spin");
 
+      if (!config.current) fail($, new Error("config.current is not set!"));
       repo.loadAs("commit", config.current, onCurrent);
 
       function onCurrent(err, commit) {
@@ -571,19 +575,20 @@ define("tree2", function () {
           repo.createTree(entries, onTree);
         }
         else {
+          if (!config.head) return onHead();
           repo.loadAs("commit", config.head, onHead);
         }
       }
 
       function onHead(err, commit) {
-        if (!commit) fail($, err || new Error("Missing commit " + config.current));
+        if (err) fail($, err);
         head = commit;
         repo.createTree(entries, onTree);
       }
 
       function onTree(err, root) {
         if (err) fail($, err);
-        if (root === head.tree) setCurrent(config.head);
+        if (head && root === head.tree) setCurrent(config.head);
         else setTree(root);
       }
     }
@@ -591,18 +596,20 @@ define("tree2", function () {
     function setTree(root) {
       var $ = commitNode;
       $.icon.setAttribute("class", "icon-spin1 animate-spin");
-      repo.saveAs("commit", {
+      var commit = {
         tree: root,
         author: {
           name: "AutoCommit",
           email: "tedit@creationix.com"
         },
-        parent: config.head,
         message: "Uncommitted changes in tedit"
-      }, onCommit);
+      };
+      if (config.head) commit.parent = config.head;
+      repo.saveAs("commit", commit, onCommit);
 
       function onCommit(err, result) {
         if (err) fail($, err);
+        console.log("current", result);
         setCurrent(result);
       }
     }
@@ -699,6 +706,7 @@ define("tree2", function () {
       {name: "url", placeholder: "git@hostname:path/to/repo.git", required:true},
       {name: "name", placeholder: "localname"}
     ], function (result) {
+      if (!result) return;
       var url = result.url;
       var name = result.name;
       if (!name) {
