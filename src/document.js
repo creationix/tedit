@@ -16,6 +16,7 @@ define("document", function () {
     this.mode = mode;
     this.code = code;
     this.session = ace.createEditSession(code);
+    this.session.setTabSize(2);
     this.updateAceMode();
     whitespace.detectIndentation(this.session);
   }
