@@ -57,7 +57,7 @@ define("indexeddb", function () {
   }
 
   function saveAs(type, body, callback, forcedHash) {
-    if (!callback) return saveAs.bind(null, type, body);
+    if (!callback) return saveAs.bind(this, type, body);
     var hash;
     try {
       body = encoders.normalizeAs(type, body);
@@ -78,7 +78,7 @@ define("indexeddb", function () {
   }
 
   function loadAs(type, hash, callback) {
-    if (!callback) return loadAs.bind(null, type, hash);
+    if (!callback) return loadAs.bind(this, type, hash);
     // console.log("LOAD", type, hash);
     var trans = db.transaction(["objects"], "readwrite");
     var store = trans.objectStore("objects");
@@ -104,6 +104,7 @@ define("indexeddb", function () {
   }
 
   function readRef(ref, callback) {
+    if (!callback) return readRef.bind(this, ref);
     var key = this.refPrefix + "/" + ref;
     var trans = db.transaction(["refs"], "readwrite");
     var store = trans.objectStore("refs");
@@ -119,6 +120,7 @@ define("indexeddb", function () {
   }
 
   function updateRef(ref, hash, callback) {
+    if (!callback) return updateRef.bind(this, ref, hash);
     var key = this.refPrefix + "/" + ref;
     var trans = db.transaction(["refs"], "readwrite");
     var store = trans.objectStore("refs");

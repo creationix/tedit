@@ -1,34 +1,23 @@
-/*global define*/
+/*global define, chrome*/
 define("tree2", function () {
 
   var $ = require('elements');
   var modes = require('modes');
   var domBuilder = require('dombuilder');
   var makeRow = require('row');
-  var defer = require('defer');
   var dialog = require('dialog');
-  var parseConfig = require('parseconfig');
-  var encodeConfig = require('encodeconfig');
   var prefs = require('prefs');
-  var pathCmp = require('encoders').pathCmp;
   var newDoc = require('document');
-  var clone = require('clone');
   var startServer = require('startserver');
   var contextMenu = require('context-menu');
   var fail = require('fail');
   var editor = require('editor');
+  var repos = require('repos');
 
   // Memory for opened trees.  Accessed by path
   var openPaths = prefs.get("openPaths", {});
   // Paths to the currently selected or active tree
   var selected, active, activePath;
-
-
-  // State for repos in tree.
-  var treeConfig = prefs.get("treeConfig", {});
-
-  // Live repos accessed by path
-  var repos = {};
 
   // docs by path
   var docPaths = {};
@@ -37,121 +26,9 @@ define("tree2", function () {
 
   render();
 
-  return {
-    fail: fail
-  };
-
-  function loadSubmoduleConfig(path, callback) {
-    // Find the longest
-    var parentPath = "";
-    Object.keys(treeConfig).forEach(function (name) {
-      if (name.length > path.length) return;
-      if (name !== path.substr(0, name.length)) return;
-      if (name.length > parentPath.length) parentPath = name;
-    });
-    if (!parentPath) {
-      return callback(new Error("Can't find parent repo for " + path));
-    }
-    var parent = treeConfig[parentPath];
-    var parentRepo = repos[parentPath];
-
-    parentRepo.loadAs("commit", parent.current, onCommit);
-
-    function onCommit(err, commit) {
-      if (!commit) {
-        return callback(err || new Error("Missing commit " + parent.current));
-      }
-      parentRepo.loadAs("tree", commit.tree, onTree);
-    }
-
-    function onTree(err, tree) {
-      if (!tree) {
-        return callback(err || new Error("Missing tree"));
-      }
-      var entry = tree[".gitmodules"];
-      if (!entry || !modes.isFile(entry.mode)) {
-        return callback(new Error("Missing or invalid " + parentPath + "/.gitmodules"));
-      }
-      parentRepo.loadAs("text", entry.hash, function (err, text) {
-        if (err) return callback(err);
-        var meta;
-        try { meta = parseConfig(text); }
-        catch (err) { return callback(err); }
-
-        var url;
-        var subPath = path.substr(parentPath.length + 1);
-        for (var key in meta.submodule) {
-          var item = meta.submodule[key];
-          if (item.path !== subPath) continue;
-          url = item.url;
-          break;
-        }
-        if (!url) {
-          return callback(new Error("Missing submodule " + subPath + " in .gitmodules"));
-        }
-        onUrl(url);
-      });
-    }
-
-    function onUrl(url) {
-      var config;
-      try {
-        config = configFromUrl(url, parent);
-      }
-      catch (err) {
-        return callback(err);
-      }
-      callback(null, config);
-    }
-  }
-
-  function configFromUrl(url, parent) {
-    if (!parent.githubName) {
-      return {
-        url: url
-      };
-    }
-    var match = url.match(/github.com[:\/](.*?)(?:\.git)?$/);
-    if (!match) {
-      throw new Error(url + " is not a github repo");
-    }
-    return { githubName: match[1] };
-  }
-
-  function createRepo(config) {
-    var repo = {};
-    if (config.githubName) {
-      var githubToken = prefs.get("githubToken", "");
-      require('js-github')(repo, config.githubName, githubToken);
-      // Github has this built-in, but it's currently very buggy
-      require('createtree')(repo);
-      // Cache github objects locally in indexeddb
-      require('addcache')(repo, require('indexeddb'));
-    }
-    else {
-      if (!config.prefix) {
-        config.prefix = (Math.random() * 0x100000000).toString(36);
-        prefs.set("treeConfig", treeConfig);
-      }
-      require('indexeddb')(repo, config.prefix);
-      require('createtree')(repo);
-    }
-    // Add pathToEntry API and cache non-blob types in ram
-    require('pathtoentry')(repo);
-    // Combine concurrent read requests for the same hash
-    require('read-combiner')(repo);
-
-    // Add delay to all I/O operations for debugging
-    // require('delay')(repo, 300);
-    return repo;
-  }
 
   function render() {
-    var roots = Object.keys(treeConfig).filter(function (path) {
-      return path.indexOf("/") < 0;
-    }).map(function (name) {
-      return renderRepo(name);
-    });
+    var roots = repos.mapRootNames(renderRepo);
     // Replace the tree with the new roots
     while ($.tree.firstChild) $.tree.removeChild($.tree.firstChild);
     $.tree.appendChild(domBuilder(roots));
@@ -164,86 +41,22 @@ define("tree2", function () {
 
   function renderRepo(repoPath, repoHash, onChange) {
     var config, repo;
-    var commitNode = renderCommit(repoPath, repoHash);
-    return commitNode.el;
+    return renderCommit(repoPath, repoHash);
 
     // Render the UI for repo and submodule roots
     function renderCommit(path, hash) {
-      var node = makeRow(path, modes.commit);
-      var dirtyConfig = false;
+      var node = makeRow(path, modes.commit, hash);
       node.busy = true;
-      if (treeConfig[path]) defer(function () {
-        onConfig(null, treeConfig[path]);
-      });
-      else loadSubmoduleConfig(path, onConfig);
+      repos.loadConfig(path, hash, onConfig);
+      return node.el;
 
-      return node;
-
-      function onConfig(err, result) {
+      function onConfig(err, pair) {
         if (err) fail(node, err);
-        config = result;
-        if (config !== treeConfig[path]) {
-          treeConfig[path] = config;
-          dirtyConfig = true;
-        }
-        if (hash && config.current !== hash) {
-          config.current = hash;
-          dirtyConfig = true;
-        }
-        repo = repos[path] || (repos[path] = createRepo(config));
-        if (config.head) return onHead(null, config.head);
-        repo.readRef("refs/heads/master", onHead);
+        config = pair.config;
+        repo = pair.repo;
+        node.hash = config.current;
+        node.busy = false;
       }
-
-      function createTemp() {
-        repo.saveAs("tree", [], function (err, hash) {
-          if (err) fail(node, err);
-          repo.saveAs("commit", {
-            tree: hash,
-            author: {
-              name: "AutoInit",
-              email: "tedit@creationix.com"
-            },
-            message: "Initial Empty Commit"
-          }, function (err, hash) {
-            if (err) fail(node, err);
-            config.current = hash;
-            dirtyConfig = true;
-            onHead(null, config.head);
-          });
-        });
-      }
-
-      function onHead(err, hash) {
-        if (err) fail(node, err);
-        if (!hash) {
-          if (config.url) return clone(repo, config.url, onHead);
-          if (!config.current) return createTemp();
-        }
-        else if (config.head === undefined) {
-          config.head = hash;
-          dirtyConfig = true;
-        }
-        if (!config.current) {
-          config.current = config.head;
-          dirtyConfig = true;
-        }
-        node.commitHash = config.current;
-        if (config.current !== config.head) {
-          node.staged = true;
-        }
-
-        repo.loadAs("commit", config.current, onCommit);
-      }
-
-      function onCommit(err, commit) {
-        if (!commit) fail(node, err || new Error("Missing commit " + config.current));
-        if (dirtyConfig) prefs.set("treeConfig", treeConfig);
-        node.hash = commit.tree;
-        if (openPaths[path]) openTree(node);
-        else node.busy = false;
-      }
-
     }
 
     function renderChildren(parent, tree) {
@@ -344,7 +157,7 @@ define("tree2", function () {
         if (!hash) fail(node, err || new Error("Missing master branch"));
         if (config.head !== hash) {
           config.head = hash;
-          prefs.set("treeConfig", treeConfig);
+          prefs.save();
           render();
         }
         else {
@@ -682,30 +495,37 @@ define("tree2", function () {
   function createEmpty() {
     dialog.prompt("Enter name for empty repo", "", function (name) {
       if (!name) return;
-      treeConfig[name] = {};
+      name = repos.createEmpty(name);
       openPaths[name] = true;
       render();
     });
   }
 
-  function cloneMount() {
+  function createFromFolder() {
+    return chrome.fileSystem.chooseEntry({ type: "openDirectory"}, onEntry);
+
+    function onEntry(entry) {
+      if (!entry) return;
+      var name = repos.createFromFolder(entry);
+      openPaths[name] = true;
+      render();
+    }
+
+  }
+
+  function createClone() {
     dialog.multiEntry("Clone Remote Repo", [
       {name: "url", placeholder: "git@hostname:path/to/repo.git", required:true},
       {name: "name", placeholder: "localname"}
     ], function (result) {
       if (!result) return;
-      var url = result.url;
-      var name = result.name;
-      if (!name) {
-        name = url.replace(/\.git$/, '');
-        name = name.substr(name.lastIndexOf("/") + 1);
-      }
-      treeConfig[name] = { url: url };
+      var name = repos.createClone(result.url, result.name);
+      openPaths[name] = true;
       render();
     });
   }
 
-  function liveMount() {
+  function createGithubMount() {
     var githubToken = prefs.get("githubToken", "");
     dialog.multiEntry("Mount Github Repo", [
       {name: "path", placeholder: "user/name", required:true},
@@ -716,11 +536,7 @@ define("tree2", function () {
       if (result.token !== githubToken) {
         prefs.set("githubToken", result.token);
       }
-      var path = result.path;
-      var name = result.name || path.substring(path.lastIndexOf("/") + 1);
-      treeConfig[name] = {
-        githubName: path
-      };
+      var name = repos.createGithubMount(result.path, result.name);
       openPaths[name] = true;
       render();
     });
@@ -745,9 +561,9 @@ define("tree2", function () {
     nullify(evt);
     contextMenu(evt, null, [
       {icon:"git", label: "Create Empty Git Repo", action: createEmpty},
-      {icon:"hdd", label:"Create Repo From Folder"},
-      {icon:"fork", label: "Clone Remote Repo", action: cloneMount},
-      {icon:"github", label: "Live Mount Github Repo", action: liveMount},
+      {icon:"hdd", label:"Create Repo From Folder", action: createFromFolder},
+      {icon:"fork", label: "Clone Remote Repo", action: createClone},
+      {icon:"github", label: "Live Mount Github Repo", action: createGithubMount},
       {icon:"ccw", label: "Remove All", action: removeAll}
     ]);
   }

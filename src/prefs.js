@@ -5,7 +5,7 @@ define("prefs", function () {
   var prefs;
   var dirty = false;
   var saving = false;
-  return { init: init, get: get, set: set };
+  return { init: init, get: get, set: set, save: save };
 
   function init(callback) {
     storage.get("prefs", function (items) {
@@ -17,6 +17,7 @@ define("prefs", function () {
 
   function get(name, fallback) {
     if (name in prefs) return prefs[name];
+    prefs[name] = fallback;
     return fallback;
   }
 
@@ -24,6 +25,11 @@ define("prefs", function () {
     // console.log(name, value);
     if (typeof value !== "object" && prefs[name] === value) return;
     prefs[name] = value;
+    save();
+    return value;
+  }
+
+  function save() {
     if (!saving) {
       saving = true;
       storage.set({prefs:prefs}, onSave);

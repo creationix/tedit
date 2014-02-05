@@ -11,12 +11,10 @@ define("row", function () {
 
   // This represents trees, commits, files, and symlinks.
   // Any of it's properties can be read or written and auto-updates the UI
-  function makeRow(path, mode) {
+  function makeRow(path, mode, hash) {
     if (typeof path !== "string") throw new TypeError("path must be a string");
     if (typeof mode !== "number") throw new TypeError("mode must be a number");
-    var hash = "",
-        commitHash = "",
-        errorMessage = "",
+    var errorMessage = "",
         open = false,
         busy = false,
         active = false,
@@ -26,7 +24,7 @@ define("row", function () {
     var $ = {};
     var children = [];
     var node = {
-      el: domBuilder(["li$el", [".row$row", ["i$icon"], ["span$span"]]], $),
+      el: domBuilder(["li$el", ["$row", ["i$icon"], ["span$span"]]], $),
       get path() { return path; },
       set path(newPath) {
         path = newPath;
@@ -73,11 +71,6 @@ define("row", function () {
         hash = value;
         updateIcon();
       },
-      get commitHash() { return commitHash; },
-      set commitHash(value) {
-        commitHash = value;
-        updateCommitHash();
-      },
       get errorMessage() { return errorMessage; },
       set errorMessage(value) {
         errorMessage = value;
@@ -86,8 +79,10 @@ define("row", function () {
       addChild: addChild,
       removeChild: removeChild
     };
-    updatePath();
+    Object.freeze(node); // Make sure this isn't used as a data bucket.
     updateIcon();
+    updatePath();
+    updateRow();
     updateUl();
     return node;
 
@@ -120,19 +115,6 @@ define("row", function () {
       if (active) classes.push("active");
       if (selected) classes.push("selected");
       $.row.setAttribute("class", classes.join(" "));
-    }
-
-    function updateCommitHash() {
-      if (commitHash) {
-        if (!$.fork) {
-          $.row.insertBefore(domBuilder(["i.icon-fork.tight$fork"], $), $.span);
-        }
-        $.fork.setAttribute("title", "commit " + commitHash);
-      }
-      else if ($.fork) {
-        $.row.removeChild($.fork);
-        delete $.fork;
-      }
     }
 
     function updateUl() {

@@ -1,15 +1,13 @@
-/*global define*/
+/*global define, chrome*/
 define("importfs", function () {
   "use strict";
 
   var modes = require('modes');
-  var notify = require('notify');
   var ignores = importEntry.ignores = [".git", "node_modules"];
 
   return importEntry;
 
   function importEntry(repo, entry, callback) {
-    notify("Importing " + entry.fullPath);
     repo.importStatus = "Loading " + entry.fullPath;
     if (entry.isDirectory) return importDirectory(repo, entry, callback);
     if (entry.isFile) return importFile(repo, entry, callback);
