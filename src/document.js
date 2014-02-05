@@ -31,7 +31,6 @@ define("document", function () {
   Doc.prototype.updateAceMode = function () {
     var aceMode = this.mode === modes.sym ?
       "ace/mode/text" : modelist.getModeForPath(this.path).mode;
-    console.log(aceMode)
     if (this.aceMode === aceMode) return;
     this.aceMode = aceMode;
     this.session.setMode(aceMode);
