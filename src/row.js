@@ -112,13 +112,14 @@ define("row", function () {
 
     function updateIcon() {
       var value =
-        errorMessage ? "icon-attention" :
+        (errorMessage ? "icon-attention" :
         busy ? "icon-spin1 animate-spin" :
         mode === modes.sym ? "icon-link" :
         mode === modes.file ? "icon-doc" :
-        mode === modes.exec ? "icon-asterisk" :
+        mode === modes.exec ? "icon-cog" :
         mode === modes.commit ? "icon-fork" :
-        open ? "icon-folder-open" : "icon-folder";
+        open ? "icon-folder-open" : "icon-folder") +
+          (mode === modes.commit ? " tight" : "");
       $.icon.setAttribute("class", value);
       var title = modes.toType(mode) + " " + hash;
       if (errorMessage) title += "\n" + errorMessage;
@@ -131,9 +132,9 @@ define("row", function () {
       }
       else {
         if (!$.folder) {
-          $.row.insertBefore(domBuilder(["i$folder"], $), $.span);
+          $.row.insertBefore(domBuilder(["i$folder"], $), $.icon);
         }
-        $.folder.setAttribute("class", "icon-folder" + (open ? "-open" : "") + " tight");
+        $.folder.setAttribute("class", "icon-folder" + (open ? "-open" : ""));
         $.folder.setAttribute("title", "tree " + treeHash);
       }
     }

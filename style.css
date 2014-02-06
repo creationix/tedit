@@ -78,15 +78,17 @@ body {
 .tree .icon-video {
   color: #cda869;
 }
-.tree .icon-doc,
-.tree .icon-asterisk {
+.tree .icon-doc {
   color: #EED1B3;
+}
+.tree .icon-cog {
+  color: #c4c4c8;
 }
 .tree .icon-fork {
   color: #FF9D90;
 }
 .tree .tight {
-  margin-left: -6px;
+  margin: 0 -2px 0 -4px;
 }
 
 ::-webkit-scrollbar {
