@@ -135,39 +135,45 @@ define("editor", function () {
 
     Global-Controls = {
       Control-Shift-R: "Reload the app"
-      Alt-T: "Toggle focus between editor and file tree"
-      -- If you manually close the tree by dragging, toggle remembers this.
       Control-Plus: "Increase font size"
       Control-Minus: "Decrease font size"
+      Control-B: "Apply next Theme"
+      Control-Shift-B: "Apply previous Theme"
     }
 
-    File-Tree-Controls = {
-      Up: "Move the selection up"
-      Down: "Move the selection down"
-      Left: "Close the current folder or move to parent folder"
-      Down: "Open the current folder or move to first child"
-      Home: "Jump to top of list"
-      End: "Jump to end of list"
-      Page-Up: "Go up 10 times"
-      Page-Down: "Go dowm 10 times"
-      When-on-folder: {
-        Space-or-Enter: "Toggle folder open and close"
-      }
-      When-on-file: {
-        Enter: "Open file and move focus to editor"
-        Space: "Open file, but keep focus"
-      }
-    }
+    -- Keyboard tree navigation is currently disabled, it will come back
+    -- in a future update.
 
-    Mouse-and-Touch-Controls = {
-      Drag-Titlebar: "Move the window"
-      Drag-Gutter: "Resize Panes"
-      Click-Directory: "Toggle open/close on directory"
-      Click-File: "Select file"
-      Click-Selected-File: "Open file and focus on Editor"
-      Click-Activated-File: "Deactivate file"
-    }
   */}
+
+    //   Alt-T: "Toggle focus between editor and file tree"
+      // -- If you manually close the tree by dragging, toggle remembers this.
+    // File-Tree-Controls = {
+    //   Up: "Move the selection up"
+    //   Down: "Move the selection down"
+    //   Left: "Close the current folder or move to parent folder"
+    //   Down: "Open the current folder or move to first child"
+    //   Home: "Jump to top of list"
+    //   End: "Jump to end of list"
+    //   Page-Up: "Go up 10 times"
+    //   Page-Down: "Go dowm 10 times"
+    //   When-on-folder: {
+    //     Space-or-Enter: "Toggle folder open and close"
+    //   }
+    //   When-on-file: {
+    //     Enter: "Open file and move focus to editor"
+    //     Space: "Open file, but keep focus"
+    //   }
+    // }
+
+    // Mouse-and-Touch-Controls = {
+    //   Drag-Titlebar: "Move the window"
+    //   Drag-Gutter: "Resize Panes"
+    //   Click-Directory: "Toggle open/close on directory"
+    //   Click-File: "Select file"
+    //   Click-Selected-File: "Open file and focus on Editor"
+    //   Click-Activated-File: "Deactivate file"
+    // }
 
   function setTheme(name, quiet) {
     var theme = themes[name];

@@ -99,6 +99,7 @@ define("tree2", function () {
 
     function onClick(node) {
       if (modes.isBlob(node.mode)) {
+        require('notify')("TODO: open " + node.path);
         console.log("TODO: open file");
       }
       else {
