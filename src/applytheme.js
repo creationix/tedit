@@ -1,6 +1,8 @@
-/*global define*/
+/*global define, ace*/
 define("applytheme", function () {
   "use strict";
+
+  var parseCss = require('css-parse');
 
   var template = {
     ".tree": {
@@ -51,7 +53,36 @@ define("applytheme", function () {
 
   var tag;
 
-  return function (rules, theme) {
+  return function (theme) {
+    var aceTheme = ace.require(theme.theme);
+    if (!theme) return {};
+    var cssClass = aceTheme.cssClass;
+    var prefix = new RegExp("^." + cssClass + " ");
+    var rules = {};
+    try {
+      // Fix a typo in the kuroir theme
+      var aceCss = aceTheme.cssText.replace("background-color: ;", "");
+
+      parseCss(aceCss).stylesheet.rules.forEach(function (rule) {
+        if (rule.type !== "rule") return;
+        var declarations = {};
+        rule.declarations.forEach(function (declaration) {
+          if (declaration.type !== "declaration") return;
+          declarations[declaration.property] = declaration.value;
+        });
+        rule.selectors.forEach(function (selector) {
+          if (selector === "." + cssClass) selector += " ";
+          if (!prefix.test(selector)) return;
+          var name = selector.replace(prefix, "");
+          rules[name] = declarations;
+        });
+      });
+    }
+    catch (err) {
+      console.log(aceTheme.cssText);
+      console.error(theme.theme, err.toString());
+      return {};
+    }
 
     // console.log(rules);
     var css = Object.keys(template).map(function (name) {
@@ -77,7 +108,7 @@ define("applytheme", function () {
       if (!contents) return;
       return name + "{\n  " + contents + "\n}";
     }).join("\n");
-    // console.log(css);
+
     if (tag) document.head.removeChild(tag);
     tag = document.createElement("style");
     tag.setAttribute("data-theme", theme.theme);

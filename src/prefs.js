@@ -5,7 +5,7 @@ define("prefs", function () {
   var prefs;
   var dirty = false;
   var saving = false;
-  return { init: init, get: get, set: set, save: save };
+  return { init: init, get: get, set: set, save: save, clearSync: clearSync };
 
   function init(callback) {
     storage.get("prefs", function (items) {
@@ -39,10 +39,19 @@ define("prefs", function () {
 
   function onSave() {
     saving = false;
+    if (chrome.runtime.lastError) console.error(chrome.runtime.lastError.message);
     if (!dirty) return;
     dirty = false;
     saving = true;
     storage.set({prefs:prefs}, onSave);
+  }
+
+  function clearSync(names, callback) {
+    names.forEach(function (name) {
+      console.warn("Clearing", name);
+      delete prefs[name];
+    });
+    storage.set({prefs:prefs}, callback);
   }
 
 });

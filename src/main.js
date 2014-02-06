@@ -12,5 +12,6 @@ define("main", function () {
     require('tree2');
     require('editor');
     require('slider');
+    require('global-keys');
   });
 });

@@ -11,7 +11,7 @@ define("notify", function () {
     popup.textContent = message;
     if (timeout) clearTimeout(timeout);
     else show();
-    timeout = setTimeout(hide, 500);
+    timeout = setTimeout(hide, 1000);
   };
 
   function hide() {

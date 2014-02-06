@@ -6,10 +6,11 @@ define("editor", function () {
   var $ = require('elements');
   var whitespace = ace.require('ace/ext/whitespace');
   var themes = ace.require('ace/ext/themelist').themesByName;
-  var names = Object.keys(themes);
   var domBuilder = require('dombuilder');
   var prefs = require('prefs');
-  var themeIndex = prefs.get("themeIndex", names.indexOf("clouds_midnight"));
+  var themeNames = Object.keys(ace.require('ace/ext/themelist').themesByName);
+  var themeIndex = prefs.get("themeIndex", themeNames.indexOf("clouds_midnight"));
+
   // Put sample content and liven the editor
 
   var code = jack.toString().substr(20);
@@ -17,7 +18,11 @@ define("editor", function () {
   code = code.split("\n").map(function (line) { return line.substr(4); }).join("\n");
 
   var editor = ace.edit($.editor);
-  setTheme(names[themeIndex], true);
+  editor.setTheme = setTheme;
+  editor.prevTheme = prevTheme;
+  editor.nextTheme = nextTheme;
+
+  setTheme(themeNames[themeIndex], true);
   editor.on("blur", function () {
     if (currentDoc && currentDoc.onBlur) currentDoc.onBlur(currentDoc.session.getValue());
   });
@@ -29,27 +34,6 @@ define("editor", function () {
     bindKey: {win: 'Ctrl-S',  mac: 'Command-S'},
     exec: function() {
       if (currentDoc && currentDoc.onBlur) currentDoc.onBlur(currentDoc.session.getValue());
-    },
-    readOnly: false
-  });
-  editor.commands.addCommand({
-    name: 'theme',
-    bindKey: {win: 'Ctrl-B',  mac: 'Command-B'},
-    exec: function() {
-      themeIndex = (themeIndex + 1) % names.length;
-      prefs.set("themeIndex", themeIndex);
-      setTheme(names[themeIndex]);
-    },
-    readOnly: false
-  });
-  editor.commands.addCommand({
-    name: 'theme-back',
-    bindKey: {win: 'Ctrl-Shift-B',  mac: 'Command-Shift-B'},
-    exec: function() {
-      themeIndex = (themeIndex - 1);
-      if (themeIndex < 0) themeIndex += names.length;
-      prefs.set("themeIndex", themeIndex);
-      setTheme(names[themeIndex]);
     },
     readOnly: false
   });
@@ -179,9 +163,22 @@ define("editor", function () {
     var theme = themes[name];
     document.body.setAttribute("class", "theme-" + (theme.isDark ? "dark" : "light"));
     editor.renderer.setTheme(theme.theme, function () {
-      require('applytheme')(require('parsetheme')(theme.theme), theme);
-      if (!quiet) notify("Applied " + theme.caption + " theme.");
+      require('applytheme')(theme);
+      if (!quiet) notify(theme.caption);
     });
+  }
+
+  function nextTheme() {
+    themeIndex = (themeIndex + 1) % themeNames.length;
+    prefs.set("themeIndex", themeIndex);
+    setTheme(themeNames[themeIndex]);
+  }
+
+  function prevTheme() {
+      themeIndex = (themeIndex - 1);
+      if (themeIndex < 0) themeIndex += themeNames.length;
+      prefs.set("themeIndex", themeIndex);
+      setTheme(themeNames[themeIndex]);
   }
 
   return editor;

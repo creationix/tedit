@@ -1,4 +1,4 @@
-/*global define, chrome*/
+/*global define*/
 define("zoom", function () {
   "use strict";
 
@@ -6,61 +6,45 @@ define("zoom", function () {
   var zooms = [
     25, 33, 50, 67, 75, 90, 100, 110, 120, 125, 150, 175, 200, 250, 300, 400, 500
   ];
-  var index = prefs.get("zoomIndex", zooms.indexOf(100));
-  var oldIndex = index;
-  var handlers = [];
+  var zoomIndex = prefs.get("zoomIndex", zooms.indexOf(100));
+  var oldIndex = zoomIndex;
 
-  window.addEventListener("keydown", onKey, true);
+  var handlers = [];
 
   onZoom.bigger = bigger;
   onZoom.smaller = smaller;
   onZoom.reset = reset;
   return onZoom;
 
-  function onZoom(callback) {
-    handlers.push(callback);
-    callback(zooms[index] / 100, zooms[oldIndex] / 100);
-  }
-
-  function onKey(evt) {
-    // Ctrl-0
-    if (evt.ctrlKey && !evt.shiftKey && evt.keyCode === 48) reset();
-    // Ctrl-"+"
-    else if (evt.ctrlKey && !evt.shiftKey && evt.keyCode === 187) bigger();
-    // Ctrl-"-"
-    else if (evt.ctrlKey && !evt.shiftKey && evt.keyCode === 189) smaller();
-    // Ctrl-Shift-R
-    else if (evt.ctrlKey && evt.shiftKey && evt.keyCode === 82) chrome.runtime.reload();
-    // Ignore and let rest of app handle it.
-    else return;
-    evt.preventDefault();
-    evt.stopPropagation();
-  }
-
   function bigger() {
-    if (index < zooms.length - 1) index++;
+    if (zoomIndex < zooms.length - 1) zoomIndex++;
     zoom();
   }
 
   function smaller() {
-    if (index > 0) index--;
+    if (zoomIndex > 0) zoomIndex--;
     zoom();
   }
 
   function reset() {
-    index = zooms.indexOf(100);
+    zoomIndex = zooms.indexOf(100);
     zoom();
   }
 
+  function onZoom(callback) {
+    handlers.push(callback);
+    callback(zooms[zoomIndex] / 100, zooms[oldIndex] / 100);
+  }
+
   function zoom() {
-    if (index === oldIndex) return;
-    var scale = zooms[index] / 100;
+    if (zoomIndex === oldIndex) return;
+    var scale = zooms[zoomIndex] / 100;
     var oldScale = oldIndex && zooms[oldIndex] / 100;
-    oldIndex = index;
+    oldIndex = zoomIndex;
     handlers.forEach(function (handler) {
       handler(scale, oldScale);
     });
-    prefs.set("zoomIndex", index);
+    prefs.set("zoomIndex", zoomIndex);
   }
 
 });

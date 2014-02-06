@@ -1,4 +1,4 @@
-/*global define, chrome*/
+/*global define, chrome, indexedDB*/
 define("tree2", function () {
 
   var $ = require('elements');
@@ -605,17 +605,7 @@ define("tree2", function () {
 
   function removeAll() {
     indexedDB.deleteDatabase("tedit");
-    var githubToken = prefs.get("githubToken", "");
-    var userName = prefs.get("userName", "");
-    var userEmail = prefs.get("userEmail", "");
-    chrome.storage.local.clear();
-    prefs.init(function () {
-      console.log("Restoring user information");
-      prefs.set("githubToken", githubToken);
-      prefs.set("userName", userName);
-      prefs.set("userEmail", userEmail);
-      chrome.runtime.reload()
-    });
+    prefs.clearSync(["treeConfig", "openPaths"], chrome.runtime.reload);
   }
 
   function onGlobalContext(evt) {
