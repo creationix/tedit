@@ -5,7 +5,6 @@
   box-sizing: border-box;
 }
 body {
-  background-color: #000;
   margin: 0;
   font-family: sans-serif;
   display: flex;
@@ -15,10 +14,8 @@ body {
 
 .tree {
   user-select: none;
-  color: #fff;
   padding: 0.3em 0.3em 1.5em 0.3em;
   margin: 0;
-  background-color: #111;
 }
 .tree, .tree ul {
   margin: 0;
@@ -32,59 +29,12 @@ body {
 .tree li {
   white-space: nowrap;
 }
-.tree span.target {
-  margin-left: 0.2em;
-  font-weight: inherit;
-}
-.tree span.target:before {
-  color: #aaa;
-  content: '\2192 ';
-  /* '→ ' */
-
-  padding-right: 0.2em;
-}
 .tree .row {
   margin-left: -10em;
   padding-left: 10em;
   margin-right: -10em;
   padding-right: 10em;
   cursor: pointer;
-}
-.tree .row.dirty {
-  font-style: italic;
-}
-.tree .row.staged {
-  font-weight: bold;
-}
-.tree .row.active {
-  background-color: #333;
-}
-.tree .row.selected, .tree .row:hover {
-  box-shadow: inset 0 0 0.3em rgba(255,255,255,0.6);
-  /*background-color: #444;*/
-}
-.tree .icon-attention {
-  color: #f72;
-}
-.tree .icon-link {
-  color: #FFB795;
-}
-.tree .icon-folder-open,
-.tree .icon-folder {
-  color: #aac6e3;
-}
-.tree .icon-picture,
-.tree .icon-video {
-  color: #cda869;
-}
-.tree .icon-doc {
-  color: #EED1B3;
-}
-.tree .icon-cog {
-  color: #c4c4c8;
-}
-.tree .icon-fork {
-  color: #FF9D90;
 }
 .tree .tight {
   margin: 0 -2px 0 -4px;
@@ -129,8 +79,6 @@ body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
   height: 30px;
   left: 200px;
   width: auto;
-  background-color: #3a3a3a;
-  color: #fff;
   line-height: 30px;
   text-align: center;
   font-size: 16px;
@@ -313,4 +261,27 @@ ul.contextMenu li.sep hr {
   border: 0;
   height: 1px;
   background-color: #000;
+}
+body.theme-dark  {
+  color: #fff;
+  background-color: #111;
+}
+body.theme-light  {
+  color: #111;
+  background-color: #f8f8f8;
+}
+.theme-dark .titlebar {
+  background-color: #3a3a3a;
+  color: #fff;
+}
+.theme-light .titlebar {
+  background-color: #eee;
+  color: #333;
+}
+
+.tree .row.dirty {
+  font-style: italic;
+}
+.tree .row.staged {
+  font-weight: bold;
 }

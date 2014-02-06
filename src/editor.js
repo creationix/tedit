@@ -2,6 +2,7 @@
 define("editor", function () {
   "use strict";
 
+  var notify = require('notify');
   var $ = require('elements');
   var whitespace = ace.require('ace/ext/whitespace');
   var themes = ace.require('ace/ext/themelist').themesByName;
@@ -16,8 +17,7 @@ define("editor", function () {
   code = code.split("\n").map(function (line) { return line.substr(4); }).join("\n");
 
   var editor = ace.edit($.editor);
-  var theme = themes[names[themeIndex]];
-  editor.setTheme(theme.theme);
+  setTheme(names[themeIndex], true);
   editor.on("blur", function () {
     if (currentDoc && currentDoc.onBlur) currentDoc.onBlur(currentDoc.session.getValue());
   });
@@ -38,8 +38,7 @@ define("editor", function () {
     exec: function() {
       themeIndex = (themeIndex + 1) % names.length;
       prefs.set("themeIndex", themeIndex);
-      var theme = themes[names[themeIndex]];
-      editor.setTheme(theme.theme);
+      setTheme(names[themeIndex]);
     },
     readOnly: false
   });
@@ -50,8 +49,7 @@ define("editor", function () {
       themeIndex = (themeIndex - 1);
       if (themeIndex < 0) themeIndex += names.length;
       prefs.set("themeIndex", themeIndex);
-      var theme = themes[names[themeIndex]];
-      editor.setTheme(theme.theme);
+      setTheme(names[themeIndex]);
     },
     readOnly: false
   });
@@ -170,6 +168,15 @@ define("editor", function () {
       Click-Activated-File: "Deactivate file"
     }
   */}
+
+  function setTheme(name, quiet) {
+    var theme = themes[name];
+    document.body.setAttribute("class", "theme-" + (theme.isDark ? "dark" : "light"));
+    editor.renderer.setTheme(theme.theme, function () {
+      require('applytheme')(require('parsetheme')(theme.theme), theme);
+      if (!quiet) notify("Applied " + theme.caption + " theme.");
+    });
+  }
 
   return editor;
 });
