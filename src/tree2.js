@@ -171,10 +171,15 @@ define("tree2", function () {
       function onBlob(err, blob) {
         if (err) fail(node, err);
         doc = docPaths[node.path];
-        if (doc) doc.update(node.path, node.mode, blob);
-        else doc = docPaths[node.path] = newDoc(node.path, node.mode, blob);
-        linkDoc(node, doc);
-        doc.activate();
+        try {
+          if (doc) doc.update(node.path, node.mode, blob);
+          else doc = docPaths[node.path] = newDoc(node.path, node.mode, blob);
+          linkDoc(node, doc);
+          doc.activate();
+        }
+        catch (err) {
+          fail(node, err);
+        }
         node.busy = false;
       }
     }

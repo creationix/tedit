@@ -9,9 +9,7 @@ define("document", function () {
   var whitespace = ace.require('ace/ext/whitespace');
 
   function Doc(path, mode, body) {
-    var code;
-    try { code = binary.toUnicode(body); }
-    catch (err) { return; }
+    var code = binary.toUnicode(body);
     this.path = path;
     this.mode = mode;
     this.code = code;
@@ -42,9 +40,7 @@ define("document", function () {
     this.session.setMode(aceMode);
   };
   Doc.prototype.setBody = function (body) {
-    var code;
-    try { code = binary.toUnicode(body); }
-    catch (err) { return; }
+    var code = binary.toUnicode(body);
     this.code = code;
     this.session.setValue(code, 1);
     whitespace.detectIndentation(this.session);
