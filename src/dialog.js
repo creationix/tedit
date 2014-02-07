@@ -1,8 +1,9 @@
-/*global define*/
+/*global define, chrome*/
 define("dialog", function () {
   "use strict";
 
   var domBuilder = require('dombuilder');
+  var fileSystem = chrome.fileSystem;
 
   // dialog.alert = alertDialog;
   dialog.prompt = promptDialog;
@@ -21,7 +22,7 @@ define("dialog", function () {
   function dialog(title, contents, onCancel) {
     var $ = { close: closeDialog };
     document.body.appendChild(domBuilder([
-      [".shield$shield", {onclick: cancel}],
+      [".shield$shield", {onclick: cancel, oncontextmenu: cancel}],
       [".dialog$dialog",
         [".title",
           [".content", title],
@@ -127,15 +128,92 @@ define("dialog", function () {
     }
   }
 
-  function exportConfigDialog(path, callback) {
+  function exportConfigDialog(config, callback) {
+    var entry;
     var $ = dialog("Live Export", [
+      ["form", {onsubmit: submit},
+        ["label", {"for": "target"}, "Target Parent Folder"],
+        [".input",
+          ["input.input-field$target", {
+            name: "target",
+            onclick: chooseFolder,
+            onkeyup: reset,
+            required: true
+          }],
+          ["button.input-item", {onclick: chooseFolder}, "Choose..."]
+        ],
+        ["label", {"for": "name"}, "Target Name"],
+        [".input",
+          ["input.input-field$name", {
+            name: "name",
+            value: config.name,
+            required: true
+          }],
+        ],
+        ["label", {"for": "source"}, "Source Path"],
+        [".input",
+          ["input.input-field$source", {
+            name: "source",
+            value: config.source,
+            required: true
+          }],
+        ],
+        ["label", {"for": "filters"}, "Filters Path"],
+        [".input",
+          ["input.input-field$filters", {
+            name: "filters",
+            value: config.filters,
+            required: true
+          }],
+          ["input.input-item$submit", {type:"submit",value:"OK"}]
+        ]
+      ]
     ], onCancel);
+
+    if (config.entry) {
+      return fileSystem.isRestorable(config.entry, onCheck);
+    }
+    return reset();
+
+    function onCheck(isRestorable) {
+      if (!isRestorable) {
+        delete config.entry;
+        return reset();
+      }
+      return fileSystem.restoreEntry(config.entry, onEntry);
+    }
+
+    function onEntry(result) {
+      if (result) entry = result;
+      return reset();
+    }
 
     function onCancel(evt) {
       nullify(evt);
       $.close();
       callback();
     }
+
+    function reset() {
+      $.target.value = entry && entry.fullPath || "";
+    }
+
+    function submit(evt) {
+      nullify(evt);
+
+      config.source = $.source.value;
+      config.name = $.name.value;
+      config.filters = $.filters.value;
+      config.entry = fileSystem.retainEntry(entry);
+      $.close();
+      callback(config);
+    }
+
+    function chooseFolder(evt) {
+      nullify(evt);
+      return fileSystem.chooseEntry({ type: "openDirectory"}, onEntry);
+    }
+
   }
 
 });

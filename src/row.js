@@ -16,6 +16,9 @@ define("row", function () {
     if (typeof mode !== "number") throw new TypeError("mode must be a number");
     var errorMessage = "",
         treeHash,
+        pulse,
+        exportPath,
+        serverPort,
         open = false,
         busy = false,
         active = false,
@@ -26,6 +29,21 @@ define("row", function () {
     var children;
     var node = {
       el: domBuilder(["li$el", ["$row", ["i$icon"], ["span$span"]]], $),
+      get pulse () { return pulse; },
+      set pulse( value) {
+        pulse = value;
+        updateIcon();
+      },
+      get exportPath () { return exportPath; },
+      set exportPath( value) {
+        exportPath = value;
+        updateIcon();
+      },
+      get serverPort () { return serverPort; },
+      set serverPort( value) {
+        serverPort = value;
+        updateIcon();
+      },
       get path() { return path; },
       set path(newPath) {
         path = newPath;
@@ -136,6 +154,28 @@ define("row", function () {
         }
         $.folder.setAttribute("class", "icon-folder" + (open ? "-open" : ""));
         $.folder.setAttribute("title", "tree " + treeHash);
+      }
+      if (serverPort) {
+        if (!$.server) {
+          $.row.appendChild(domBuilder(["i$server"], $));
+          $.export.setAttribute("class", "icon-globe" + (pulse ? " animate-spin" : ""));
+        }
+        $.server.setAttribute("title", "Serving on port " + serverPort);
+      }
+      else if ($.server) {
+        $.row.removeChild($.server);
+        delete $.server;
+      }
+      if (exportPath) {
+        if (!$.export) {
+          $.row.appendChild(domBuilder(["i$export"], $));
+        }
+        $.export.setAttribute("title", "Live Exporting to " + exportPath);
+        $.export.setAttribute("class", "icon-floppy" + (pulse ? " animate-spin" : ""));
+      }
+      else if ($.export) {
+        $.row.removeChild($.export);
+        delete $.export;
       }
     }
 

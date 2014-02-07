@@ -22,6 +22,10 @@ define("repos", function () {
     addSubModule: addSubModule,
   };
 
+  function pathToEntry(path, callback) {
+    console.log("TODO: pathToEntry")
+  }
+
   // Map the names ot the root repos (useful for rendering a tree)
   function mapRootNames(callback) {
     return Object.keys(treeConfig).filter(function (path) {

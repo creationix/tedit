@@ -14,9 +14,9 @@ define("elements", function () {
           [".dragger$dragger"],
           [".image$image"]
         ]
-      ]
+      ],
+      [".titlebar$titlebar", "welcome.jk"],
     ],
-    [".titlebar$titlebar", "welcome.jk"],
     [".closebox$closebox", {onclick: closeWindow}, "×"],
   ], $));
 

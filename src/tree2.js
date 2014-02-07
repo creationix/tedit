@@ -24,13 +24,18 @@ define("tree2", function () {
   // Paths to the currently selected or active tree
   var selected, active;
   var activePath = prefs.get("activePath");
-  // docs by path
+  // live docs by path
   var docPaths = {};
+  // live hooks by path
+  var hookPaths = {};
+  // Live hooks configs by path
+  var hookConfig = prefs.get("hookConfig", {});
 
   $.tree.addEventListener("contextmenu", onGlobalContext, false);
   $.tree.addEventListener("click", onGlobalClick, false);
 
   render();
+
 
   function updatePaths(oldPath, newPath) {
     var reg = new RegExp("^" + oldPath.replace(/([.?*+^$[\]\\(){}|])/g, "\\$1") + "(?=/|$)");
@@ -42,6 +47,8 @@ define("tree2", function () {
     }
     updateGroup(openPaths, reg, newPath);
     updateGroup(docPaths, reg, newPath);
+    updateGroup(hookPaths, reg, newPath); // TODO: updataPath on hooks
+    updateGroup(hookConfig, reg, newPath);
     // TODO: rename paths in repos.js
     // TODO: rename paths in live.js
     prefs.save();
@@ -102,6 +109,7 @@ define("tree2", function () {
       node.onClick = onClick.bind(null, node);
       node.makeMenu = makeMenu.bind(null, node);
       if (docPaths[path]) linkDoc(node, docPaths[path]);
+      if (hookPaths[path]) hookPaths[path](node, config);
       if (activePath === path) {
         activate(node);
       }
@@ -301,9 +309,18 @@ define("tree2", function () {
     // }
 
     function liveExport(node) {
-      dialog.exportConfig(node.path, function (config) {
+      dialog.exportConfig({
+        entry: prefs.get("defaultExportEntry"),
+        source: node.path,
+        filters: "filters",
+        name: node.path.substring(node.path.indexOf("/") + 1)
+      }, function (config) {
         if (!config) return;
-        live.addExportHook(node, config);
+        prefs.set("defaultExportEntry", config.entry);
+        var hook = live.addExportHook(node, config, function () {
+          console.log("TODO: Update node visuals");
+        });
+        hookPaths[config.source] = hook;
       });
     }
 
@@ -612,7 +629,7 @@ define("tree2", function () {
 
   function removeAll() {
     indexedDB.deleteDatabase("tedit");
-    prefs.clearSync(["treeConfig", "openPaths"], chrome.runtime.reload);
+    prefs.clearSync(["treeConfig", "openPaths", "hookConfig"], chrome.runtime.reload);
   }
 
 });
