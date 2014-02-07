@@ -18,6 +18,8 @@ define("repos", function () {
     createClone: createClone,
     createGithubMount: createGithubMount,
     splitPath: splitPath,
+    genName: genName,
+    addSubModule: addSubModule,
   };
 
   // Map the names ot the root repos (useful for rendering a tree)
@@ -27,6 +29,74 @@ define("repos", function () {
     }).map(function (name) {
       return callback(name);
     });
+  }
+
+  function addSubModule(path, config, url, localPath, name, callback) {
+    var childConfig, childRepo, childHead;
+    var meta;
+    var repo = repos[path];
+    repo.loadAs("commit", config.current, onCurrent);
+
+    function onCurrent(err, commit) {
+      if (err) return callback(err);
+      // TODO: since control-flow splits here, make sure callback can only be
+      // called once in case of concurrent errors.
+      repo.pathToEntry(commit.tree, localPath, onTreeEntry);
+      repo.loadAs("tree", commit.tree, onTree);
+    }
+
+    function onTree(err, tree) {
+      if (err) return callback(err);
+      var entry = tree[".gitmodules"];
+      if (entry && modes.isFile(entry.mode)) repo.loadAs("text", entry.hash, onText);
+      else {
+        meta = {};
+        join();
+      }
+    }
+
+    function onTreeEntry(err, entry) {
+      if (err) return callback(err);
+      name = genName(name || url, entry.tree);
+      localPath = localPath ? localPath + "/" + name : name;
+      path += "/" + localPath;
+      childConfig = treeConfig[path] = configFromUrl(url, config);
+      childRepo = repos[path] = createRepo(childConfig);
+      loadConfig(path, null, onConfig);
+      join();
+    }
+
+    function onConfig(err) {
+      if (err) return callback(err);
+      childHead = config.head || config.current;
+      join();
+    }
+
+    function onText(err, text) {
+      if (err) return callback(err);
+      try { meta = parseConfig(text); }
+      catch (err) { return callback(err); }
+      join();
+    }
+
+    function join() {
+      if (!meta || !childHead) return;
+      if (!meta.submodule) meta.submodule = {};
+      meta.submodule[localPath] = {
+        path: localPath,
+        url: url
+      };
+      callback(null, [
+        { path: ".gitmodules",
+          mode: modes.blob,
+          content: encodeConfig(meta)
+        },
+        { path: localPath,
+          mode: modes.commit,
+          hash: childHead
+        }
+      ]);
+    }
   }
 
   // Load a config by path.  This will load any missing information, clone new

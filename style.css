@@ -42,13 +42,18 @@ body {
 
 ::-webkit-scrollbar {
   background-color: rgba(100,100,100,0.05);
+  width: 1em;
+  height: 1em;
+}
+.ace_editor ::-webkit-scrollbar, .ace_editor ::-webkit-scrollbar-thumb {
+  font-size: 16px;
 }
 ::-webkit-scrollbar-thumb {
   border: solid 2px transparent;
-  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.2), inset 0 0 10px 1px rgba(128, 128, 128, 0.2);
+  box-shadow: inset 0 0 0 .1em rgba(128, 128, 128, 0.2), inset 0 0 .7em .1em rgba(128, 128, 128, 0.2);
 }
 ::-webkit-scrollbar-thumb:hover {
-  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.8), inset 0 0 10px 1px rgba(128, 128, 128, 0.8);
+  box-shadow: inset 0 0 0 .1em rgba(128, 128, 128, 0.8), inset 0 0 .7em .1em rgba(128, 128, 128, 0.8);
 }
 
 body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
@@ -274,8 +279,14 @@ ul.contextMenu li.sep hr {
   height: 0;
   border: 0;
   height: 1px;
+}
+.theme-dark ul.contextMenu li.sep hr{
+  background-color: #fff;
+}
+.theme-light ul.contextMenu li.sep hr{
   background-color: #000;
 }
+
 body.theme-dark  {
   color: #fff;
   background-color: #111;
