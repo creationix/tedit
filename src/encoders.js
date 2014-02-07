@@ -38,8 +38,8 @@ define("encoders", function () {
       throw new Error("Invalid tree hash");
     }
 
-    var date = new Date("Fri Jan 17 09:33:29 2014");
-    date.timeZoneOffset = -6 * 60;
+    var date = new Date(1391790884000);
+    date.timezoneOffset = 7 * 60;
     // Test commit encoding
     hash = hashAs("commit", normalizeCommit({
       tree: hash,
@@ -50,13 +50,13 @@ define("encoders", function () {
       },
       message: "Test Commit\n"
     }));
-    if (hash !== "05d04f9b583335a82100e7c5158a6149e4f57d7a") {
+    if (hash !== "500c37fc17988b90c82d812a2d6fc25b15354bf2") {
       throw new Error("Invalid commit hash");
     }
 
     // Test annotated tag encoding
-    date = new Date("Fri Jan 17 09:46:16 2014");
-    date.timeZoneOffset = -6 * 60;
+    date = new Date(1391790910000);
+    date.timezoneOffset = 7 * 60;
     hash = hashAs("tag", normalizeTag({
       object: hash,
       type: "commit",
@@ -68,7 +68,7 @@ define("encoders", function () {
       },
       message: "Tag it!\n"
     }));
-    if (hash !== "d2f2d639e67abb8b5c4f8e93722971dc02ad7311") {
+    if (hash !== "49522787662a0183652dc9cafa5c008b5a0e0c2a") {
       throw new Error("Invalid annotated tag hash");
     }
   }
@@ -260,10 +260,10 @@ define("encoders", function () {
   }
 
   function formatDate(date) {
-    var offset = date.timeZoneOffset || 0;
-    var neg = "-";
-    if (offset < 0) offset = -offset;
-    else neg = "+";
+    var offset = date.timezoneOffset || date.getTimezoneOffset();
+    var neg = "+";
+    if (offset <= 0) offset = -offset;
+    else neg = "-";
     offset = neg + two(Math.floor(offset / 60)) + two(offset % 60);
     var seconds = Math.floor(date.getTime() / 1000);
     return seconds + " " + offset;

@@ -261,15 +261,23 @@ define("js-github", function () {
     for (var x = 0; x < 3; x++) {
       for (var i = -720; i < 720; i += 30) {
         if (type === "commit") {
-          value.author.date.timeZoneOffset = i;
-          value.committer.date.timeZoneOffset = i;
+          value.author.date.timezoneOffset = i;
+          value.committer.date.timezoneOffset = i;
         }
         else if (type === "tag") {
-          value.tagger.date.timeZoneOffset = i;
+          value.tagger.date.timezoneOffset = i;
         }
         if (hash === hashAs(type, value)) return true;
       }
       value.message += "\n";
+    }
+    // Guessing failed, remove the temporary offset.
+    if (type === "commit") {
+      delete value.author.date.timezoneOffset;
+      delete value.committer.date.timezoneOffset;
+    }
+    else if (type === "tag") {
+      delete value.tagger.date.timezoneOffset;
     }
   }
 
@@ -417,9 +425,9 @@ define("js-github", function () {
     // TODO: test this once GitHub adds timezone information
     var match = string.match(/(-?)([0-9]{2}):([0-9]{2})$/);
     var date = new Date(string);
-    date.timeZoneOffset = 0;
+    date.timezoneOffset = 0;
     if (match) {
-      date.timeZoneOffset = (match[1] === "-" ? -1 : 1) * (
+      date.timezoneOffset = (match[1] === "-" ? 1 : -1) * (
         parseInt(match[2], 10) * 60 + parseInt(match[3], 10)
       );
     }
