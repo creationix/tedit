@@ -2,6 +2,7 @@
 define("tree2", function () {
 
   var $ = require('elements');
+  var hashAs = require('encoders').hashAs;
   var modes = require('modes');
   var domBuilder = require('dombuilder');
   var makeRow = require('row');
@@ -190,6 +191,7 @@ define("tree2", function () {
 
     function linkDoc(node, doc) {
       doc.save = function (text) {
+        if (hashAs("blob", text) === node.hash) return;
         updateTree(node, [{
           path: node.localPath,
           mode: node.mode,
