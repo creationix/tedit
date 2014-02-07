@@ -16,7 +16,6 @@ body {
   user-select: none;
   padding: 0.3em 0.3em 1.5em 0.3em;
   margin: 0;
-  font-size: 1.1em;
   font-family: Ubuntu, sans-serif;
 }
 .tree, .tree ul {
