@@ -296,8 +296,10 @@ ul.contextMenu li.sep hr {
   background-color: #000;
 }
 
-.theme-dark .wrap {
+.wrap {
   -webkit-app-region: no-drag;
+}
+.theme-dark .wrap {
   color: #fff;
   background-color: #111;
 }
