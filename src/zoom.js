@@ -2,6 +2,7 @@
 define("zoom", function () {
   "use strict";
 
+  var notify = require('notify');
   var prefs = require('prefs');
   var zooms = [
     25, 33, 50, 67, 75, 90, 100, 110, 120, 125, 150, 175, 200, 250, 300, 400, 500
@@ -38,13 +39,15 @@ define("zoom", function () {
 
   function zoom() {
     if (zoomIndex === oldIndex) return;
-    var scale = zooms[zoomIndex] / 100;
+    var percent = zooms[zoomIndex];
+    var scale = percent / 100;
     var oldScale = oldIndex && zooms[oldIndex] / 100;
     oldIndex = zoomIndex;
     handlers.forEach(function (handler) {
       handler(scale, oldScale);
     });
     prefs.set("zoomIndex", zoomIndex);
+    notify(percent + "% zoom");
   }
 
 });
