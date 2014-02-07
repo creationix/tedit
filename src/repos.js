@@ -20,11 +20,8 @@ define("repos", function () {
     splitPath: splitPath,
     genName: genName,
     addSubModule: addSubModule,
+    pathToEntry: pathToEntry,
   };
-
-  function pathToEntry(path, callback) {
-    console.log("TODO: pathToEntry")
-  }
 
   // Map the names ot the root repos (useful for rendering a tree)
   function mapRootNames(callback) {
