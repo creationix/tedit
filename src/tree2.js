@@ -7,20 +7,20 @@ define("tree2", function () {
   var makeRow = require('row');
   var dialog = require('dialog');
   var prefs = require('prefs');
-  var newDoc = require('document');
   var startServer = require('startserver');
   var contextMenu = require('context-menu');
   var fail = require('fail');
-  var editor = require('editor');
   var repos = require('repos');
   var genName = repos.genName;
   var importEntry = require('importfs');
 
   // Memory for opened trees.  Accessed by path
   var openPaths = prefs.get("openPaths", {});
+
+  var newDoc = require('document');
+  var editor = require('editor');
   // Paths to the currently selected or active tree
   var selected, active, activePath;
-
   // docs by path
   var docPaths = {};
 
