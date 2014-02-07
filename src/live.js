@@ -35,12 +35,22 @@ define("live", function () {
     }
   }
 
+  function exportEntry(entry, path, parentEntry, name, callback) {
+    if (modes.isFile(entry.mode)) {
+      return exportFile(path, parentEntry, name, callback);
+    }
+    if (entry.mode === modes.tree || entry.mode === modes.commit) {
+      return exportTree(path, parentEntry, name, callback);
+    }
+    if (entry.mode === modes.sym) {
+      return exportSymLink(path, parentEntry, name, callback);
+    }
+    callback(new Error("Invalid mode 0" + entry.mode.toString(8)));
+  }
+
+
   function exportTree(path, parentEntry, name, callback) {
-    console.log("exportTree", {
-      path: path,
-      parent: parentEntry.fullPath,
-      name: name
-    });
+    console.log("exportTree", path);
     var onError = processError(callback);
     var treeEntry, left = 0, done = false;
     return pathToEntry(path, onEntry);
@@ -56,15 +66,8 @@ define("live", function () {
       Object.keys(treeEntry.tree).forEach(function (childName) {
         var entry = treeEntry.tree[childName];
         var childPath = path + "/" + childName;
-        if (modes.isFile(entry.mode)) {
-          left++;
-          return exportFile(childPath, dirEntry, childName, check);
-        }
-        if (entry.mode === modes.tree || entry.mode === modes.commit) {
-          left++;
-          return exportTree(childPath, dirEntry, childName, check);
-        }
-        console.error("TODO: handle symlinks", childPath);
+        left++;
+        exportEntry(entry, childPath, dirEntry, childName, check);
       });
       check();
     }
@@ -83,11 +86,7 @@ define("live", function () {
   }
 
   function exportFile(path, parentEntry, name, callback) {
-    console.log("exportFile", {
-      path: path,
-      parent: parentEntry.fullPath,
-      name: name
-    });
+    console.log("exportFile", path);
     var onError = processError(callback);
     var blob;
     return pathToEntry(path, onEntry);
@@ -122,7 +121,47 @@ define("live", function () {
     }
   }
 
+  function exportSymLink(path, parentEntry, name, callback) {
+    console.log("exportSym", path);
+    pathToEntry(path, function (err, entry) {
+      if (err) return callback(err);
+      var newPath = pathJoin(path, "..", entry.link.trim());
+      pathToEntry(newPath, function (err, newEntry) {
+        if (err) return callback(err);
+        if (!newEntry) {
+          console.error("Dangling symlink " + path + " -> " + newPath);
+          return callback();
+        }
+        exportEntry(newEntry, newPath, parentEntry, name, callback);
+      });
+    });
+  }
+
   // TODO: process the error data and create a proper error object
   function processError(cb) { return cb; }
+
+  function pathJoin(/* path segments */) {
+    // Split the inputs into a list of path commands.
+    var parts = [];
+    for (var i = 0, l = arguments.length; i < l; i++) {
+      parts = parts.concat(arguments[i].split("/"));
+    }
+    // Interpret the path commands to get the new resolved path.
+    var newParts = [];
+    for (i = 0, l = parts.length; i < l; i++) {
+      var part = parts[i];
+      // Remove leading and trailing slashes
+      // Also remove "." segments
+      if (!part || part === ".") continue;
+      // Interpret ".." to pop the last segment
+      if (part === "..") newParts.pop();
+      // Push new path segments.
+      else newParts.push(part);
+    }
+    // Preserve the initial slash if there was one.
+    if (parts[0] === "") newParts.unshift("");
+    // Turn back into a single string path.
+    return newParts.join("/") || (newParts.length ? "/" : ".");
+  }
 
 });
