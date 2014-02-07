@@ -25,6 +25,10 @@ define("editor", function () {
     // TODO: get this actually working
     enableBasicAutocompletion: true,
   });
+  editor.updatePath = function (doc) {
+    if (doc !== currentDoc) return;
+    updateTitle(doc.path);
+  };
 
   setTheme(themeNames[themeIndex], true);
   editor.on("blur", function () {

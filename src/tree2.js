@@ -30,6 +30,26 @@ define("tree2", function () {
 
   render();
 
+  function updatePaths(oldPath, newPath) {
+    var reg = new RegExp("^" + oldPath.replace(/([.?*+^$[\]\\(){}|])/g, "\\$1") + "(?=/|$)");
+    if (reg.test(activePath)) {
+      var doc = docPaths[activePath];
+      activePath = activePath.replace(reg, newPath);
+      doc.updatePath(activePath);
+    }
+    updateGroup(openPaths, reg, newPath);
+    updateGroup(docPaths, reg, newPath);
+    prefs.save();
+  }
+
+  function updateGroup(group, reg, rep) {
+    Object.keys(group).forEach(function (key) {
+      if (!reg.test(key)) return;
+      group[key.replace(reg, rep)] = group[key];
+      delete group[key];
+    });
+  }
+
   function findNode(element) {
     while (element !== $.tree) {
       if (element.js) return element.js;
@@ -166,8 +186,6 @@ define("tree2", function () {
         }]);
       };
     }
-
-
 
     function toggleTree(node) {
       if (node.open) closeTree(node);
@@ -374,6 +392,7 @@ define("tree2", function () {
     function renameEntry(node) {
       dialog.prompt("Enter new name", node.localPath, function (newPath) {
         if (!newPath || newPath === node.localPath) return;
+        updatePaths(node.path, repoPath + "/" + newPath);
         updateTree(node, [
           {path: node.localPath},
           {path: newPath, mode: node.mode, hash: node.hash}
@@ -441,7 +460,6 @@ define("tree2", function () {
 
       function onCommit(err, result) {
         if (err) fail(node, err);
-        console.log("current", result);
         setCurrent(node, result);
       }
     }

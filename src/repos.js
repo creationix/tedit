@@ -1,4 +1,4 @@
-/*global define, chrome*/
+/*global define*/
 define("repos", function () {
 
   var prefs = require('prefs');

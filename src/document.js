@@ -25,7 +25,13 @@ define("document", function () {
     this.path = path;
     this.mode = mode;
     this.updateAceMode();
-    this.setBody(body);
+    if (body !== undefined) this.setBody(body);
+  };
+
+  Doc.prototype.updatePath = function (path) {
+    this.path = path;
+    this.updateAceMode();
+    editor.updatePath(this);
   };
 
   Doc.prototype.updateAceMode = function () {
