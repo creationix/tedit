@@ -11,12 +11,6 @@ define("applytheme", function () {
       "background": [".ace_text-layer", ""],
       "background-image": [".ace_text-layer", ""]
     },
-    ".tree .row.active": {
-      "background-color": "#333"
-    },
-    ".tree .row.selected, .tree .row:hover": {
-      "box-shadow": "inset 0 0 0.3em rgba(255,255,255,0.6);"
-    },
     ".tree .icon-attention": {
       "color": "#f72;"
     },
