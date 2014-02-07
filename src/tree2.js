@@ -21,7 +21,8 @@ define("tree2", function () {
   var newDoc = require('document');
   var editor = require('editor');
   // Paths to the currently selected or active tree
-  var selected, active, activePath;
+  var selected, active;
+  var activePath = prefs.get("activePath");
   // docs by path
   var docPaths = {};
 
@@ -35,6 +36,7 @@ define("tree2", function () {
     if (reg.test(activePath)) {
       var doc = docPaths[activePath];
       activePath = activePath.replace(reg, newPath);
+      prefs.set("activePath", activePath);
       doc.updatePath(activePath);
     }
     updateGroup(openPaths, reg, newPath);
@@ -100,8 +102,7 @@ define("tree2", function () {
       node.makeMenu = makeMenu.bind(null, node);
       if (docPaths[path]) linkDoc(node, docPaths[path]);
       if (activePath === path) {
-        node.active = true;
-        active = node;
+        activate(node);
       }
       return node;
     }
@@ -153,18 +154,21 @@ define("tree2", function () {
 
     function onClick(node) {
       if (modes.isBlob(node.mode)) {
-        var old = active;
-        active = node === active ? null : node;
-        activePath = active ? active.path : null;
-        if (old) old.active = false;
-        if (active) active.active = true;
-        activate(active);
+        if (active === node) activate();
+        else activate(node);
       }
       else toggleTree(node);
     }
 
     function activate(node) {
-      if (!node) return editor.setDoc();
+      var old = active;
+      active = node;
+      activePath = active ? active.path : null;
+      prefs.set("activePath", activePath);
+      if (old) old.active = false;
+      if (active) active.active = true;
+      if (!active) return editor.setDoc();
+      if (active === old) return;
       var doc;
       node.busy = true;
       return repo.loadAs("blob", node.hash, onBlob);
