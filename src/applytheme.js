@@ -38,17 +38,26 @@ define("applytheme", function () {
     ".tree span": {
       "color": [".ace_identifier"]
     },
-    ".theme-light .titlebar": {
+    ".titlebar": {
       "color": [".ace_gutter"],
       "background-color": [".ace_gutter"],
       "background": [".ace_gutter"],
       "background-image": [".ace_gutter"],
     },
-    ".theme-dark .titlebar": {
+    ".titlebar, .dialog .title, .input-item": {
       "background-color": [".ace_gutter"],
       "background": [".ace_gutter"],
       "background-image": [".ace_text-layer", ".ace_gutter"],
+      "color": [""]
+    },
+    ".input-item[type=submit], .input-field[type=submit]": {
+      "color": [".ace_type", ".ace_punctuation.ace_operator", ".ace_punctuation", ".ace_keyword", ""]
+    },
+    ".input-field": {
+      "background-color": [""],
+      "color": [""]
     }
+
   };
 
   var tag;

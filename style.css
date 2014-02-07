@@ -69,19 +69,19 @@ body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
 }
 .main {
   left: 200px;
-  top: 30px;
+  top: 2em;
   height: auto;
   width: auto;
 }
 .titlebar {
   -webkit-app-region: drag;
   bottom: auto;
-  height: 30px;
   left: 200px;
   width: auto;
-  line-height: 30px;
+  font-size: 1em;
+  line-height: 2em;
+  height: 2em;
   text-align: center;
-  font-size: 16px;
 }
 .titlebar .fade {
   opacity: 0.6;
@@ -91,14 +91,13 @@ body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
 .closebox {
   -webkit-app-region: no-drag;
   position: absolute;
-  right: 4px;
+  right: 0.25em;
   top: 0;
-  height: 22px;
-  width: 44px;
-  line-height: 22px;
+  height: 1.5em;
+  width: 2.75em;
+  line-height: 1.5em;
   text-align: center;
   color: #fff;
-  font-size: 16px;
   background-color: #933;
   cursor: pointer;
 }
@@ -112,18 +111,19 @@ body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
   bottom: 0;
   left: 0;
   right: 0;
+  height: 2em;
+  line-height: 2em;
   text-align: center;
-  font-size: 20px;
   font-weight: bold;
 }
 .theme-light .popup {
   color: #000;
-  text-shadow: 0 0 5px #fff;
+  text-shadow: 0 0 0.25em #fff;
   background-color: rgba(255,255,255,0.5);
 }
 .theme-dark .popup {
   color: #fff;
-  text-shadow: 0 0 5px #000;
+  text-shadow: 0 0 0.25em #000;
   background-color: rgba(0,0,0,0.5);
 }
 
@@ -136,12 +136,12 @@ body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
 }
 
 .preview .dragger {
-  width: 20px;
+  width: 2em;
   right: auto;
   background-color: #3a3a3a;
 }
 .preview .image {
-  left: 20px;
+  left: 2em;
   width: auto;
   background-position: center;
 }
@@ -151,26 +151,34 @@ body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
 }
 
 .dialog {
-  box-shadow: 0 0 10px rgba(0,0,0,0.7);
+  box-shadow: 0 0 .6em rgba(0,0,0,0.7);
   z-index: 12;
-  background-color: #bbb;
-  color: #000;
   display: flex;
   flex-direction: column;
-  font-size: 16px;
+  font-size: 1em;
+  border: 1px solid rgba(128,128,128,0.5);
+
+}
+
+.theme-light .dialog {
+  background-color: #bbb;
+  color: #000;
+}
+
+.theme-dark .dialog {
+  background-color: #000;
+  color: #bbb;
 }
 
 .dialog .title {
-  background-color: #3a3a3a;
-  color: #fff;
-  line-height: 30px;
-  height: 30px;
+  line-height: 2em;
+  height: 2em;
   display: flex;
 }
 .dialog .title .content {
   text-align: center;
   flex: 1;
-  padding: 0 10px;
+  padding: 0 .6em;
 }
 .dialog .title .closebox {
   position: static;
@@ -181,7 +189,12 @@ body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
 
 .input {
   display: flex;
-  margin-bottom: 0.5em
+  margin-bottom: 0.5em;
+}
+
+.input input {
+  font-size: 1em;
+  line-height: 1em;
 }
 
 .input-field {
@@ -196,27 +209,16 @@ body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
   border-right: 0
 }
 
-.input-item[type=submit], .input-field[type=submit] {
-  background-color: #EED1B3;
-}
 .input-item {
-  background-color: #ddd;
-  color: #000;
   font: inherit;
   font-weight: 400;
 }
 
 .input-field,.input-item {
-  border: 1px solid #888;
-  padding: .5em .75em
-}
-
-.input-field:first-child,.input-item:first-child {
-  border-radius: 2px 0 0 2px
-}
-
-.input-field:last-child,.input-item:last-child {
-  border-radius: 0 2px 2px 0
+  border: 1px solid rgba(120,120,120,0.8);
+  padding: .5em .75em;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .shield {
@@ -232,11 +234,17 @@ ul.contextMenu {
   z-index: 12;
   margin: 0;
   padding: 0.2em 0;
-  box-shadow: 0 0 5px 5px rgba(0, 0, 0, 0.5);
-  background-color: #fff;
-  color: #000;
   list-style-type: none;
   font-size: 0.9em;
+  box-shadow: 0 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+.theme-dark ul.contextMenu {
+  background-color: #000;
+  border: 1px solid rgba(255,255,255,0.5);
+}
+.theme-light ul.contextMenu {
+  background-color: #fff;
+  border: 1px solid rgba(0,0,0,0.5);
 }
 ul.contextMenu li {
   padding: 0.4em 1em 0.4em 0.4em;
@@ -275,14 +283,6 @@ body.theme-dark  {
 body.theme-light  {
   color: #111;
   background-color: #f8f8f8;
-}
-.theme-dark .titlebar {
-  background-color: #3a3a3a;
-  color: #fff;
-}
-.theme-light .titlebar {
-  background-color: #eee;
-  color: #333;
 }
 
 .tree .row.dirty {
