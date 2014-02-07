@@ -7,13 +7,13 @@ define("tree2", function () {
   var makeRow = require('row');
   var dialog = require('dialog');
   var prefs = require('prefs');
-  var startServer = require('startserver');
   var contextMenu = require('context-menu');
   var fail = require('fail');
   var repos = require('repos');
   var genName = repos.genName;
   var importEntry = require('importfs');
   var notify = require('notify');
+  var live = require('live');
 
   // Memory for opened trees.  Accessed by path
   var openPaths = prefs.get("openPaths", {});
@@ -39,6 +39,8 @@ define("tree2", function () {
     }
     updateGroup(openPaths, reg, newPath);
     updateGroup(docPaths, reg, newPath);
+    // TODO: rename paths in repos.js
+    // TODO: rename paths in live.js
     prefs.save();
   }
 
@@ -287,6 +289,13 @@ define("tree2", function () {
     //   startServer(repo, config, node);
     // }
 
+    function liveExport(node) {
+      dialog.exportConfig(node.path, function (config) {
+        if (!config) return;
+        live.addExportHook(node, config);
+      });
+    }
+
     function getUnique(parent, name, callback) {
       repo.loadAs("tree", parent.treeHash || parent.hash, function (err, tree) {
         if (!tree) return callback(err || new Error("Missing tree"));
@@ -482,7 +491,7 @@ define("tree2", function () {
       var actions = [];
       var type;
       actions.push({icon:"globe", label:"Serve Over HTTP"});
-      actions.push({icon:"hdd", label:"Live Export to Disk"});
+      actions.push({icon:"hdd", label:"Live Export to Disk", action: liveExport});
       if (node.mode === modes.commit) {
         if (config.head !== config.current) {
           actions.push({sep:true});

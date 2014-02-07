@@ -38,7 +38,7 @@ define("applytheme", function () {
     ".tree span": {
       "color": [".ace_identifier"]
     },
-    ".titlebar": {
+    ".titlebar, body": {
       "color": [".ace_gutter"],
       "background-color": [".ace_gutter"],
       "background": [".ace_gutter"],

@@ -6,16 +6,18 @@ define("elements", function () {
   var domBuilder = require('dombuilder');
   var $ = {};
   document.body.appendChild(domBuilder([
-    ["ul.tree$tree"],
+    [".wrap",
+      ["ul.tree$tree"],
+      [".main$main",
+        [".editor$editor"],
+        [".preview$preview", {css: {display:"none"}},
+          [".dragger$dragger"],
+          [".image$image"]
+        ]
+      ]
+    ],
     [".titlebar$titlebar", "welcome.jk"],
     [".closebox$closebox", {onclick: closeWindow}, "×"],
-    [".main$main",
-      [".editor$editor"],
-      [".preview$preview", {css: {display:"none"}},
-        [".dragger$dragger"],
-        [".image$image"]
-      ]
-    ]
   ], $));
 
   // Hook for global zoom keybindings

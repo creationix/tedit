@@ -5,6 +5,7 @@
   box-sizing: border-box;
 }
 body {
+  -webkit-app-region: drag;
   margin: 0;
   font-family: sans-serif;
   display: flex;
@@ -57,6 +58,13 @@ body {
   box-shadow: inset 0 0 0 .1em rgba(128, 128, 128, 0.8), inset 0 0 .7em .2em rgba(128, 128, 128, 0.8);
 }
 
+.wrap {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  right: 2px;
+}
 body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
   position: absolute;
   top: 0;
@@ -288,11 +296,12 @@ ul.contextMenu li.sep hr {
   background-color: #000;
 }
 
-body.theme-dark  {
+.theme-dark .wrap {
+  -webkit-app-region: no-drag;
   color: #fff;
   background-color: #111;
 }
-body.theme-light  {
+.theme-light .wrap {
   color: #111;
   background-color: #f8f8f8;
 }

@@ -7,7 +7,8 @@ define("dialog", function () {
   // dialog.alert = alertDialog;
   dialog.prompt = promptDialog;
   dialog.confirm = confirmDialog;
-  dialog.multiEntry = multiEntry;
+  dialog.multiEntry = multiEntryDialog;
+  dialog.exportConfig = exportConfigDialog;
 
   return dialog;
 
@@ -67,7 +68,7 @@ define("dialog", function () {
     }
   }
 
-  function multiEntry(title, entries, callback) {
+  function multiEntryDialog(title, entries, callback) {
     var $ = dialog(title, ["form$form", {onsubmit: submit},
       entries.map(function (entry, i) {
         var row = [".input",
@@ -123,6 +124,17 @@ define("dialog", function () {
       nullify(evt);
       $.close();
       callback(true);
+    }
+  }
+
+  function exportConfigDialog(path, callback) {
+    var $ = dialog("Live Export", [
+    ], onCancel);
+
+    function onCancel(evt) {
+      nullify(evt);
+      $.close();
+      callback();
     }
   }
 
