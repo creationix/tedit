@@ -32,6 +32,7 @@ define("repos", function () {
   }
 
   function addSubModule(path, config, url, localPath, name, callback) {
+    callback = singleCall(callback);
     var childConfig, childRepo, childHead;
     var meta;
     var repo = repos[path];
@@ -39,8 +40,6 @@ define("repos", function () {
 
     function onCurrent(err, commit) {
       if (err) return callback(err);
-      // TODO: since control-flow splits here, make sure callback can only be
-      // called once in case of concurrent errors.
       repo.pathToEntry(commit.tree, localPath, onTreeEntry);
       repo.loadAs("tree", commit.tree, onTree);
     }
@@ -358,5 +357,15 @@ define("repos", function () {
       url: url
     };
   }
+
+  function singleCall(callback) {
+    var done = false;
+    return function () {
+      if (done) return console.warn("Discarding extra callback");
+      done = true;
+      return callback.apply(this, arguments);
+    };
+  }
+
 
 });

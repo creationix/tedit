@@ -16,6 +16,8 @@ body {
   user-select: none;
   padding: 0.3em 0.3em 1.5em 0.3em;
   margin: 0;
+  font-size: 1.1em;
+  font-family: Ubuntu, sans-serif;
 }
 .tree, .tree ul {
   margin: 0;
@@ -49,11 +51,11 @@ body {
   font-size: 16px;
 }
 ::-webkit-scrollbar-thumb {
-  border: solid 2px transparent;
-  box-shadow: inset 0 0 0 .1em rgba(128, 128, 128, 0.2), inset 0 0 .7em .1em rgba(128, 128, 128, 0.2);
+  border: solid 3px transparent;
+  box-shadow: inset 0 0 0 .1em rgba(128, 128, 128, 0.2), inset 0 0 .7em .2em rgba(128, 128, 128, 0.2);
 }
 ::-webkit-scrollbar-thumb:hover {
-  box-shadow: inset 0 0 0 .1em rgba(128, 128, 128, 0.8), inset 0 0 .7em .1em rgba(128, 128, 128, 0.8);
+  box-shadow: inset 0 0 0 .1em rgba(128, 128, 128, 0.8), inset 0 0 .7em .2em rgba(128, 128, 128, 0.8);
 }
 
 body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {

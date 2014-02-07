@@ -54,8 +54,12 @@ define("js-github", function () {
       if (type === "tree" && hash === emptyTree) return callback(null, {}, hash);
       apiRequest("GET", "/repos/:root/git/" + typeName + "s/" + hash, onValue);
 
-      function onValue(err, result) {
-        if (result === undefined) return callback(err);
+      function onValue(err, xhr, result) {
+        if (err) return callback(err);
+        if (xhr.status < 200 || xhr.status >= 500) {
+          return callback(new Error("Invalid HTTP response: " + xhr.status + " " + result.message));
+        }
+        if (xhr.status >= 300 && xhr.status < 500) return callback();
         var body;
         try { body = decoders[type].call(repo, result); }
         catch (err) { return callback(err); }
@@ -85,8 +89,11 @@ define("js-github", function () {
       var typeName = type === "text" ? "blobs" : type + "s";
       return apiRequest("POST", "/repos/:root/git/" + typeName, request, onWrite);
 
-      function onWrite(err, result) {
+      function onWrite(err, xhr, result) {
         if (err) return callback(err);
+        if (xhr.status < 200 || xhr.status >= 300) {
+          return callback(new Error("Invalid HTTP response: " + xhr.status + " " + result.message));
+        }
         return callback(null, result.sha, body);
       }
     }
@@ -112,8 +119,11 @@ define("js-github", function () {
 
       apiRequest("POST", "/repos/:root/git/trees", request, onWrite);
 
-      function onWrite(err, result) {
-        if (!result) return callback(err || new Error("Problem creating tree"));
+      function onWrite(err, xhr, result) {
+        if (err) return callback(err);
+        if (xhr.status < 200 || xhr.status >= 300) {
+          return callback(new Error("Invalid HTTP response: " + xhr.status + " " + result.message));
+        }
         return callback(null, result.sha, decoders.tree(result));
       }
     }
@@ -204,8 +214,11 @@ define("js-github", function () {
       }
       return apiRequest("GET", "/repos/:root/git/" + ref, onRef);
 
-      function onRef(err, result) {
-        if (result === undefined) return callback(err);
+      function onRef(err, xhr, result) {
+        if (err) return callback(err);
+        if (xhr.status < 200 || xhr.status >= 300) {
+          return callback(new Error("Invalid HTTP response: " + xhr.status + " " + result.message));
+        }
         return callback(null, result.object.sha);
       }
     }
@@ -219,10 +232,21 @@ define("js-github", function () {
         sha: hash
       }, onResult);
 
-      function onResult(err) {
+      function onResult(err, xhr, result) {
+        if (err) return callback(err);
+        if (xhr.status === 422 && result.message === "Reference does not exist") {
+          return apiRequest("POST", "/repos/:root/git/refs", {
+            ref: ref,
+            sha: hash
+          }, onResult);
+        }
+        if (xhr.status < 200 || xhr.status >= 300) {
+          return callback(new Error("Invalid HTTP response: " + xhr.status + " " + result.message));
+        }
         if (err) return callback(err);
         callback(null, hash);
       }
+
     }
 
   };

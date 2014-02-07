@@ -21,10 +21,14 @@ define("editor", function () {
   editor.setTheme = setTheme;
   editor.prevTheme = prevTheme;
   editor.nextTheme = nextTheme;
+  editor.setOptions({
+    // TODO: get this actually working
+    enableBasicAutocompletion: true,
+  });
 
   setTheme(themeNames[themeIndex], true);
   editor.on("blur", function () {
-    if (currentDoc && currentDoc.onBlur) currentDoc.onBlur(currentDoc.session.getValue());
+    if (currentDoc && currentDoc.save) currentDoc.save(currentDoc.session.getValue());
   });
   editor.on("change", function () {
     if (currentDoc && currentDoc.onChange) currentDoc.onChange(currentDoc.session.getValue());
@@ -33,7 +37,7 @@ define("editor", function () {
     name: 'save',
     bindKey: {win: 'Ctrl-S',  mac: 'Command-S'},
     exec: function() {
-      if (currentDoc && currentDoc.onBlur) currentDoc.onBlur(currentDoc.session.getValue());
+      if (currentDoc && currentDoc.save) currentDoc.save(currentDoc.session.getValue());
     },
     readOnly: false
   });

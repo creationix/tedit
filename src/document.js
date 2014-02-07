@@ -20,14 +20,14 @@ define("document", function () {
     this.updateAceMode();
     whitespace.detectIndentation(this.session);
   }
-  Doc.prototype.setPath = function (path) {
+
+  Doc.prototype.update = function (path, mode, body) {
     this.path = path;
-    this.updateAceMode();
-  };
-  Doc.prototype.setMode = function (mode) {
     this.mode = mode;
     this.updateAceMode();
+    this.setBody(body);
   };
+
   Doc.prototype.updateAceMode = function () {
     var aceMode = this.mode === modes.sym ?
       "ace/mode/text" : modelist.getModeForPath(this.path).mode;

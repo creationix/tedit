@@ -13,6 +13,7 @@ define("tree2", function () {
   var repos = require('repos');
   var genName = repos.genName;
   var importEntry = require('importfs');
+  var notify = require('notify');
 
   // Memory for opened trees.  Accessed by path
   var openPaths = prefs.get("openPaths", {});
@@ -55,7 +56,6 @@ define("tree2", function () {
     ]);
   }
 
-
   function render() {
     var roots = repos.mapRootNames(function (name) {
       var node = renderRepo(name);
@@ -76,6 +76,11 @@ define("tree2", function () {
       node.localPath = path.substring(repoPath.length + 1);
       node.onClick = onClick.bind(null, node);
       node.makeMenu = makeMenu.bind(null, node);
+      if (docPaths[path]) linkDoc(node, docPaths[path]);
+      if (activePath === path) {
+        node.active = true;
+        active = node;
+      }
       return node;
     }
 
@@ -126,13 +131,47 @@ define("tree2", function () {
 
     function onClick(node) {
       if (modes.isBlob(node.mode)) {
-        require('notify')("TODO: open " + node.path);
-        console.log("TODO: open file");
+        var old = active;
+        active = node === active ? null : node;
+        activePath = active ? active.path : null;
+        if (old) old.active = false;
+        if (active) active.active = true;
+        activate(active);
       }
-      else {
-        if (node.open) closeTree(node);
-        else openTree(node);
+      else toggleTree(node);
+    }
+
+    function activate(node) {
+      if (!node) return editor.setDoc();
+      var doc;
+      node.busy = true;
+      return repo.loadAs("blob", node.hash, onBlob);
+      function onBlob(err, blob) {
+        if (err) fail(node, err);
+        doc = docPaths[node.path];
+        if (doc) doc.update(node.path, node.mode, blob);
+        else doc = docPaths[node.path] = newDoc(node.path, node.mode, blob);
+        linkDoc(node, doc);
+        doc.activate();
+        node.busy = false;
       }
+    }
+
+    function linkDoc(node, doc) {
+      doc.save = function (text) {
+        updateTree(node, [{
+          path: node.localPath,
+          mode: node.mode,
+          content: text
+        }]);
+      };
+    }
+
+
+
+    function toggleTree(node) {
+      if (node.open) closeTree(node);
+      else openTree(node);
     }
 
     function openTree(node) {
@@ -420,55 +459,6 @@ define("tree2", function () {
         render();
       });
     }
-
-    // function activate(node) {
-    //   var old = active;
-    //   if (active === node) {
-    //     active = null;
-    //     activePath = null;
-    //   }
-    //   else {
-    //     active = node;
-    //     activePath = node.path;
-    //   }
-    //   if (old) old.$.row.classList.remove("active");
-    //   if (!active) return editor.setDoc();
-    //   active.$.row.classList.add("active");
-    //   var doc = docPaths[active.path];
-    //   if (doc) {
-    //     if (doc.path !== active.path) doc.setPath(active.path);
-    //     if (doc.mode !== active.mode) doc.setMode(active.mode);
-    //     doc.$ = node.$;
-    //     if (doc.hash !== active.hash) {
-    //       repo.loadAs("blob", active.hash, function (err, body) {
-    //         if (err) throw err;
-    //         doc.hash = active.hash;
-    //         doc.setBody(body);
-    //         doc.activate();
-    //       });
-    //     }
-    //     else doc.activate();
-    //   }
-    //   else {
-    //     repo.loadAs("blob", active.hash, function (err, body) {
-    //       if (err) throw err;
-    //       doc = docPaths[active.path] = newDoc(active.path, active.mode, body);
-    //       doc.onBlur = function (code) {
-    //         if (doc.code === code) return;
-    //         updateTree(active.$, [
-    //           {path:node.localPath,mode:node.mode,content:code}
-    //         ]);
-    //       };
-    //       doc.onChange = function (code) {
-    //         if (doc.code === code) active.$.row.classList.remove("dirty");
-    //         else active.$.row.classList.add("dirty");
-    //       };
-    //       doc.hash = active.hash;
-    //       doc.activate();
-    //     });
-    //   }
-    // }
-
 
     function makeMenu(node) {
       var actions = [];

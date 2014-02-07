@@ -21,16 +21,12 @@ define("xhr", function () {
       xhr.send(json);
       function onReadyStateChange() {
         if (xhr.readyState !== 4) return;
-        if (xhr.status >= 400 && xhr.status < 500) return callback();
-        if (xhr.status < 200 || xhr.status >= 300) {
-          return callback(new Error("Invalid HTTP response: " + xhr.status));
-        }
         var response;
         if (xhr.responseText) {
-        try { response = JSON.parse(xhr.responseText); }
-          catch (err) { return callback(err); }
+          try { response = JSON.parse(xhr.responseText); }
+          catch (err) { return callback(err, null, xhr, response); }
         }
-        return callback(null, response);
+        return callback(null, xhr, response);
       }
     };
   };
