@@ -9,10 +9,15 @@ define("live", function () {
     addExportHook: addExportHook
   };
 
-  function addExportHook(node, config) {
+  function addExportHook(node, settings, config) {
+    console.log("CREATE", {
+      node: node,
+      settings: settings,
+      config: config
+    });
     var ready = false;
     var rootEntry;
-    fileSystem.restoreEntry(config.entry, function (entry) {
+    fileSystem.restoreEntry(settings.entry, function (entry) {
       if (!entry) fail(node, new Error("Failed to restore entry"));
       rootEntry = entry;
       ready = true;
@@ -24,7 +29,7 @@ define("live", function () {
       node.exportPath = rootEntry.fullPath;
       node.pulse = true;
       console.log("Push Detected");
-      console.log(config);
+      console.log(rootEntry, settings, config);
       setTimeout(function () {
         node.pulse = false;
       }, 1000);
