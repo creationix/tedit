@@ -5,6 +5,7 @@
 [submodule "ace-builds"]
 	path = ace-builds
 	url = git@github.com:ajaxorg/ace-builds.git
-[submodule "src/js-git"]
-	path = src/js-git
+
+[submodule "js-git"]
+	path = js-git
 	url = git@github.com:creationix/js-git.git
