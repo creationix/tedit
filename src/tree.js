@@ -1,780 +1,548 @@
-/*global define, ace, URL*/
-define("tree", function () {
+/*global define, chrome, indexedDB*/
+define("tree2", function () {
+
   var $ = require('elements');
+  var hashAs = require('encoders').hashAs;
   var modes = require('modes');
-  var editor = require('editor');
   var domBuilder = require('dombuilder');
-  var parseConfig = require('parseconfig');
-  var encodeConfig = require('encodeconfig');
-  var modelist = ace.require('ace/ext/modelist');
-  var whitespace = ace.require('ace/ext/whitespace');
-  var contextMenu = require('context-menu');
-  var pathCmp = require('encoders').pathCmp;
-  var prefs = require('prefs');
-  var binary = require('binary');
+  var makeRow = require('row');
   var dialog = require('dialog');
-  require('zoom');
+  var prefs = require('prefs');
+  var contextMenu = require('context-menu');
+  var fail = require('fail');
+  var repos = require('repos');
+  var genName = repos.genName;
+  var importEntry = require('importfs');
+  var notify = require('notify');
+  var live = require('live');
 
-  var imagetypes = {
-    gif:  "image/gif",
-    jpg:  "image/jpeg",
-    jpeg: "image/jpeg",
-    png:  "image/png",
-    svg:  "image/svg+xml",
-  };
-
+  // Memory for opened trees.  Accessed by path
   var openPaths = prefs.get("openPaths", {});
-  var selectedPath = "";
-  var activePath = "";
-  // Active documents by path
+
+  var newDoc = require('document');
+  var editor = require('editor');
+  // Paths to the currently selected or active tree
+  var selected, active;
+  var activePath = prefs.get("activePath");
+  // live docs by path
   var docPaths = {};
-  // repos by path
-  var repos = {};
-  // roots by name
-  var roots = {};
+  // live hooks by path
+  var hookPaths = {};
+  // Live hooks configs by path
+  var hookConfig = prefs.get("hookConfig", {});
+
+  $.tree.addEventListener("contextmenu", onGlobalContext, false);
+  $.tree.addEventListener("click", onGlobalClick, false);
+
+  render();
 
 
-  $.tree.addEventListener("click", onClick, false);
-  $.tree.addEventListener("contextmenu", onContextMenu, false);
-
-  addRoot.refresh = refresh;
-  return addRoot;
-
-  function addRoot(repo, hash, name) {
-    findRepos(repo, name);
-    roots[name] = {repo:repo, hash:hash};
-    refresh();
-  }
-
-  function refresh() {
-    var keys = Object.keys(roots);
-    var left = keys.length;
-    if (!left) {
-      $.tree.textContent = "";
-      return;
+  function updatePaths(oldPath, newPath) {
+    var reg = new RegExp("^" + oldPath.replace(/([.?*+^$[\]\\(){}|])/g, "\\$1") + "(?=/|$)");
+    if (reg.test(activePath)) {
+      var doc = docPaths[activePath];
+      activePath = activePath.replace(reg, newPath);
+      prefs.set("activePath", activePath);
+      doc.updatePath(activePath);
     }
-    var items = [];
-    keys.forEach(function (name) {
-      var root = roots[name];
-      renderCommit(root.repo, root.hash, name, name, function (err, ui) {
-        if (err) throw err;
-        items.push(domBuilder(ui));
-        if (--left) return;
-        $.tree.textContent = "";
-        $.tree.appendChild(domBuilder(items));
-      });
-    });
-
+    updateGroup(openPaths, reg, newPath);
+    updateGroup(docPaths, reg, newPath);
+    updateGroup(hookPaths, reg, newPath); // TODO: updataPath on hooks
+    updateGroup(hookConfig, reg, newPath);
+    // TODO: rename paths in repos.js
+    // TODO: rename paths in live.js
+    prefs.save();
   }
 
-  function findRepos(repo, path) {
-    repos[path] = repo;
-    var submodules = repo.submodules;
-    if (!submodules) return;
-    Object.keys(submodules).forEach(function (subPath) {
-      findRepos(submodules[subPath], path + "/" + subPath);
+  function updateGroup(group, reg, rep) {
+    Object.keys(group).forEach(function (key) {
+      if (!reg.test(key)) return;
+      group[key.replace(reg, rep)] = group[key];
+      delete group[key];
     });
   }
 
-  function renderCommit(repo, hash, name, path, callback) {
-    if (!repo.head) repo.head = hash;
-    if (!openPaths[path]) {
-      return onUi(renderNode(modes.tree, name, path));
-    }
-
-    repo.loadAs("commit", hash, function (err, commit) {
-      if (!commit) return callback(err || new Error("Missing commit " + hash));
-      repo.root = commit.tree;
-      renderTree(repo, commit.tree, name, path, function (err, ui) {
-        if (err) return callback(err);
-        onUi(ui);
-      });
-    });
-
-    function onUi(ui) {
-      ui[1][1]["data-commit-hash"] = hash;
-      if (hash !== repo.head) ui[1][1]["class"] += " staged";
-      ui[1].splice(3, 0, ["i.icon-fork.tight"]);
-      callback(null, ui);
-    }
-
-  }
-
-  function renderNode(mode, name, path) {
-    var icon = modes.isFile(mode) ? "doc" :
-      mode === modes.sym ? "link" :
-      openPaths[path] ? "folder-open" : "folder";
-    var classes = ["row"];
-    if (selectedPath === path) classes.push("selected");
-    if (activePath === path) classes.push("activated");
-
-    var rowProps = {
-      "data-path": path,
-      "data-mode": mode.toString(8),
-      "class": classes.join(" ")
-    };
-    var spanProps = {};
-    if (mode === modes.exec) spanProps["class"] = "executable";
-    return ["li",
-      ["div", rowProps,
-        ["i.icon-" + icon],
-        ["span", spanProps, name]
-      ]
-    ];
-  }
-
-  function renderTree(repo, hash, name, path, callback) {
-    var ui = renderNode(modes.tree, name, path);
-    var open = openPaths[path];
-    if (!open) return callback(null, ui);
-    repo.loadAs("tree", hash, function (err, tree) {
-      if (!tree) return callback(err || new Error("Missing tree " + hash));
-      var names = Object.keys(tree);
-      if (!names.length) return callback(null, ui);
-      var left = names.length;
-      var children = new Array(left);
-      Object.keys(tree).sort(pathCmp).forEach(function (name, i) {
-        var childPath = path ? path + "/" + name : name;
-        var entry = tree[name];
-        if (modes.isBlob(entry.mode)) {
-          var childUi = renderNode(entry.mode, name, childPath);
-          childUi[1][1]["data-hash"] = entry.hash;
-          return onChild(null, childUi);
-        }
-        if (entry.mode === modes.tree) {
-          return renderTree(repo, entry.hash, name, childPath, onChild);
-        }
-        if (entry.mode === modes.commit) {
-          var submodule = repos[childPath];
-          if (submodule) {
-            return renderCommit(submodule, entry.hash, name, childPath, onChild);
-          }
-
-          return findSubmodule(childPath, function (err, submodule) {
-            if (err) throw err;
-            repos[childPath] = submodule;
-            return renderCommit(submodule, entry.hash, name, childPath, onChild);
-          });
-
-        }
-        function onChild(err, childUi) {
-          if (err) throw err;
-          children[i] = childUi;
-          if (--left) return;
-          ui.push(["ul", children]);
-          callback(null, ui);
-
-        }
-
-      });
-    });
-  }
-
-  function createSubmodule(path, url, callback) {
-    var parentPath = findLongest(path);
-    var subPath = (path).substr(parentPath.length + 1);
-    var repo, meta;
-    return pathToEntry(parentPath + "/.gitmodules", onEntry);
-
-    function onEntry(err, modEntry, parentRepo) {
-      if (err) return callback(err);
-      repo = parentRepo;
-      if (!modEntry) return onMeta({});
-      if (!modes.isFile(modEntry.mode)) throw new Error("Invalid .gitmodules file");
-      repo.loadAs("text", modEntry.hash, function (err, text) {
-        if (err) return callback(err);
-        try { meta = parseConfig(text); }
-        catch (err) { return callback(err); }
-        onMeta(meta);
-      });
-    }
-
-    function onMeta(meta) {
-      var submodules = meta.submodule || (meta.submodule = {});
-      submodules[subPath] = {
-        path: subPath,
-        url: url
-      };
-      console.log("META", meta);
-      repo.saveAs("blob", encodeConfig(meta), onHash);
-    }
-
-    function onHash(err, hash) {
-      getChain(parentPath, function (err, chain) {
-        if (err) return callback(err);
-        var entry = chain[chain.length - 1];
-        var tree = entry.tree;
-        // var name = getName(subPath);
-        tree[".gitmodules"] = {
-          mode: modes.blob,
-          hash: hash
-        };
-        saveTree(chain);
-      });
+  function findNode(element) {
+    while (element !== $.tree) {
+      if (element.js) return element.js;
+      element = element.parentNode;
     }
   }
 
-  function findSubmodule(path, callback) {
-    var parentPath = findLongest(path);
-    var subPath = (path).substr(parentPath.length + 1);
-    return pathToEntry(parentPath + "/.gitmodules", function (err, modEntry, repo) {
-      if (err) return callback(err);
-      if (!modEntry || !modes.isFile(modEntry.mode)) throw new Error("Missing .gitmodules file");
-      repo.loadAs("text", modEntry.hash, function (err, text) {
-        if (err) return callback(err);
-        var meta = parseConfig(text);
-        var url;
-        for (var key in meta.submodule) {
-          var item = meta.submodule[key];
-          if (item.path !== subPath) continue;
-          url = item.url;
-          break;
-        }
-        if (!url) {
-          return callback(new Error("Missing submodule " + subPath + " in .gitmodules"));
-        }
-        if (repo.githubRoot) {
-          var match = url.match(/github.com[:\/](.*?)(?:\.git)?$/);
-          if (match) {
-            var submodule = createGithubRepo(repo.githubToken, match[1]);
-            repo.submodules[subPath] = submodule;
-            return callback(null, submodule);
-          }
-        }
-        return callback(new Error("Missing submodule " + path));
-      });
-    });
-  }
-
-  function findJs(node) {
-    while (node !== $.tree) {
-      var hash = node.getAttribute("data-path");
-      if (hash) return node.dataset;
-      node = node.parentElement;
-    }
-  }
-
-  function onClick(evt) {
-    var node = findJs(evt.target);
+  function onGlobalClick(evt) {
+    var node = findNode(evt.target);
     if (!node) return;
-    evt.preventDefault();
-    evt.stopPropagation();
-    var mode = parseInt(node.mode, 8);
-    var path = node.path;
-
-    // Trees toggle on click
-    if (mode === modes.tree) {
-      if (openPaths[path]) delete openPaths[path];
-      else openPaths[path] = true;
-      prefs.set("openPaths", openPaths);
-      return refresh();
-    }
-
-    activate(node);
-
+    nullify(evt);
+    node.onClick();
   }
 
-  function activate(node) {
-    var path = node.path;
-    if (activePath === path) {
-      activePath = null;
-      refresh();
-      return loadDoc();
-    }
-    activePath = node.path;
-    refresh();
-    var doc = docPaths[path];
-    if (doc) return loadDoc(doc);
-    var repo = findRepo(path);
-    if (!repo) throw new Error("Missing repo for " + path);
-    var name = getName(path);
-    return repo.loadAs("blob", node.hash, function (err, buffer) {
-      if (err) throw err;
-      var imageMime = imagetypes[getExtension(name)];
-      if (imageMime) {
-        doc = docPaths[path] = {
-          tiled: false,
-          path: path,
-          url: URL.createObjectURL(new Blob([buffer], {type: imageMime}))
-        };
-        return loadDoc(doc);
-      }
+  function onGlobalContext(evt) {
+    nullify(evt);
+    var node = findNode(evt.target);
+    contextMenu(evt, node, node ? node.makeMenu() : [
+      {icon:"git", label: "Create Empty Git Repo", action: createEmpty},
+      {icon:"hdd", label:"Create Repo From Folder", action: createFromFolder},
+      {icon:"fork", label: "Clone Remote Repo", action: createClone},
+      {icon:"github", label: "Live Mount Github Repo", action: createGithubMount},
+      {icon:"ccw", label: "Remove All", action: removeAll}
+    ]);
+  }
 
-      var mode = parseInt(node.mode, 8);
-      var aceMode = mode === modes.sym ?
-        "ace/mode/text" : modelist.getModeForPath(name).mode;
-
-      var code;
-      try {
-        code = binary.toUnicode(buffer);
-      }
-      catch (err) {
-        // Data is not unicode!
-        return;
-      }
-      doc = docPaths[path] = ace.createEditSession(code, aceMode);
-      doc.setTabSize(2);
-      doc.path = path;
-      doc.mode = mode;
-      doc.on("change", changeSaver(doc));
-      whitespace.detectIndentation(doc);
-      loadDoc(doc);
+  function render() {
+    var roots = repos.mapRootNames(function (name) {
+      var node = renderRepo(name);
+      return node.el;
     });
-
-
+    // Replace the tree with the new roots
+    while ($.tree.firstChild) $.tree.removeChild($.tree.firstChild);
+    $.tree.appendChild(domBuilder(roots));
   }
 
-  function loadDoc(doc, soft) {
-    editor.setDoc(doc);
-    if (!soft) editor.focus();
-  }
+  function renderRepo(repoPath, repoHash, onChange) {
+    var config, repo;
+    var root = renderCommit(repoPath, repoHash);
+    return root;
 
-  function findLongest(path) {
-    var keys = Object.keys(repos);
-    var longest = "";
-    for (var i = 0, l = keys.length; i < l; i++) {
-      var key = keys[i];
-      if (key.length < longest.length) continue;
-      if (path.substr(0, key.length) !== key) continue;
-      longest = key;
+    function makeNewRow(path, mode, hash, parent) {
+      var node = makeRow(path, mode, hash, parent);
+      node.localPath = path.substring(repoPath.length + 1);
+      node.onClick = onClick.bind(null, node);
+      node.makeMenu = makeMenu.bind(null, node);
+      if (docPaths[path]) linkDoc(node, docPaths[path]);
+      if (hookConfig[path]) {
+        console.log(path, hookConfig[path]);
+        var hook = hookPaths[path];
+        if (hook) hook(node, config);
+        else hookPaths[path] = live.addExportHook(node, hookConfig[path], config);
+      }
+      if (hookPaths[path]) hookPaths[path](node, config);
+      if (activePath === path) {
+        activate(node);
+      }
+      return node;
     }
-    return longest;
-  }
 
-  function findRepo(path) {
-    var longest = findLongest(path);
-    if (longest) return repos[longest];
-  }
+    // Render the UI for repo and submodule roots
+    function renderCommit(path, hash) {
+      var node = makeNewRow(path, modes.commit, hash);
+      node.busy = true;
+      repos.loadConfig(path, hash, onConfig);
+      return node;
 
-  function pathToEntry(path, callback) {
-    var index = path.indexOf("/");
-    var root = roots[path.substr(0, index)];
-    root.repo.loadAs("commit", root.hash, function (err, commit) {
-      if (err) return callback(err);
-      root.repo.pathToEntry(commit.tree, path.substr(index + 1), callback);
-    });
-  }
-
-  function getType(node) {
-    var mode = parseInt(node.mode, 8);
-    return node.commitHash ? "submodule" :
-      mode === modes.tree ? "folder" :
-      mode === modes.sym ? "symlink" : "file";
-  }
-
-  function getName(path) {
-    return path.substr(path.lastIndexOf("/") + 1);
-  }
-
-  function getExtension(name) {
-    return name.substr(name.lastIndexOf(".") + 1);
-  }
-
-  function changeSaver(doc) {
-    var timeout, chain, tree, value, name, dir;
-
-    return function () {
-      if (value === doc.getValue()) return;
-      if (timeout) clearTimeout(timeout);
-      timeout = setTimeout(onTimeout, 500);
-    };
-
-    function onTimeout() {
-      timeout = null;
-      value = doc.getValue();
-      if (doc.savedValue === value) return;
-      doc.savedValue = value;
-      saveBlob(doc.path, doc.mode, value);
-    }
-  }
-
-  function updateRepo(repoPath, treeHash) {
-    console.log("updateRepo", {
-      repoPath: repoPath,
-      treeHash: treeHash
-    });
-    var repo = repos[repoPath];
-    repo.loadAs("commit", repo.head, function (err, commit) {
-      if (err) throw err;
-      commit.tree = treeHash;
-      repo.saveAs("commit", commit, function (err, hash) {
-        if (err) throw err;
-        var index = repoPath.lastIndexOf("/");
-        if (index < 0) {
-          roots[repoPath].hash = hash;
-          return refresh();
+      function onConfig(err, pair) {
+        if (err) fail(node, err);
+        config = pair.config;
+        repo = pair.repo;
+        node.hash = config.current;
+        if (config.current !== config.head) {
+          node.staged = true;
         }
-        var parentPath = repoPath.substr(0, index);
-        updateTree(parentPath, [{
-          mode: modes.tree,
-          path: repoPath,
-          hash: hash
+        if (openPaths[repoPath]) openTree(node);
+        else node.busy = false;
+      }
+    }
+
+    function renderChildren(parent, tree) {
+      Object.keys(tree).forEach(function (name) {
+        var entry = tree[name];
+        var path = parent.path + "/" + name;
+        var child;
+        if (entry.mode === modes.commit) {
+          child = renderRepo(path, entry.hash, onChildChanged.bind(null, path.substring(repoPath.length + 1)));
+        }
+        else {
+          child = makeNewRow(path, entry.mode, entry.hash, parent);
+          if (openPaths[path]) openTree(child);
+        }
+        parent.addChild(child);
+      });
+    }
+
+    function onChildChanged(path, child, hash) {
+      child.busy = true;
+      updateTree(root, [{
+        path: path,
+        mode: modes.commit,
+        hash: hash
+      }]);
+    }
+
+    function onClick(node) {
+      if (modes.isBlob(node.mode)) {
+        if (active === node) activate();
+        else activate(node);
+      }
+      else toggleTree(node);
+    }
+
+    function activate(node) {
+      var old = active;
+      active = node;
+      activePath = active ? active.path : null;
+      prefs.set("activePath", activePath);
+      if (old) old.active = false;
+      if (active) active.active = true;
+      if (!active) return editor.setDoc();
+      if (active === old) return;
+      var doc;
+      node.busy = true;
+      return repo.loadAs("blob", node.hash, onBlob);
+      function onBlob(err, blob) {
+        if (err) fail(node, err);
+        doc = docPaths[node.path];
+        try {
+          if (doc) doc.update(node.path, node.mode, blob);
+          else doc = docPaths[node.path] = newDoc(node.path, node.mode, blob);
+          linkDoc(node, doc);
+          doc.activate();
+        }
+        catch (err) {
+          fail(node, err);
+        }
+        node.busy = false;
+      }
+    }
+
+    function linkDoc(node, doc) {
+      doc.save = function (text) {
+        if (hashAs("blob", text) === node.hash) return;
+        updateTree(node, [{
+          path: node.localPath,
+          mode: node.mode,
+          content: text
+        }]);
+      };
+    }
+
+    function toggleTree(node) {
+      if (node.open) closeTree(node);
+      else openTree(node);
+    }
+
+    function openTree(node) {
+      if (node.open) return;
+      node.busy = true;
+      openPaths[node.path] = true;
+      prefs.save();
+      if (node.mode === modes.commit) {
+        return repo.loadAs("commit", node.hash, onCommit);
+      }
+      return repo.loadAs("tree", node.hash, onTree);
+
+      function onCommit(err, commit) {
+        if (!commit) fail(node, err || new Error("Missing commit"));
+        node.treeHash = commit.tree;
+        return repo.loadAs("tree", commit.tree, onTree);
+      }
+
+      function onTree(err, tree) {
+        if (!tree) fail(node, err || new Error("Missing tree"));
+        node.open = true;
+        renderChildren(node, tree);
+        node.busy = false;
+      }
+    }
+
+    function closeTree(node) {
+      if (!node.open) return;
+      delete openPaths[node.path];
+      prefs.save();
+      node.open = false;
+      node.removeChildren();
+    }
+
+    function commitChanges(node) {
+      var current;
+      var userEmail, userName;
+      repo.loadAs("commit", config.current, onCurrent);
+
+      function onCurrent(err, result) {
+        if (!result) fail(node, err || new Error("Missing commit " + config.current));
+        current = result;
+        userName = prefs.get("userName", "");
+        userEmail = prefs.get("userEmail", "");
+        dialog.multiEntry("Enter Commit Message", [
+          {name: "message", placeholder: "Details about commit.", required:true},
+          {name: "name", placeholder: "Full Name", required:true, value:userName},
+          {name: "email", placeholder: "email@provider.com", required:true, value:userEmail},
+        ], onResult);
+      }
+      function onResult(result) {
+        if (!result) return;
+        if (result.name !== userName) prefs.set("userName", result.name);
+        if (result.email !== userEmail) prefs.set("userEmail", result.email);
+        repo.saveAs("commit", {
+          tree: current.tree,
+          author: {
+            name: result.name,
+            email: result.email
+          },
+          parent: config.head,
+          message: result.message
+        }, onSave);
+      }
+
+      function onSave(err, hash) {
+        if (err) fail(node, err);
+        setCurrent(node, hash, true);
+      }
+    }
+
+    function revertChanges(node) {
+      dialog.confirm("Are you sure you want to lose all uncommitted changes?", function (confirm) {
+        if (!confirm) return;
+        setCurrent(node, config.head);
+      });
+    }
+
+    function checkHead(node) {
+      node.busy = true;
+      repo.readRef("refs/heads/master", function (err, hash) {
+        if (!hash) fail(node, err || new Error("Missing master branch"));
+        if (config.head !== hash) {
+          config.head = hash;
+          prefs.save();
+          render();
+        }
+        else {
+          node.busy = false;
+        }
+      });
+    }
+
+    // function serveHttp(node) {
+    //   startServer(repo, config, node);
+    // }
+
+    function liveExport(node) {
+      dialog.exportConfig({
+        entry: prefs.get("defaultExportEntry"),
+        source: node.path,
+        filters: "filters",
+        name: node.path.substring(node.path.indexOf("/") + 1)
+      }, function (settings) {
+        if (!settings) return;
+        prefs.set("defaultExportEntry", settings.entry);
+        var hook = live.addExportHook(node, settings, config);
+        hookConfig[settings.source] = settings;
+        hookPaths[settings.source] = hook;
+        prefs.save();
+      });
+    }
+
+    function getUnique(parent, name, callback) {
+      repo.loadAs("tree", parent.treeHash || parent.hash, function (err, tree) {
+        if (!tree) return callback(err || new Error("Missing tree"));
+        name = genName(name, tree);
+        callback(null, name);
+      });
+    }
+
+    function createNode(node, message, entry) {
+      dialog.prompt(message, "", function (name) {
+        if (!name) return;
+        getUnique(node, name, function (err, name) {
+          if (err) fail(node, err);
+          entry.path = node.localPath ? node.localPath + "/" + name : name;
+          if (entry.mode === modes.tree) {
+            repo.saveAs("tree", entry.content, function (err, hash) {
+              if (err) fail(node, err);
+              openPaths[repoPath + "/" + entry.path] = true;
+              delete entry.content;
+              entry.hash = hash;
+              updateTree(node, [entry]);
+            });
+          }
+          else updateTree(node, [entry]);
+        });
+      });
+    }
+
+    function createFile(node) {
+      createNode(node, "Enter name for new file", {
+        mode: modes.file,
+        content: ""
+      });
+    }
+
+    function createFolder(node) {
+      createNode(node, "Enter name for new folder", {
+        mode: modes.tree,
+        content: []
+      });
+    }
+
+    function createSymLink(node) {
+      createNode(node, "Enter name for new symlink", {
+        mode: modes.sym,
+        content: ""
+      });
+    }
+
+    function importFolder(node) {
+      return chrome.fileSystem.chooseEntry({ type: "openDirectory"}, onEntry);
+
+      function onEntry(entry) {
+        if (!entry) return;
+        node.busy = true;
+        getUnique(node, entry.name, function (err, name) {
+          if (err) fail(node, err);
+          importEntry(repo, entry, function (err, hash) {
+            if (err) fail(node, err);
+            var path = node.localPath ? node.localPath + "/" + name : name;
+            openPaths[repoPath + "/" + path] = true;
+            updateTree(node, [{
+              path: path,
+              mode: modes.tree,
+              hash: hash
+            }]);
+          });
+        });
+      }
+    }
+
+    function addSubmodule(node) {
+      var url, name;
+      dialog.multiEntry("Add a submodule", [
+        {name: "url", placeholder: "git@hostname:path/to/repo.git", required:true},
+        {name: "name", placeholder: "localname"}
+      ], function (result) {
+        if (!result) return;
+        node.busy = true;
+        url = result.url;
+        name = result.name;
+        // Assume github if user/name combo is given
+        if (/^[^\/:@]+\/[^\/:@]+$/.test(url)) {
+          url = "git@github.com:" + url + ".git";
+        }
+        repos.addSubModule(repoPath, config, url, node.localPath, name, onEntries);
+      });
+
+      function onEntries(err, entries) {
+        if (err) fail(node, err);
+        updateTree(node, entries);
+      }
+    }
+
+    function toggleExec(node) {
+      updateTree(node, [{
+        path: node.localPath,
+        mode: node.mode === modes.exec ? modes.file : modes.exec,
+        hash: node.hash
+      }]);
+    }
+
+    function renameEntry(node) {
+      dialog.prompt("Enter new name", node.localPath, function (newPath) {
+        if (!newPath || newPath === node.localPath) return;
+        updatePaths(node.path, repoPath + "/" + newPath);
+        updateTree(node, [
+          {path: node.localPath},
+          {path: newPath, mode: node.mode, hash: node.hash}
+        ]);
+      });
+    }
+
+    function removeEntry(node) {
+      dialog.confirm("Are you sure you want to remove " + node.path + "?", function (confirm) {
+        if (!confirm) return;
+        updateTree(node, [{
+          path: node.localPath
         }]);
       });
-    });
-  }
+    }
 
-  // Modify a tree entry by path (and save it's parents)
-  function updateTree(path, entries) {
-    var repoPath = findLongest(path);
-    // Trim the prefix from the paths
-    entries.forEach(function (entry) {
-      entry.path = entry.path.substr(repoPath.length + 1);
-    });
-    var repo = repos[repoPath];
-    entries.base = repo.root;
-    repo.createTree(entries, function (err, hash) {
-      if (err) throw err;
-      updateRepo(repoPath, hash);
-    });
-  }
+    function updateTree(node, entries) {
+      // The current and head commits
+      var current, head;
+      node.busy = true;
 
-  function saveBlob(path, mode, value) {
-    var repoPath = findLongest(path);
-    var localPath = path.substr(repoPath.length + 1);
-    var repo = repos[repoPath];
-    var entries = [{
-      mode: mode,
-      path: localPath,
-      content: value
-    }];
-    entries.base = repo.root;
-    repo.createTree(entries, function (err, hash) {
-      if (err) throw err;
-      updateRepo(repoPath, hash);
-    });
-  }
+      if (!config.current) fail(node, new Error("config.current is not set!"));
+      repo.loadAs("commit", config.current, onCurrent);
 
-  function commitChanges(node) {
-    dialog.prompt("Enter commit message", "", function (message) {
-      if (!message) return;
-      getChain(node.path, function (err, chain) {
-        if (err) throw err;
-        chain.pop(); // Throw away the tree
-        var entry = chain.pop();
-        var repo = entry.repo;
-        var commit = entry.commit;
-        commit.message = message;
-        // TODO: let the user override the author data somehow.
-        commit.parents = [repo.head];
-        repo.saveAs("commit", commit, function (err, hash) {
-          if (err) throw err;
-          repo.head = hash;
-          if (repo.updateRef) repo.updateRef("refs/heads/master", hash, function (err) {
-            if (err) throw err;
-          });
-          var name = getName(node.path);
-          saveChain(chain, name, hash);
-        });
-      });
-    });
-  }
-
-  function revertChanges(node) {
-    getChain(node.path, function (err, chain) {
-      if (err) throw err;
-      chain.pop(); // Throw away the tree
-      var entry = chain.pop();
-      var hash = entry.repo.head;
-      var name = entry.name;
-      // TODO: restore any submodules that were renamed
-      saveChain(chain, name, hash, function () {
-        updateDocs(node.path);
-        editor.focus();
-      });
-    });
-  }
-
-  function updateDocs(path) {
-    var prefix = makePrefix(path);
-    Object.keys(docPaths).forEach(function (path) {
-      if (!prefix.test(path)) return;
-      var doc = docPaths[path];
-      pathToEntry(path, function (err, entry, repo) {
-        if (err) throw err;
-        if (!entry) {
-          delete docPaths[path];
-          if (activePath === path) editor.setDoc();
-          return;
+      function onCurrent(err, commit) {
+        if (!commit) fail(node, err || new Error("Missing commit " + config.current));
+        current = commit;
+        // Base the tree update on the currently saved state.
+        entries.base = commit.tree;
+        if (config.head === config.current) {
+          head = current;
+          repo.createTree(entries, onTree);
         }
-        repo.loadAs("text", entry.hash, function (err, text) {
-          if (err) throw err;
-          doc.setMode(modelist.getModeForPath(path).mode);
-          doc.savedValue = text;
-          doc.setValue(text);
-        });
-      });
-    });
-  }
-
-  function checkUpdates(node) {
-    var repo = findRepo(node.path);
-    repo.readRef("refs/heads/master", function (err, hash) {
-      if (err) throw err;
-      repo.head = hash;
-      refresh();
-    });
-  }
-
-  function createNode(path, mode, type, value, label) {
-    var chain;
-    var tree;
-    var name;
-    var repo;
-    var entry;
-    getChain(path, function (err, result) {
-      if (err) throw err;
-      chain = result;
-      var entry = chain[chain.length - 1];
-      tree = entry.tree;
-      name = entry.name;
-      repo = entry.repo;
-      doPrompt();
-    });
-    function doPrompt() {
-      dialog.prompt("Enter name for new " + label + ".", "", onName);
-    }
-    function onName(name) {
-      if (!name) return;
-      if (name in tree) return doPrompt();
-      entry = tree[name] = { mode: mode, hash: null };
-      if (mode === modes.tree) {
-        openPaths[path + "/" + name] = true;
-        prefs.set("openPaths", openPaths);
+        else {
+          if (!config.head) return onHead();
+          repo.loadAs("commit", config.head, onHead);
+        }
       }
-      repo.saveAs(type, value, onHash);
-    }
-    function onHash(err, hash) {
-      if (err) throw err;
-      entry.hash = hash;
-      saveTree(chain);
-    }
-  }
 
-  function createFile(node) {
-    createNode(node.path, modes.blob, "blob", "", "file");
-  }
+      function onHead(err, commit) {
+        if (err) fail(node, err);
+        head = commit;
+        repo.createTree(entries, onTree);
+      }
 
-  function createFolder(node) {
-    createNode(node.path, modes.tree, "tree", {}, "folder");
-  }
-
-  function createSymLink(node) {
-    createNode(node.path, modes.sym, "blob", "", "sym-link");
-  }
-
-  function addSubmodule(node) {
-    var chain, url;
-    dialog.prompt("Enter URL for submodule", "", onUrl);
-
-    function onUrl(result) {
-      if (!result) return;
-      url = result;
-      getChain(node.path, onChain);
+      function onTree(err, root) {
+        if (err) fail(node, err);
+        if (head && root === head.tree) setCurrent(node, config.head);
+        else setTree(node, root);
+      }
     }
 
-    function onChain(err, result) {
-      if (err) throw err;
-      chain = result;
-      var entry = chain[chain.length - 1];
-      var tree = entry.tree;
-      var name = uniqueName(getName(url.replace(/\.git$/, '')), tree);
-      createSubmodule(node.path + "/" + name, url, function (err, hash) {
-        if (err) throw err;
-        console.log({
-          chain: chain,
-          name: name,
-          hash: hash
-        });
+    function setTree(node, root) {
+      node.busy = true;
+      var commit = {
+        tree: root,
+        author: {
+          name: "AutoCommit",
+          email: "tedit@creationix.com"
+        },
+        message: "Uncommitted changes in tedit"
+      };
+      if (config.head) commit.parent = config.head;
+      repo.saveAs("commit", commit, onCommit);
+
+      function onCommit(err, result) {
+        if (err) fail(node, err);
+        setCurrent(node, result);
+      }
+    }
+
+    function setCurrent(node, hash, isHead) {
+      node.busy = true;
+      if (onChange) return onChange(root, hash);
+
+      var ref = isHead ? "refs/heads/master" : "refs/tags/current";
+
+      return repo.updateRef(ref, hash, function (err) {
+        if (err) fail(node, err);
+        config.current = hash;
+        if (isHead) config.head = hash;
+        render();
       });
     }
-  }
 
-  function uniqueName(name, hash) {
-    var original = name, i = 1;
-    while (name in hash) name = original + "-" + i++;
-    return name;
-  }
-
-  function toggleExec(node) {
-    getChain(node.path, function (err, chain) {
-      if (err) throw err;
-      var entry = chain.pop();
-      var name = entry.name;
-      var mode = entry.mode === modes.exec ? modes.blob : modes.exec;
-      // TODO: change .mode in doc if there is one
-      chain[chain.length - 1].tree[name].mode = mode;
-      saveTree(chain);
-    });
-  }
-
-  function renameNode(node) {
-    getChain(node.path, function (err, chain) {
-      if (err) throw err;
-      var entry = chain.pop();
-      var oldName = entry.name;
-      var label = getType(node);
-      var parent = chain[chain.length - 1];
-      if (parent.commit) {
-        // TODO: properly clean up submodule data
-        // find local path and update submodule link in parent repo
-        chain.pop();
-        parent = chain[chain.length - 1];
-      }
-      var tree = parent.tree;
-      doPrompt();
-      function doPrompt() {
-        dialog.prompt("Enter new name for " + label + ".", oldName, onName);
-      }
-      function onName(name) {
-        if (!name || name === oldName) return;
-        if (name in tree) return doPrompt();
-        tree[name] = tree[oldName];
-        delete tree[oldName];
-        var newPath = node.path.substr(0, node.path.lastIndexOf("/") + 1) + name;
-        updatePaths(makePrefix(node.path), newPath);
-        saveTree(chain);
-      }
-    });
-  }
-
-  function removeNode(node) {
-    var message = "Delete " + getType(node) + " '" + getName(node.path) + "'?";
-
-    dialog.confirm(message, function (confirm) {
-      if (!confirm) return;
-      getChain(node.path, onChain);
-    });
-
-    function onChain(err, chain) {
-      if (err) throw err;
-      var name = chain.pop().name;
-      var parent = chain[chain.length - 1];
-      if (parent.commit) {
-        // TODO: properly clean up submodule data
-        // find local path and remove submodule link in parent repo
-        // find full path and remove global link to repo
-        chain.pop();
-        parent = chain[chain.length - 1];
-      }
-      delete parent.tree[name];
-      return saveTree(chain);
-    }
-  }
-
-  function renameRoot(node) {
-    dialog.prompt("Enter new name for repository.", node.path, function (name) {
-      if (!name || name === node.path) return;
-      roots[name] = roots[node.path];
-      delete roots[node.path];
-      updatePaths(makePrefix(node.path), name);
-      refresh();
-    });
-  }
-
-  function updatePaths(old, name) {
-    migrate(repos, old, name);
-    migrate(docPaths, old, name, function (doc, newPath) {
-      doc.setMode(modelist.getModeForPath(newPath).mode);
-      doc.path = newPath;
-      doc.updateTitle();
-    });
-    migrate(openPaths, old, name);
-    prefs.set("openPaths", openPaths);
-    if (old.test(selectedPath)) {
-      selectedPath = selectedPath.replace(old, name);
-    }
-    if (old.test(activePath)) {
-      activePath = activePath.replace(old, name);
-    }
-  }
-
-  function migrate(obj, old, name, cb) {
-    Object.keys(obj).forEach(function (key) {
-      if (!old.test(key)) return;
-      var newKey = key.replace(old, name);
-      var value = obj[newKey] = obj[key];
-      delete obj[key];
-      if (cb) cb(value, newKey);
-    });
-  }
-
-
-  function removeRoot(node) {
-    var message = "Remove repository '" + node.path + "'?";
-
-    dialog.confirm(message, function (confirm) {
-      if (!confirm) return;
-      delete roots[node.path];
-      // TODO: clean up other paths
-      refresh();
-    });
-  }
-
-  function liveMount() {
-    var token = prefs.get("token", "");
-    dialog.multiEntry("Mount Github Repo", [
-      {name: "path", placeholder: "user/name", required:true},
-      {name: "token", type: "password", placeholder: "access token", required:true, value:token},
-    ], function (result) {
-      if (!result) return;
-      var token = result.token;
-      prefs.set("token", token);
-      var path = result.path;
-      var repo = createGithubRepo(token, path);
-      repo.readRef("refs/heads/master", function (err, hash) {
-        if (err) throw err;
-        var name = path.substr(path.lastIndexOf("/") + 1);
-        addRoot(repo, hash, name);
-      });
-    });
-  }
-
-  function createGithubRepo(token, path) {
-    var jsGithub = require('js-github');
-    var repo = {
-      githubRoot: path,
-      githubToken: token
-    };
-    jsGithub(repo, path, token);
-    require('pathtoentry')(repo);
-    return repo;
-  }
-
-
-  function makePrefix(path) {
-    // TODO: escape special regex characters in path
-    return new RegExp("^" + path + "(?=/|$)");
-  }
-
-  function onContextMenu(evt) {
-    var node = findJs(evt.target);
-    evt.preventDefault();
-    evt.stopPropagation();
-    var actions = [];
-    if (node) {
-      var mode = parseInt(node.mode, 8);
+    function makeMenu(node) {
+      var actions = [];
       var type;
       actions.push({icon:"globe", label:"Serve Over HTTP"});
-      actions.push({icon:"hdd", label:"Live Export to Disk"});
-      if (node.commitHash) {
-        var repo = findRepo(node.path);
-        if (repo.head !== node.commitHash) {
+      actions.push({icon:"hdd", label:"Live Export to Disk", action: liveExport});
+      if (node.mode === modes.commit) {
+        if (config.head !== config.current) {
           actions.push({sep:true});
           actions.push({icon:"floppy", label:"Commit Changes", action: commitChanges});
           actions.push({icon:"ccw", label:"Revert all Changes", action: revertChanges});
         }
         actions.push({sep:true});
-        if (repo.githubRoot) {
-          actions.push({icon:"github", label:"Check for Updates", action: checkUpdates});
+        if (config.githubName) {
+          actions.push({icon:"github", label:"Check for Updates", action: checkHead});
         }
         else {
           actions.push({icon:"download-cloud", label:"Pull from Remote"});
           actions.push({icon:"upload-cloud", label:"Push to Remote"});
         }
       }
-      if (mode === modes.tree) {
-        type = node.commitHash ? "Submodule" : "Folder";
+      if (node.mode === modes.tree || node.mode === modes.commit) {
+        type = "Folder";
         if (openPaths[node.path]) {
           actions.push({sep:true});
           actions.push({icon:"doc", label:"Create File", action: createFile});
@@ -782,42 +550,92 @@ define("tree", function () {
           actions.push({icon:"link", label:"Create SymLink", action: createSymLink});
           actions.push({sep:true});
           actions.push({icon:"fork", label: "Add Submodule", action: addSubmodule});
-          actions.push({icon:"folder", label:"Import Folder"});
-          actions.push({icon:"docs", label:"Import File(s)"});
+          actions.push({icon:"folder", label:"Import Folder", action: importFolder});
         }
       }
-      else if (modes.isFile(mode)) {
+      else if (modes.isFile(node.mode)) {
         type = "File";
         actions.push({sep:true});
-        var label = (mode === modes.exec) ?
+        var label = (node.mode === modes.exec) ?
           "Make not Executable" :
           "Make Executable";
         actions.push({icon:"asterisk", label: label, action: toggleExec});
       }
-      else if (mode === modes.sym) {
+      else if (node.mode === modes.sym) {
         type = "SymLink";
       }
-      actions.push({sep:true});
-      if (node.path.indexOf("/") >= 0) {
-        actions.push({icon:"pencil", label:"Rename " + type, action: renameNode});
-        actions.push({icon:"trash", label:"Delete " + type, action: removeNode});
+      if (node.mode !== modes.commit) {
+        actions.push({sep:true});
+        if (node.path.indexOf("/") >= 0) {
+          actions.push({icon:"pencil", label:"Rename " + type, action: renameEntry});
+          actions.push({icon:"trash", label:"Delete " + type, action: removeEntry});
+        }
+        else {
+          actions.push({icon:"pencil", label:"Rename Repo"});
+          actions.push({icon:"trash", label:"Remove Repo"});
+        }
       }
-      else {
-        actions.push({icon:"pencil", label:"Rename Repo", action: renameRoot});
-        actions.push({icon:"trash", label:"Remove Repo", action: removeRoot});
-      }
+      return actions;
     }
-    else {
-      actions.push({icon:"git", label: "Create Empty Git Repo"});
-      actions.push({icon:"hdd", label:"Create Repo From Folder"});
-      actions.push({icon:"fork", label: "Clone Remote Repo"});
-      actions.push({icon:"github", label: "Live Mount Github Repo", action: liveMount});
-    }
+  }
 
-    if (!actions.length) return;
+  function nullify(evt) {
     evt.preventDefault();
     evt.stopPropagation();
-    contextMenu(evt, node, actions);
+  }
+
+  function createEmpty() {
+    dialog.prompt("Enter name for empty repo", "", function (name) {
+      if (!name) return;
+      name = repos.createEmpty(name);
+      openPaths[name] = true;
+      render();
+    });
+  }
+
+  function createFromFolder() {
+    return chrome.fileSystem.chooseEntry({ type: "openDirectory"}, onEntry);
+
+    function onEntry(entry) {
+      if (!entry) return;
+      var name = repos.createFromFolder(entry);
+      openPaths[name] = true;
+      render();
+    }
+  }
+
+  function createClone() {
+    dialog.multiEntry("Clone Remote Repo", [
+      {name: "url", placeholder: "git@hostname:path/to/repo.git", required:true},
+      {name: "name", placeholder: "localname"}
+    ], function (result) {
+      if (!result) return;
+      var name = repos.createClone(result.url, result.name);
+      openPaths[name] = true;
+      render();
+    });
+  }
+
+  function createGithubMount() {
+    var githubToken = prefs.get("githubToken", "");
+    dialog.multiEntry("Mount Github Repo", [
+      {name: "path", placeholder: "user/name", required:true},
+      {name: "name", placeholder: "localname"},
+      {name: "token", placeholder: "Enter github auth token", required:true, value: githubToken}
+    ], function (result) {
+      if (!result) return;
+      if (result.token !== githubToken) {
+        prefs.set("githubToken", result.token);
+      }
+      var name = repos.createGithubMount(result.path, result.name);
+      openPaths[name] = true;
+      render();
+    });
+  }
+
+  function removeAll() {
+    indexedDB.deleteDatabase("tedit");
+    prefs.clearSync(["treeConfig", "openPaths", "hookConfig"], chrome.runtime.reload);
   }
 
 });

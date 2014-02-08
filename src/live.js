@@ -5,6 +5,8 @@ define("live", function () {
   var pathToEntry = require('repos').pathToEntry;
   var modes = require('modes');
   var fail = require('fail');
+  
+  var memory = {};
 
   return {
     addExportHook: addExportHook
@@ -28,21 +30,27 @@ define("live", function () {
         settings: settings,
         config: config
       });
-      exportTree(settings.source, rootEntry, settings.name, function (err) {
+      var mode = modes.tree;
+      pathToEntry(settings.source, function (err, entry) {
         if (err) fail(node, err);
-        node.pulse = false;
+        exportEntry(entry, settings.source, rootEntry, settings.name, function (err) {
+          if (err) fail(node, err);
+          node.pulse = false;
+        });
       });
     }
   }
 
   function exportEntry(entry, path, parentEntry, name, callback) {
-    if (modes.isFile(entry.mode)) {
+    if (memory(path) === entry.hash) return callback();
+    memory[path] = entry.hash;
+    if (modes.isFile(entry,mode)) {
       return exportFile(path, parentEntry, name, callback);
     }
-    if (entry.mode === modes.tree || entry.mode === modes.commit) {
+    if (entry,mode === modes.tree || entry,mode === modes.commit) {
       return exportTree(path, parentEntry, name, callback);
     }
-    if (entry.mode === modes.sym) {
+    if (entry,mode === modes.sym) {
       return exportSymLink(path, parentEntry, name, callback);
     }
     callback(new Error("Invalid mode 0" + entry.mode.toString(8)));

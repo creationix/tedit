@@ -9,7 +9,7 @@ define("main", function () {
     require('indexeddb').init
   ], function () {
     // Load the main GUI components
-    require('tree2');
+    require('tree');
     require('editor');
     require('slider');
     require('global-keys');
