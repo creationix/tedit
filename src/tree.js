@@ -527,8 +527,13 @@ define("tree", function () {
 
       return repo.updateRef(ref, hash, function (err) {
         if (err) fail(node, err);
-        config.current = hash;
-        if (isHead) config.head = hash;
+        if (isHead) {
+          config.head = hash;
+          return setCurrent(node, hash);
+        }
+        else {
+          config.current = hash;
+        }
         render();
       });
     }
