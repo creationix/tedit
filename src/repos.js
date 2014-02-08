@@ -236,6 +236,9 @@ define("repos", function () {
 
     // Add delay to all I/O operations for debugging
     // require('delay')(repo, 300);
+    
+    // Add format munging to add two new virtual types "array" and "text"
+    require('formats')(repo);
     return repo;
   }
 

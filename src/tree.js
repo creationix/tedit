@@ -218,7 +218,7 @@ define("tree", function () {
 
     function editSymLink(node) {
       repo.loadAs("text", node.hash, function (err, target) {
-        if (err) fail(node, err);
+        if (target === undefined) fail(node, err || new Error("Missing blob " + node.hash));
         dialog.multiEntry("Edit SymLink", [
           {name: "target", placeholder: "target", required:true, value:target},
           {name: "path", placeholder: "path", required:true, value:node.localPath},
