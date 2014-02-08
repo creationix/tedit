@@ -47,16 +47,16 @@ define("live", function () {
     if (entry.mode === modes.sym) {
       return exportSymLink(path, parentEntry, name, callback);
     }
+    if (entry.mode === modes.tree || entry.mode === modes.commit) {
+      return exportTree(path, parentEntry, name, callback);
+    }
     if (memory[path] === entry.hash) {
-      console.log("Skipping", path, entry.hash);
+      // console.log("Skipping", path, entry.hash);
       return defer(callback);
     }
     memory[path] = entry.hash;
     if (modes.isFile(entry.mode)) {
       return exportFile(path, parentEntry, name, callback);
-    }
-    if (entry.mode === modes.tree || entry.mode === modes.commit) {
-      return exportTree(path, parentEntry, name, callback);
     }
     callback(new Error("Invalid mode 0" + entry.mode.toString(8)));
   }
