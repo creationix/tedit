@@ -678,8 +678,8 @@ define("tree", function () {
   }
 
   function removeAll() {
-    indexedDB.deleteDatabase("tedit");
-    prefs.clearSync(["treeConfig", "openPaths", "hookConfig"], chrome.runtime.reload);
+    // indexedDB.deleteDatabase("tedit");
+    prefs.clearSync(["treeConfig", "openPaths", "activePath", "hookConfig"], chrome.runtime.reload);
   }
 
 });
