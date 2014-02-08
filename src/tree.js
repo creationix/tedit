@@ -1,5 +1,5 @@
 /*global define, chrome, indexedDB*/
-define("tree2", function () {
+define("tree", function () {
 
   var $ = require('elements');
   var hashAs = require('encoders').hashAs;

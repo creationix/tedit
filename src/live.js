@@ -5,7 +5,8 @@ define("live", function () {
   var pathToEntry = require('repos').pathToEntry;
   var modes = require('modes');
   var fail = require('fail');
-  
+  var defer = require('defer');
+
   var memory = {};
 
   return {
@@ -35,6 +36,7 @@ define("live", function () {
         if (err) fail(node, err);
         exportEntry(entry, settings.source, rootEntry, settings.name, function (err) {
           if (err) fail(node, err);
+          console.log("DONE");
           node.pulse = false;
         });
       });
@@ -42,16 +44,19 @@ define("live", function () {
   }
 
   function exportEntry(entry, path, parentEntry, name, callback) {
-    if (memory(path) === entry.hash) return callback();
+    if (entry.mode === modes.sym) {
+      return exportSymLink(path, parentEntry, name, callback);
+    }
+    if (memory[path] === entry.hash) {
+      console.log("Skipping", path, entry.hash);
+      return defer(callback);
+    }
     memory[path] = entry.hash;
-    if (modes.isFile(entry,mode)) {
+    if (modes.isFile(entry.mode)) {
       return exportFile(path, parentEntry, name, callback);
     }
-    if (entry,mode === modes.tree || entry,mode === modes.commit) {
+    if (entry.mode === modes.tree || entry.mode === modes.commit) {
       return exportTree(path, parentEntry, name, callback);
-    }
-    if (entry,mode === modes.sym) {
-      return exportSymLink(path, parentEntry, name, callback);
     }
     callback(new Error("Invalid mode 0" + entry.mode.toString(8)));
   }
@@ -115,14 +120,18 @@ define("live", function () {
     }
 
     function onWriter(fileWriter) {
+      var truncated = false;
 
       fileWriter.onwriteend = function () {
-        callback();
+        if (truncated) return callback();
+        truncated = true;
+        this.truncate(this.position);
       };
 
       fileWriter.onerror = function (e) {
         callback(new Error(e.toString));
       };
+
 
       fileWriter.write(new Blob([blob]));
 
