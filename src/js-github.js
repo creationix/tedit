@@ -216,6 +216,7 @@ define("js-github", function () {
 
       function onRef(err, xhr, result) {
         if (err) return callback(err);
+        if (xhr.status === 404) return callback();
         if (xhr.status < 200 || xhr.status >= 300) {
           return callback(new Error("Invalid HTTP response: " + xhr.status + " " + result.message));
         }
