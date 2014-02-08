@@ -21,10 +21,10 @@ define("editor", function () {
   editor.setTheme = setTheme;
   editor.prevTheme = prevTheme;
   editor.nextTheme = nextTheme;
-  editor.setOptions({
-    // TODO: get this actually working
-    enableBasicAutocompletion: true,
-  });
+  // TODO: get this actually working
+  // editor.setOptions({
+  //   enableBasicAutocompletion: true,
+  // });
   editor.updatePath = function (doc) {
     if (doc !== currentDoc) return;
     updateTitle(doc.path);
