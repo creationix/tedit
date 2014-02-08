@@ -1,6 +1,6 @@
 /*global define, chrome*/
 define("prefs", function () {
-  var defer = require('defer');
+  var defer = require('js-git/lib/defer');
   var storage = chrome.storage.local;
   var prefs;
   var dirty = false;

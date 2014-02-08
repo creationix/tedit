@@ -5,7 +5,7 @@ define("row", function () {
   "use strict";
 
   var domBuilder = require('dombuilder');
-  var modes = require('modes');
+  var modes = require('js-git/lib/modes');
 
   return makeRow;
 

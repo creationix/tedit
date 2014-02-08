@@ -4,7 +4,7 @@ define("publisher", function () {
   "use strict";
 
   var pathJoin = require('pathjoin');
-  var modes = require('modes');
+  var modes = require('js-git/lib/modes');
   var pathToEntry = require('repos').pathToEntry;
 
   return servePath;

@@ -2,7 +2,7 @@
 define("importfs", function () {
   "use strict";
 
-  var modes = require('modes');
+  var modes = require('js-git/lib/modes');
   var ignores = importEntry.ignores = [".git", "node_modules"];
 
   return importEntry;

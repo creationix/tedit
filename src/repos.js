@@ -3,11 +3,11 @@ define("repos", function () {
 
   var prefs = require('prefs');
   var treeConfig = prefs.get("treeConfig", {});
-  var parseConfig = require('parseconfig');
-  var encodeConfig = require('encodeconfig');
+  var parseConfig = require('js-git/lib/config-codec').parse;
+  var encodeConfig = require('js-git/lib/config-codec').encode;
   var importEntry = require('importfs');
   var clone = require('clone');
-  var modes = require('modes');
+  var modes = require('js-git/lib/modes');
   var repos = {};
 
   return {
@@ -216,29 +216,29 @@ define("repos", function () {
     var repo = {};
     if (config.githubName) {
       var githubToken = prefs.get("githubToken", "");
-      require('js-github')(repo, config.githubName, githubToken);
+      require('js-git/mixins/github-db')(repo, config.githubName, githubToken);
       // Github has this built-in, but it's currently very buggy
-      require('createtree')(repo);
+      require('js-git/mixins/create-tree')(repo);
       // Cache github objects locally in indexeddb
-      require('addcache')(repo, require('indexeddb'));
+      require('js-git/mixins/add-cache')(repo, require('js-git/mixins/indexed-db'));
     }
     else {
       if (!config.prefix) {
         config.prefix = Date.now().toString(36) + "-" + (Math.random() * 0x100000000).toString(36);
       }
-      require('indexeddb')(repo, config.prefix);
-      require('createtree')(repo);
+      require('js-git/mixins/indexed-db')(repo, config.prefix);
+      require('js-git/mixins/create-tree')(repo);
     }
     // Add pathToEntry API and cache non-blob types in ram
-    require('pathtoentry')(repo);
+    require('js-git/mixins/path-to-entry')(repo);
     // Combine concurrent read requests for the same hash
-    require('read-combiner')(repo);
+    require('js-git/mixins/read-combiner')(repo);
 
     // Add delay to all I/O operations for debugging
     // require('delay')(repo, 300);
     
     // Add format munging to add two new virtual types "array" and "text"
-    require('formats')(repo);
+    require('js-git/mixins/formats')(repo);
     return repo;
   }
 

@@ -6,7 +6,7 @@ define("main", function () {
   require('parallel')([
     // Initialize the subsystems in parallel for fast boot
     require('prefs').init,
-    require('indexeddb').init
+    require('js-git/mixins/indexed-db').init
   ], function () {
     // Load the main GUI components
     require('tree');

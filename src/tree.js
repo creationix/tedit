@@ -3,7 +3,7 @@
 define("tree", function () {
 
   var $ = require('elements');
-  var modes = require('modes');
+  var modes = require('js-git/lib/modes');
   var domBuilder = require('dombuilder');
   var makeRow = require('row');
   var dialog = require('dialog');

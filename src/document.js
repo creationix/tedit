@@ -5,8 +5,8 @@ define("document", function () {
 
   var editor = require('editor');
   var modelist = ace.require('ace/ext/modelist');
-  var binary = require('binary');
-  var modes = require('modes');
+  var binary = require('js-git/lib/binary');
+  var modes = require('js-git/lib/modes');
   var whitespace = ace.require('ace/ext/whitespace');
 
   function Doc(path, mode, body) {

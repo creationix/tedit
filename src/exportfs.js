@@ -2,7 +2,7 @@
 define('exportfs', function () {
   "use strict";
 
-  var modes = require('modes');
+  var modes = require('js-git/lib/modes');
 
   return exportNode;
   function exportNode(parentEntry, repo, name, mode, hash, callback) {

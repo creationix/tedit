@@ -3,9 +3,9 @@ define("live", function () {
 
   var fileSystem = chrome.fileSystem;
   var pathToEntry = require('repos').pathToEntry;
-  var modes = require('modes');
+  var modes = require('js-git/lib/modes');
   var fail = require('fail');
-  var defer = require('defer');
+  var defer = require('js-git/lib/defer');
   var pathJoin = require('pathjoin');
 
   var memory = {};
