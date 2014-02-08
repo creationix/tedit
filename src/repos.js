@@ -278,7 +278,7 @@ define("repos", function () {
 
   // Generates a good unique root name from an almost arbitrary string.
   function genName(string, obj) {
-    var base = string.substring(string.lastIndexOf("/") + 1).replace(/\.git$/, "").replace(/[!@#%\^&*()\\|+={}\[\]~`,<>?:;"']+/gi, " ").trim() || "unnamed";
+    var base = string.substring(string.lastIndexOf("/") + 1).replace(/\.git$/, "").replace(/[!@#%\^&*()\\|+=[\]~`,<>?:;"']+/gi, " ").trim() || "unnamed";
     var name = base;
     var i = 1;
     while (name in obj) {
