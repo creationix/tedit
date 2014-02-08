@@ -168,9 +168,12 @@ define("tree", function () {
     }
 
     function onClick(node) {
-      if (modes.isBlob(node.mode)) {
+      if (modes.isFile(node.mode)) {
         if (active === node) activate();
         else activate(node);
+      }
+      else if (node.mode === modes.sym) {
+        editSymLink(node);
       }
       else toggleTree(node);
     }
@@ -211,6 +214,31 @@ define("tree", function () {
           content: text
         }]);
       };
+    }
+
+    function editSymLink(node) {
+      repo.loadAs("text", node.hash, function (err, target) {
+        if (err) fail(node, err);
+        dialog.multiEntry("Edit SymLink", [
+          {name: "target", placeholder: "target", required:true, value:target},
+          {name: "path", placeholder: "path", required:true, value:node.localPath},
+        ], onResult);
+      });
+      
+      function onResult(result) {
+        if (!result) return;
+        var entries = [{
+          path: result.path,
+          mode: modes.sym,
+          content: result.target
+        }];
+        if (result.path !== node.localPath) {
+          entries.push({
+            path: node.localPath
+          });
+        }
+        updateTree(node, entries);
+      }
     }
 
     function toggleTree(node) {
@@ -372,9 +400,9 @@ define("tree", function () {
     }
 
     function createSymLink(node) {
-      dialog.multiEntry("SymLink", [
-        {name: "name", placeholder: "name", required:true},
+      dialog.multiEntry("Create SymLink", [
         {name: "target", placeholder: "target", required:true},
+        {name: "name", placeholder: "name", required:true},
       ], onResult);
       
       function onResult(result) {
