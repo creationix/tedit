@@ -1,8 +1,8 @@
 /*global define, chrome, indexedDB*/
+/*jshint unused:strict, undef:true,trailing:true */
 define("tree", function () {
 
   var $ = require('elements');
-  var hashAs = require('encoders').hashAs;
   var modes = require('modes');
   var domBuilder = require('dombuilder');
   var makeRow = require('row');
@@ -204,8 +204,7 @@ define("tree", function () {
     }
 
     function linkDoc(node, doc) {
-      doc.save = function (text) {
-        if (hashAs("blob", text) === node.hash) return;
+      doc.updateTree = function (text) {
         updateTree(node, [{
           path: node.localPath,
           mode: node.mode,

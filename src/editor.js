@@ -183,10 +183,10 @@ define("editor", function () {
   }
 
   function prevTheme() {
-      themeIndex = (themeIndex - 1);
-      if (themeIndex < 0) themeIndex += themeNames.length;
-      prefs.set("themeIndex", themeIndex);
-      setTheme(themeNames[themeIndex]);
+    themeIndex = (themeIndex - 1);
+    if (themeIndex < 0) themeIndex += themeNames.length;
+    prefs.set("themeIndex", themeIndex);
+    setTheme(themeNames[themeIndex]);
   }
 
   return editor;

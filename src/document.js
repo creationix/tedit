@@ -1,4 +1,5 @@
 /*global define, ace*/
+/*jshint unused:strict, undef:true,trailing:true */
 define("document", function () {
   "use strict";
 
@@ -41,6 +42,7 @@ define("document", function () {
   };
   Doc.prototype.setBody = function (body) {
     var code = binary.toUnicode(body);
+    if (code === this.code) return;
     this.code = code;
     this.session.setValue(code, 1);
     whitespace.detectIndentation(this.session);
@@ -48,11 +50,13 @@ define("document", function () {
   Doc.prototype.activate = function () {
     editor.setDoc(this);
   };
+  Doc.prototype.save = function (text) {
+    if (text === this.code) return;
+    this.code = text;
+    this.updateTree(text);
+  };
 
-  return newDoc;
-
-  function newDoc(path, mode, body) {
-
+  return function newDoc(path, mode, body) {
     return new Doc(path, mode, body);
-  }
+  };
 });
