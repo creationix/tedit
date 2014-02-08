@@ -26,7 +26,7 @@ define("dialog", function () {
       [".dialog$dialog",
         [".title",
           [".content", title],
-          [".closebox",{onclick: cancel}, "Ã—"]
+          [".closebox",{onclick: cancel}, "×"]
         ],
         [".body", contents]
       ]
@@ -98,7 +98,6 @@ define("dialog", function () {
       $.close();
       callback(result);
     }
-
 
   }
 

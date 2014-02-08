@@ -373,10 +373,22 @@ define("tree", function () {
     }
 
     function createSymLink(node) {
-      createNode(node, "Enter name for new symlink", {
-        mode: modes.sym,
-        content: ""
-      });
+      dialog.multiEntry("SymLink", [
+        {name: "name", placeholder: "name", required:true},
+        {name: "target", placeholder: "target", required:true},
+      ], onResult);
+      
+      function onResult(result) {
+        if (!result) return;
+        getUnique(node, result.name, function (err, name) {
+          if (err) fail(node, err);
+          updateTree(node, [{
+            path: node.localPath ? node.localPath + "/" + name : name,
+            mode: modes.sym,
+            content: result.target
+          }]);
+        });
+      }
     }
 
     function importFolder(node) {
