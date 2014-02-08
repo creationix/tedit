@@ -53,7 +53,8 @@ define("document", function () {
   Doc.prototype.save = function (text) {
     if (text === this.code) return;
     this.code = text;
-    this.updateTree(text);
+    var body = binary.fromUnicode(text);
+    this.updateTree(body);
   };
 
   return function newDoc(path, mode, body) {

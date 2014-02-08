@@ -26,7 +26,7 @@ define("dialog", function () {
       [".dialog$dialog",
         [".title",
           [".content", title],
-          [".closebox",{onclick: cancel}, "x"]
+          [".closebox",{onclick: cancel}, "×"]
         ],
         [".body", contents]
       ]
