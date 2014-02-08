@@ -29,7 +29,6 @@ define("js-github", function () {
     tag: decodeTag,
     tree: decodeTree,
     blob: decodeBlob,
-    text: decodeText
   };
 
   var emptyBlob = hashAs("blob", "");
@@ -49,10 +48,9 @@ define("js-github", function () {
 
     function loadAs(type, hash, callback) {
       if (!callback) return loadAs.bind(null, type, hash);
-      var typeName = type === "text" ? "blob" : type;
       // Github doesn't like empty trees, but we know them already.
       if (type === "tree" && hash === emptyTree) return callback(null, {}, hash);
-      apiRequest("GET", "/repos/:root/git/" + typeName + "s/" + hash, onValue);
+      apiRequest("GET", "/repos/:root/git/" + type + "s/" + hash, onValue);
 
       function onValue(err, xhr, result) {
         if (err) return callback(err);
@@ -63,7 +61,7 @@ define("js-github", function () {
         var body;
         try { body = decoders[type].call(repo, result); }
         catch (err) { return callback(err); }
-        if (hashAs(typeName, body) !== hash) {
+        if (hashAs(type, body) !== hash) {
           if (fixDate(type, body, hash)) console.warn(type + " repaired", hash);
           else console.error("Unable to repair " + type, hash);
         }
@@ -86,8 +84,7 @@ define("js-github", function () {
       if (type === "tree" && request.tree.length === 0) {
         return callback(null, emptyTree, body);
       }
-      var typeName = type === "text" ? "blobs" : type + "s";
-      return apiRequest("POST", "/repos/:root/git/" + typeName, request, onWrite);
+      return apiRequest("POST", "/repos/:root/git/" + type + "s", request, onWrite);
 
       function onWrite(err, xhr, result) {
         if (err) return callback(err);
@@ -400,16 +397,6 @@ define("js-github", function () {
     }
     if (result.encoding === 'utf-8') {
       return binary.fromUtf8(result.content);
-    }
-    throw new Error("Unknown blob encoding: " + result.encoding);
-  }
-
-  function decodeText(result) {
-    if (result.encoding === 'base64') {
-      return binary.decodeBase64(result.content.replace(/\n/g, ''));
-    }
-    if (result.encoding === 'utf-8') {
-      return result.content;
     }
     throw new Error("Unknown blob encoding: " + result.encoding);
   }

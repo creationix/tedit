@@ -28,7 +28,7 @@ define("pathtoentry", function () {
         // console.log("LOAD CACHED", hash);
         return callback(null, encoders.normalizeAs(type, cache[hash]));
       }
-      if (type === "blob" || type === "text") {
+      if (type === "blob") {
         return loadAs.apply(repo, arguments);
       }
       loadAs.call(repo, type, hash, function (err, body, hash) {
@@ -43,7 +43,7 @@ define("pathtoentry", function () {
       if (!callback) {
         return saveAsCached.bind(repo, type, body);
       }
-      if (type === "blob" || type === "text") {
+      if (type === "blob") {
         return saveAs.apply(repo, arguments);
       }
       saveAs.call(repo, type, body, function (err, hash, body) {

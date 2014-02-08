@@ -86,11 +86,7 @@ define("indexeddb", function () {
     request.onsuccess = function(evt) {
       var entry = evt.target.result;
       if (!entry) return callback();
-      if (type === "text") {
-        type = "blob";
-        entry.body = binary.toUnicode(entry.body);
-      }
-      else if (type !== "blob") {
+      if (type !== "blob") {
         entry.body = encoders.normalizeAs(type, entry.body);
       }
       if (type !== entry.type) {

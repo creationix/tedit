@@ -19,7 +19,6 @@ define("addcache", function () {
         }
         loadAs.call(repo, type, hash, function (err, value) {
           if (err) return callback(err);
-          else if (type === "text") type = "blob";
           cache.saveAs(type, value, function (err) {
             if (err) return callback(err);
             callback(null, value, hash);
