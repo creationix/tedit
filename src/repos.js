@@ -255,7 +255,7 @@ define("repos", function () {
       try {
         // Find the nearest known repo root
         rootPath = findRoot(path);
-        parts = path.substring(rootPath.length + 1).split("/");
+        parts = path.substring(rootPath.length + 1).split("/").filter(Boolean);
         path = rootPath;
         repo = repos[rootPath];
         var config = treeConfig[rootPath];

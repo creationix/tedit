@@ -3,12 +3,11 @@
 define("live", function () {
 
   var fileSystem = chrome.fileSystem;
-  var modes = require('js-git/lib/modes');
   var fail = require('fail');
-  var defer = require('js-git/lib/defer');
   var pathJoin = require('pathjoin');
   var pathToEntry = require('repos').pathToEntry;
   var publisher = require('publisher');
+  var binary = require('js-git/lib/binary');
 
   var memory = {};
 
@@ -58,7 +57,6 @@ define("live", function () {
       
       function onFail(err) {
         node.pulse = false;
-        console.error("Export Fail", err);
         fail(node, err);
       }
 
@@ -75,8 +73,8 @@ define("live", function () {
         // to changed content without  the tree's content actually changing.
         if (result.tree) return exportTree(path, name, dir, result.tree, onSuccess, onError);
         // If the etags match, it means we've already exported this version of this path.
-        if (result.etag === etag) {
-          console.log("Skipping", path)
+        if (etag && result.etag === etag) {
+          console.log("Skipping", path, etag)
           return onSuccess();
         }
         // Mark this as being saved.
@@ -142,8 +140,149 @@ define("live", function () {
     }
 
     function handleFilter(req, callback) {
-      console.log("handleFilter", req);
-      callback(new Error("TODO: handleFilter"));
+      if (name === "amd") return amd(servePath, req, callback);
+      return callback(new Error("Unknown filter handler " + req.name));
     }
   }
+
+  function amd(servePath, req, callback) {
+    return callback(null, {etag: req.etag + "-amd", fetch: fetch});
+    
+    function fetch(callback) {
+      req.target.fetch(function (err, js) {
+        if (err) return callback(err);
+        js = binary.toUnicode(js);
+        var base = pathJoin(req.targetPath, "..");
+        var deps = mine(js);
+        var length = deps.length;
+        var paths = new Array(length);
+        for (var i = length - 1; i >= 0; i--) {
+          var dep = deps[i];
+          var depPath = pathJoin(base, dep.name);
+          paths[i] = depPath;
+          js = js.substr(0, dep.offset) + depPath + js.substr(dep.offset + dep.name.length);
+        }
+        js = "define(" + JSON.stringify(req.targetPath) + ", " +
+            JSON.stringify(paths) + ", function (module, exports) {\n" +
+            js + "\n});\n";
+        console.log(js);
+        callback(null, js);
+      });
+    }
+  
+  }
+
+  function mine(js) {
+    var names = [];
+    var state = 0;
+    var ident;
+    var quote;
+    var name;
+    var start;
+  
+    var isIdent = /[a-z0-9_.]/i;
+    var isWhitespace = /[ \r\n\t]/;
+  
+    function $start(char) {
+      if (char === "/") {
+        return $slash;
+      }
+      if (char === "'" || char === '"') {
+        quote = char;
+        return $string;
+      }
+      if (isIdent.test(char)) {
+        ident = char;
+        return $ident;
+      }
+      return $start;
+    }
+  
+    function $ident(char) {
+      if (isIdent.test(char)) {
+        ident += char;
+        return $ident;
+      }
+      if (char === "(" && ident === "require") {
+        ident = undefined;
+        return $call;
+      }
+      return $start(char);
+    }
+  
+    function $call(char) {
+      if (isWhitespace.test(char)) return $call;
+      if (char === "'" || char === '"') {
+        quote = char;
+        name = "";
+        start = i + 1;
+        return $name;
+      }
+      return $start(char);
+    }
+  
+    function $name(char) {
+      if (char === quote) {
+        return $close;
+      }
+      name += char;
+      return $name;
+    }
+  
+    function $close(char) {
+      if (isWhitespace.test(char)) return $close;
+      if (char === ")" || char === ',') {
+        names.push({
+          name: name,
+          offset: start
+        });
+      }
+      name = undefined;
+      return $start(char);
+    }
+  
+    function $string(char) {
+      if (char === "\\") {
+        return $escape;
+      }
+      if (char === quote) {
+        return $start;
+      }
+      return $string;
+    }
+  
+    function $escape(char) {
+      return $string;
+    }
+  
+    function $slash(char) {
+      if (char === "/") return $lineComment;
+      if (char === "*") return $multilineComment;
+      return $start(char);
+    }
+  
+    function $lineComment(char) {
+      if (char === "\r" || char === "\n") return $start;
+      return $lineComment;
+    }
+  
+    function $multilineComment(char) {
+      if (char === "*") return $multilineEnding;
+      return $multilineComment;
+    }
+  
+    function $multilineEnding(char) {
+      if (char === "/") return $start;
+      if (char === "*") return $multilineEnding;
+      return $multilineComment;
+    }
+  
+    var state = $start;
+    for (var i = 0, l = js.length; i < l; i++) {
+      state = state(js[i]);
+    }
+    return names;
+  }
+
+
 });
