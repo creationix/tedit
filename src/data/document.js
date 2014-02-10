@@ -74,6 +74,8 @@ define("data/document", function () {
   };
 
   Doc.prototype.activate = function () {
+    current = this;
+    reset();
     editor.setDoc(this);
   };
 
