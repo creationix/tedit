@@ -34,50 +34,46 @@ define("data/repos", function () {
     });
   }
 
-  function addSubModule(path, config, url, localPath, name, callback) {
+  function addSubModule(path, localPath, name, url, callback) {
     callback = singleCall(callback);
     var childConfig, childRepo, childHead;
-    var meta;
     var repo = repos[path];
-    repo.loadAs("commit", config.current, onCurrent);
-
-    function onCurrent(err, commit) {
+    var config = treeConfig[path];
+    var meta;
+    pathToEntry(path + "/.gitmodules", onMetaEntry);
+    pathToEntry(path + "/" + localPath, onTreeEntry);
+    
+    function onMetaEntry(err, entry, result) {
       if (err) return callback(err);
-      repo.pathToEntry(commit.tree, localPath, onTreeEntry);
-      repo.loadAs("tree", commit.tree, onTree);
-    }
-
-    function onTree(err, tree) {
-      if (err) return callback(err);
-      var entry = tree[".gitmodules"];
-      if (entry && modes.isFile(entry.mode)) repo.loadAs("text", entry.hash, onText);
-      else {
+      if (!entry) {
         meta = {};
-        join();
+        return join();
       }
-    }
-
-    function onTreeEntry(err, entry) {
-      if (err) return callback(err);
-      name = genName(name || url, entry.tree);
-      localPath = localPath ? localPath + "/" + name : name;
-      path += "/" + localPath;
-      childConfig = treeConfig[path] = configFromUrl(url, config);
-      childRepo = repos[path] = createRepo(childConfig);
-      loadConfig(path, null, onConfig);
-      join();
-    }
-
-    function onConfig(err) {
-      if (err) return callback(err);
-      childHead = config.head || config.current;
-      join();
+      if (result !== repo) return callback(new Error("repo mismatch"));
+      return repo.loadAs("text", entry.hash, onText);
     }
 
     function onText(err, text) {
       if (err) return callback(err);
       try { meta = parseConfig(text); }
       catch (err) { return callback(err); }
+      join();
+    }
+    
+    function onTreeEntry(err, entry, result) {
+      if (!entry) return callback(err || new Error("Missing parent tree " + localPath));
+      if (result !== repo) return callback(new Error("repo mismatch"));
+      name = genName(name || url, entry.tree);
+      localPath = localPath ? localPath + "/" + name : name;
+      var childPath = path + "/" + localPath;
+      childConfig = treeConfig[childPath] = configFromUrl(url, config);
+      childRepo = repos[childPath] = createRepo(childConfig);
+      loadConfig(childPath, null, onConfig);
+    }
+
+    function onConfig(err) {
+      if (err) return callback(err);
+      childHead = childConfig.head || childConfig.current;
       join();
     }
 
@@ -243,6 +239,7 @@ define("data/repos", function () {
 
   // global-path based pathToEntry
   function pathToEntry(path, callback) {
+    console.log("pathToEntry", path);
     var mode, hash, repo, rootPath, parts;
 
     // strip extra leading and trailing slashes

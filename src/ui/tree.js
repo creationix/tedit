@@ -459,7 +459,7 @@ define("ui/tree", function () {
         if (/^[^\/:@]+\/[^\/:@]+$/.test(url)) {
           url = "git@github.com:" + url + ".git";
         }
-        repos.addSubModule(repoPath, config, url, node.localPath, name, onEntries);
+        repos.addSubModule(repoPath, node.localPath, name, url, onEntries);
       });
 
       function onEntries(err, entries) {
