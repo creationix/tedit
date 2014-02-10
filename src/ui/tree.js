@@ -572,9 +572,20 @@ define("ui/tree", function () {
 
     function makeMenu(node) {
       var actions = [];
-      var type;
-      actions.push({icon:"globe", label:"Serve Over HTTP"});
-      actions.push({icon:"hdd", label:"Live Export to Disk", action: liveExport});
+      var type = node.mode === modes.tree ? "Folder" :
+                 modes.isFile(node.mode) ? "File" :
+                 node.mode === modes.sym ? "SymLink" :
+                 onChange ? "Repo" : "Submodule";
+      if (node.mode === modes.tree || node.mode === modes.commit) {
+        if (openPaths[node.path]) {
+          actions.push({icon:"doc", label:"Create File", action: createFile});
+          actions.push({icon:"folder", label:"Create Folder", action: createFolder});
+          actions.push({icon:"link", label:"Create SymLink", action: createSymLink});
+          actions.push({sep:true});
+          actions.push({icon:"fork", label: "Add Submodule", action: addSubmodule});
+          actions.push({icon:"folder", label:"Import Folder", action: importFolder});
+        }
+      }
       if (node.mode === modes.commit) {
         if (config.head !== config.current) {
           actions.push({sep:true});
@@ -590,40 +601,26 @@ define("ui/tree", function () {
           actions.push({icon:"upload-cloud", label:"Push to Remote"});
         }
       }
-      if (node.mode === modes.tree || node.mode === modes.commit) {
-        type = "Folder";
-        if (openPaths[node.path]) {
-          actions.push({sep:true});
-          actions.push({icon:"doc", label:"Create File", action: createFile});
-          actions.push({icon:"folder", label:"Create Folder", action: createFolder});
-          actions.push({icon:"link", label:"Create SymLink", action: createSymLink});
-          actions.push({sep:true});
-          actions.push({icon:"fork", label: "Add Submodule", action: addSubmodule});
-          actions.push({icon:"folder", label:"Import Folder", action: importFolder});
-        }
-      }
       else if (modes.isFile(node.mode)) {
-        type = "File";
         actions.push({sep:true});
         var label = (node.mode === modes.exec) ?
           "Make not Executable" :
           "Make Executable";
         actions.push({icon:"asterisk", label: label, action: toggleExec});
       }
-      else if (node.mode === modes.sym) {
-        type = "SymLink";
+      actions.push({sep:true});
+      if (node.path.indexOf("/") >= 0) {
+        actions.push({icon:"pencil", label:"Rename " + type, action: renameEntry});
+        actions.push({icon:"trash", label:"Delete " + type, action: removeEntry});
       }
-      if (node.mode !== modes.commit) {
-        actions.push({sep:true});
-        if (node.path.indexOf("/") >= 0) {
-          actions.push({icon:"pencil", label:"Rename " + type, action: renameEntry});
-          actions.push({icon:"trash", label:"Delete " + type, action: removeEntry});
-        }
-        else {
-          actions.push({icon:"pencil", label:"Rename Repo"});
-          actions.push({icon:"trash", label:"Remove Repo"});
-        }
+      else {
+        actions.push({icon:"pencil", label:"Rename Repo"});
+        actions.push({icon:"trash", label:"Remove Repo"});
       }
+      actions.push({sep:true});
+      actions.push({icon:"globe", label:"Serve Over HTTP"});
+      actions.push({icon:"hdd", label:"Live Export to Disk", action: liveExport});
+      if (actions[0].sep) actions.shift();
       return actions;
     }
   }
