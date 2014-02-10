@@ -51,7 +51,7 @@ define("data/publisher", function () {
         var args = entry.link.substr(index + 1).split(" ");
         var name = args.shift();
         var req = {
-          path: entry.path,
+          path: path,
           etag: etag,
           name: name,
           args: args,
