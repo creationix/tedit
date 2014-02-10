@@ -42,7 +42,7 @@ define("ui/editor", function () {
 
   setTheme(themeNames[themeIndex], true);
   editor.on("blur", function () {
-    if (currentDoc && currentDoc.save) currentDoc.save(currentDoc.session.getValue());
+    if (currentDoc && currentDoc.save) save();
   });
   editor.on("change", function () {
     if (currentDoc && currentDoc.onChange) currentDoc.onChange(currentDoc.session.getValue());
@@ -51,10 +51,23 @@ define("ui/editor", function () {
     name: 'save',
     bindKey: {win: 'Ctrl-S',  mac: 'Command-S'},
     exec: function() {
-      if (currentDoc && currentDoc.save) currentDoc.save(currentDoc.session.getValue());
+      if (currentDoc && currentDoc.save) save();
     },
     readOnly: false
   });
+  
+  function save() {
+    var doc = currentDoc.session.getDocument();
+    var lines = doc.getAllLines();
+
+    for (var i = 0, l = lines.length; i < l; i++) {
+        var line = lines[i];
+        var index = line.search(/\s+$/);
+        console.log(index, line);
+        if (index >= 0) doc.removeInLine(i, index, line.length);
+    }
+    currentDoc.save(currentDoc.session.getValue());
+  }
 
   var textMode = true;
   var currentDoc = null;
