@@ -63,7 +63,6 @@ define("ui/editor", function () {
     for (var i = 0, l = lines.length; i < l; i++) {
         var line = lines[i];
         var index = line.search(/\s+$/);
-        console.log(index, line);
         if (index >= 0) doc.removeInLine(i, index, line.length);
     }
     currentDoc.save(currentDoc.session.getValue());
