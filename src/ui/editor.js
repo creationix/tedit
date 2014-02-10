@@ -4,6 +4,8 @@ define("ui/editor", function () {
 
   var notify = require('ui/notify');
   var $ = require('ui/elements');
+
+  ace.require("ace/ext/language_tools"); // Trigger the extension.
   var whitespace = ace.require('ace/ext/whitespace');
   var themes = ace.require('ace/ext/themelist').themesByName;
   var domBuilder = require('lib/dombuilder');
@@ -21,10 +23,13 @@ define("ui/editor", function () {
   editor.setTheme = setTheme;
   editor.prevTheme = prevTheme;
   editor.nextTheme = nextTheme;
-  // TODO: get this actually working
-  // editor.setOptions({
-  //   enableBasicAutocompletion: true,
-  // });
+
+  // Turn on autocompletion
+  editor.setOptions({
+    enableBasicAutocompletion: true,
+    enableSnippets: true
+  });
+
   editor.updatePath = function (doc) {
     if (doc !== currentDoc) return;
     updateTitle(doc.path);
