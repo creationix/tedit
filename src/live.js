@@ -23,7 +23,6 @@ define("live", function () {
     fileSystem.restoreEntry(settings.entry, function (entry) {
       if (!entry) fail(node, new Error("Failed to restore entry"));
       rootEntry = entry;
-      node.exportPath = rootEntry.fullPath + "/" + settings.name;
       node.pulse = false;
       hook(node);
     });
@@ -36,6 +35,7 @@ define("live", function () {
         dirty = node;
         return;
       }
+      node.exportPath = rootEntry.fullPath + "/" + settings.name;
 
       // Mark the process as busy
       node.pulse = true;

@@ -279,12 +279,16 @@ define("tree", function () {
     }
 
     function commitChanges(node) {
-      var current;
+      var current, preview;
       var userEmail, userName;
       repo.loadAs("commit", config.current, onCurrent);
 
       function onCurrent(err, result) {
         if (!result) fail(node, err || new Error("Missing commit " + config.current));
+        if (config.githubName) {
+          var previewDiff = "https://github.com/" + config.githubName + "/commit/" + config.current;
+          preview = window.open(previewDiff, "tedit-diff-preview", "menubar=0,toolbar=0,location=0,status=0");
+        }
         current = result;
         userName = prefs.get("userName", "");
         userEmail = prefs.get("userEmail", "");
@@ -295,6 +299,7 @@ define("tree", function () {
         ], onResult);
       }
       function onResult(result) {
+        if (preview) preview.close();
         if (!result) return;
         if (result.name !== userName) prefs.set("userName", result.name);
         if (result.email !== userEmail) prefs.set("userEmail", result.email);
@@ -548,21 +553,21 @@ define("tree", function () {
 
     function setCurrent(node, hash, isHead) {
       node.busy = true;
-      if (onChange) return onChange(root, hash);
-
-      var ref = isHead ? "refs/heads/master" : "refs/tags/current";
-
-      return repo.updateRef(ref, hash, function (err) {
+      config.current = hash;
+      if (isHead) return repo.updateRef("refs/heads/master", hash, onUpdate);
+      return afterSave();
+      
+      function onUpdate(err) {
         if (err) fail(node, err);
-        if (isHead) {
-          config.head = hash;
-          return setCurrent(node, hash);
-        }
-        else {
-          config.current = hash;
-        }
+        config.head = hash;
+        return afterSave();
+      }
+
+      function afterSave() {
+        if (onChange) return onChange(root, hash);
+        prefs.save();
         render();
-      });
+      }
     }
 
     function makeMenu(node) {

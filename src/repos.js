@@ -124,13 +124,6 @@ define("repos", function () {
     function onHead(err, hash) {
       if (err) return callback(err);
       if (hash) config.head = hash;
-      if (config.current) return onCurrent();
-      return repo.readRef("refs/tags/current", onCurrent);
-    }
-
-    function onCurrent(err, hash) {
-      if (err) return callback(err);
-      if (hash) config.current = hash;
       if (!config.current) {
         if (config.head) config.current = config.head;
         else if (config.url) return clone(repo, config, onHead);
@@ -143,6 +136,12 @@ define("repos", function () {
         config: config
       };
       callback(null, pair);
+    }
+    
+    function onCurrent(err, hash) {
+      if (!hash) return callback(err || new Error("Invalid current hash"));
+      config.current = hash;
+      onHead();
     }
 
     function onTree(err, hash) {
