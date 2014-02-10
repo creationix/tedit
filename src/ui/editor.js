@@ -30,6 +30,11 @@ define("ui/editor", function () {
     enableSnippets: true
   });
 
+  // Use Tab for autocomplete
+  var cmd = editor.commands.byName.startAutocomplete;
+  cmd.bindKey = "Tab";
+  editor.commands.addCommand(cmd);  
+
   editor.updatePath = function (doc) {
     if (doc !== currentDoc) return;
     updateTitle(doc.path);
