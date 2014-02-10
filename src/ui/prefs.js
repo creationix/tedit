@@ -1,5 +1,5 @@
 /*global define, chrome*/
-define("prefs", function () {
+define("ui/prefs", function () {
   var defer = require('js-git/lib/defer');
   var storage = chrome.storage.local;
   var prefs;

@@ -1,8 +1,8 @@
 /*global define, chrome*/
-define("startserver", function () {
+define("data/startserver", function () {
   "use strict";
   var socket = chrome.socket;
-  var fail = require('fail');
+  var fail = require('ui/fail');
 
   return function startServer(repo, config, node) {
     console.log({

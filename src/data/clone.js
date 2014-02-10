@@ -1,5 +1,5 @@
 /*global define*/
-define("clone", function () {
+define("data/clone", function () {
   "use strict";
   return clone;
   function clone(repo, url, callback) {

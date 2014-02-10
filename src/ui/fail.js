@@ -1,5 +1,5 @@
 /*global define*/
-define("fail", function () {
+define("ui/fail", function () {
   "use strict";
   return fail;
   // A more user friendly throw that shows the source of the error visually

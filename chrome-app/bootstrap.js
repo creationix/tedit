@@ -69,6 +69,7 @@
 
   function define(name, fn) {
     var script = scripts[name];
+    if (!script) throw new Error("Name mismatch for " + name);    
     delete scripts[name];
     document.head.removeChild(script);
     var deps = mine(fn.toString()).map(pullName);

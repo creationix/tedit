@@ -1,10 +1,10 @@
 /*global define*/
 // This module handles rendering for rows in the file tree
 // It exports an object with data-bound properties that control the UI
-define("row", function () {
+define("ui/row", function () {
   "use strict";
 
-  var domBuilder = require('dombuilder');
+  var domBuilder = require('lib/dombuilder');
   var modes = require('js-git/lib/modes');
 
   return makeRow;

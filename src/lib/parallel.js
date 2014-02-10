@@ -1,5 +1,5 @@
 /*global define*/
-define("parallel", function () {
+define("lib/parallel", function () {
 
   return parallel;
 

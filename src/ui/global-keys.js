@@ -1,9 +1,9 @@
 /*global define, chrome*/
-define("global-keys", function () {
+define("ui/global-keys", function () {
   "use strict";
 
-  var zoom = require('zoom');
-  var editor = require('editor');
+  var zoom = require('ui/zoom');
+  var editor = require('ui/editor');
 
   window.addEventListener("keydown", onKey, true);
   function onKey(evt) {

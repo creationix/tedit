@@ -1,9 +1,9 @@
 /*global define, ace*/
 /*jshint unused:strict, undef:true,trailing:true */
-define("document", function () {
+define("data/document", function () {
   "use strict";
 
-  var editor = require('editor');
+  var editor = require('ui/editor');
   var modelist = ace.require('ace/ext/modelist');
   var binary = require('js-git/lib/binary');
   var modes = require('js-git/lib/modes');

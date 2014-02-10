@@ -1,8 +1,8 @@
 /*global define, ace*/
-define("applytheme", function () {
+define("ui/applytheme", function () {
   "use strict";
 
-  var parseCss = require('css-parse');
+  var parseCss = require('lib/css-parse');
 
   var template = {
     ".tree": {

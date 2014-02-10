@@ -1,7 +1,7 @@
 /*global define*/
-define("notify", function () {
+define("ui/notify", function () {
   "use strict";
-  var domBuilder = require('dombuilder');
+  var domBuilder = require('lib/dombuilder');
   var popup = domBuilder([".popup"]);
   var timeout = null;
   hide();

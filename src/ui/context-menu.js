@@ -1,7 +1,7 @@
 /*global define*/
-define('context-menu', function () {
+define('ui/context-menu', function () {
 
-  var domBuilder = require('dombuilder');
+  var domBuilder = require('lib/dombuilder');
 
   return ContextMenu;
 

@@ -1,5 +1,5 @@
 /*global define, chrome, indexedDB*/
-define("clear", function () {
+define("data/clear", function () {
   "use strict";
   indexedDB.deleteDatabase("tedit");
   console.warn("tedit IDB deleted");

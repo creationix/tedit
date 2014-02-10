@@ -1,15 +1,15 @@
 /*global define*/
 /*jshint unused:strict,undef:true,trailing:true */
-define("repos", function () {
+define("data/repos", function () {
 
-  var prefs = require('prefs');
+  var prefs = require('ui/prefs');
   var treeConfig = prefs.get("treeConfig", {});
   var parseConfig = require('js-git/lib/config-codec').parse;
   var encodeConfig = require('js-git/lib/config-codec').encode;
-  var importEntry = require('importfs');
-  var clone = require('clone');
+  var importEntry = require('data/importfs');
+  var clone = require('data/clone');
   var modes = require('js-git/lib/modes');
-  var pathJoin = require('pathjoin');
+  var pathJoin = require('lib/pathjoin');
   var repos = {};
 
   return {

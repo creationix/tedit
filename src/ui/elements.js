@@ -1,9 +1,9 @@
 /*global define, chrome*/
-define("elements", function () {
+define("ui/elements", function () {
   "use strict";
 
   // Create the main UI
-  var domBuilder = require('dombuilder');
+  var domBuilder = require('lib/dombuilder');
   var $ = {};
   document.body.appendChild(domBuilder([
     [".wrap",
@@ -21,7 +21,7 @@ define("elements", function () {
   ], $));
 
   // Hook for global zoom keybindings
-  require('zoom')(onZoom);
+  require('ui/zoom')(onZoom);
 
   return $;
 

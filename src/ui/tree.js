@@ -1,26 +1,26 @@
-/*global define, chrome, indexedDB*/
+/*global define, chrome*/
 /*jshint unused:strict, undef:true,trailing:true */
-define("tree", function () {
+define("ui/tree", function () {
 
-  var $ = require('elements');
+  var $ = require('ui/elements');
   var modes = require('js-git/lib/modes');
-  var domBuilder = require('dombuilder');
-  var makeRow = require('row');
-  var dialog = require('dialog');
-  var prefs = require('prefs');
-  var contextMenu = require('context-menu');
-  var fail = require('fail');
-  var repos = require('repos');
+  var domBuilder = require('lib/dombuilder');
+  var makeRow = require('ui/row');
+  var dialog = require('ui/dialog');
+  var prefs = require('ui/prefs');
+  var contextMenu = require('ui/context-menu');
+  var fail = require('ui/fail');
+  var repos = require('data/repos');
   var genName = repos.genName;
-  var importEntry = require('importfs');
-  var notify = require('notify');
-  var live = require('live');
+  var importEntry = require('data/importfs');
+  var notify = require('ui/notify');
+  var live = require('data/live');
 
   // Memory for opened trees.  Accessed by path
   var openPaths = prefs.get("openPaths", {});
 
-  var newDoc = require('document');
-  var editor = require('editor');
+  var newDoc = require('data/document');
+  var editor = require('ui/editor');
   // Paths to the currently selected or active tree
   var selected, active;
   var activePath = prefs.get("activePath");

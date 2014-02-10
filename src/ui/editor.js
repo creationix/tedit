@@ -1,13 +1,13 @@
 /*global define, ace*/
-define("editor", function () {
+define("ui/editor", function () {
   "use strict";
 
-  var notify = require('notify');
-  var $ = require('elements');
+  var notify = require('ui/notify');
+  var $ = require('ui/elements');
   var whitespace = ace.require('ace/ext/whitespace');
   var themes = ace.require('ace/ext/themelist').themesByName;
-  var domBuilder = require('dombuilder');
-  var prefs = require('prefs');
+  var domBuilder = require('lib/dombuilder');
+  var prefs = require('ui/prefs');
   var themeNames = Object.keys(ace.require('ace/ext/themelist').themesByName);
   var themeIndex = prefs.get("themeIndex", themeNames.indexOf("clouds_midnight"));
 
@@ -103,7 +103,7 @@ define("editor", function () {
 
   editor.setDoc();
 
-  require('zoom')(onZoom);
+  require('ui/zoom')(onZoom);
 
   function onZoom(scale) {
     editor.setFontSize(16 * scale);
@@ -171,7 +171,7 @@ define("editor", function () {
     var theme = themes[name];
     document.body.setAttribute("class", "theme-" + (theme.isDark ? "dark" : "light"));
     editor.renderer.setTheme(theme.theme, function () {
-      require('applytheme')(theme);
+      require('ui/applytheme')(theme);
       if (!quiet) notify(theme.caption);
     });
   }

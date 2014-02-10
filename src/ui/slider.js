@@ -1,11 +1,11 @@
 /*global define*/
-define("slider", function () {
+define("ui/slider", function () {
   "use strict";
 
-  require('editor');
+  require('ui/editor');
 
-  var $ = require("elements");
-  var prefs = require('prefs');
+  var $ = require("ui/elements");
+  var prefs = require('ui/prefs');
   var position = null;
   var isTouch = false;
   var size = prefs.get("slider", 200);
@@ -22,7 +22,7 @@ define("slider", function () {
   dragger.addEventListener("mousedown", onStart, true);
   dragger.addEventListener("touchstart", onStart, true);
 
-  require('zoom')(onZoom);
+  require('ui/zoom')(onZoom);
 
   function onZoom(scale, oldScale) {
     slide(Math.round(size / oldScale * scale));

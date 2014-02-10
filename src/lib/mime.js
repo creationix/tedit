@@ -1,5 +1,5 @@
 /*global define*/
-define("mime", function () {
+define("lib/mime", function () {
   "use strict";
   // A simple mime database.
   function setup(defaultMime) {

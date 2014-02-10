@@ -1,12 +1,12 @@
 /*global define, chrome*/
 /*jshint unused:strict,undef:true,trailing:true */
-define("live", function () {
+define("data/live", function () {
 
   var fileSystem = chrome.fileSystem;
-  var fail = require('fail');
-  var pathJoin = require('pathjoin');
-  var pathToEntry = require('repos').pathToEntry;
-  var publisher = require('publisher');
+  var fail = require('ui/fail');
+  var pathJoin = require('lib/pathjoin');
+  var pathToEntry = require('data/repos').pathToEntry;
+  var publisher = require('data/publisher');
   var binary = require('js-git/lib/binary');
 
   var memory = {};

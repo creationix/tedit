@@ -1,9 +1,9 @@
 /*global define*/
 /*jshint unused:strict,undef:true,trailing:true */
-define("publisher", function () {
+define("data/publisher", function () {
   "use strict";
 
-  var pathJoin = require('pathjoin');
+  var pathJoin = require('lib/pathjoin');
   var modes = require('js-git/lib/modes');
   
   // pathToEntry accepts a path and returns {mode,hash,{tree|link}} in callback

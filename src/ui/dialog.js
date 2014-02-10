@@ -1,8 +1,8 @@
 /*global define, chrome*/
-define("dialog", function () {
+define("ui/dialog", function () {
   "use strict";
 
-  var domBuilder = require('dombuilder');
+  var domBuilder = require('lib/dombuilder');
   var fileSystem = chrome.fileSystem;
 
   // dialog.alert = alertDialog;

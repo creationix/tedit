@@ -1,9 +1,9 @@
 /*global define*/
-define("zoom", function () {
+define("ui/zoom", function () {
   "use strict";
 
-  var notify = require('notify');
-  var prefs = require('prefs');
+  var notify = require('ui/notify');
+  var prefs = require('ui/prefs');
   var zooms = [
     25, 33, 50, 67, 75, 90, 100, 110, 120, 125, 150, 175, 200, 250, 300, 400, 500
   ];

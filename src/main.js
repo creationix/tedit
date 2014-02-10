@@ -3,15 +3,15 @@ define("main", function () {
   "use strict";
 
   // require('clear');
-  require('parallel')([
+  require('lib/parallel')([
     // Initialize the subsystems in parallel for fast boot
-    require('prefs').init,
+    require('ui/prefs').init,
     require('js-git/mixins/indexed-db').init
   ], function () {
     // Load the main GUI components
-    require('tree');
-    require('editor');
-    require('slider');
-    require('global-keys');
+    require('ui/tree');
+    require('ui/editor');
+    require('ui/slider');
+    require('ui/global-keys');
   });
 });

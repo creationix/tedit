@@ -1,4 +1,4 @@
-define("pathjoin", function () {
+define("lib/pathjoin", function () {
   "use strict";
   return pathJoin;
   

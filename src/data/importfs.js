@@ -1,5 +1,5 @@
 /*global define, chrome*/
-define("importfs", function () {
+define("data/importfs", function () {
   "use strict";
 
   var modes = require('js-git/lib/modes');

@@ -1,5 +1,5 @@
 /*global define, Text*/
-define("dombuilder", function () {
+define("lib/dombuilder", function () {
   "use strict";
 
   var CLASS_MATCH = /\.[^.#$]+/g,
