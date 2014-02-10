@@ -8,8 +8,32 @@ define("data/document", function () {
   var binary = require('js-git/lib/binary');
   var modes = require('js-git/lib/modes');
   var whitespace = ace.require('ace/ext/whitespace');
+  var recent = [];
+  var recentIndex = 0;
+  var current;
+
+  Doc.next = next;
+  Doc.reset = reset;
+
+  function next() {
+    if (!recent.length) return;
+    recentIndex = (recentIndex + 1) % recent.length;
+    current = recent[recentIndex];
+    editor.setDoc(current);
+    console.log("NEXT");
+  }
+  
+  function reset() {
+    if (!current) return;
+    // Put current at the front of the recent list.
+    var index = recent.indexOf(current);
+    if (index >= 0) recent.splice(index, 1);
+    recent.unshift(current);
+    recentIndex = 0;
+  }
 
   function Doc(path, mode, body) {
+    if (!(this instanceof Doc)) return new Doc(path, mode, body);
     var code = binary.toUnicode(body);
     this.path = path;
     this.mode = mode;
@@ -40,6 +64,7 @@ define("data/document", function () {
     this.aceMode = aceMode;
     this.session.setMode(aceMode);
   };
+
   Doc.prototype.setBody = function (body) {
     var code = binary.toUnicode(body);
     if (code === this.code) return;
@@ -47,9 +72,11 @@ define("data/document", function () {
     this.session.setValue(code, 1);
     whitespace.detectIndentation(this.session);
   };
+
   Doc.prototype.activate = function () {
     editor.setDoc(this);
   };
+
   Doc.prototype.save = function (text) {
     if (text === this.code) return;
     this.code = text;
@@ -57,7 +84,6 @@ define("data/document", function () {
     this.updateTree(body);
   };
 
-  return function newDoc(path, mode, body) {
-    return new Doc(path, mode, body);
-  };
+  return Doc;
+
 });
