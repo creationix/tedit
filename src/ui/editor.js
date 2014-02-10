@@ -57,14 +57,20 @@ define("ui/editor", function () {
   });
   
   function save() {
+
+    // Trim trailing whitespace.
     var doc = currentDoc.session.getDocument();
     var lines = doc.getAllLines();
-
     for (var i = 0, l = lines.length; i < l; i++) {
         var line = lines[i];
         var index = line.search(/\s+$/);
         if (index >= 0) doc.removeInLine(i, index, line.length);
     }
+    
+    // Remove extra trailing blank lines
+    while (--i >= 0) if (/\S/.test(lines[i])) break;
+    if (i < l - 2) doc.removeLines(i + 2, l - 1);
+
     currentDoc.save(currentDoc.session.getValue());
   }
 
