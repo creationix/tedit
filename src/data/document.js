@@ -62,7 +62,24 @@ define("data/document", function () {
       "ace/mode/text" : modelist.getModeForPath(this.path).mode;
     if (this.aceMode === aceMode) return;
     this.aceMode = aceMode;
-    this.session.setMode(aceMode);
+    var session = this.session;
+    session.setMode(aceMode, function () {
+      if (aceMode === "ace/mode/javascript") {
+        // Tweak js-hint settings for JavaScript
+        session.$worker.call("setOptions", [{
+          unused: true,
+          undef: true,
+          esnext: true,
+          browser: true,
+          node: true,
+          onevar: false,
+          passfail: false,
+          maxerr: 100,
+          multistr: true,
+          globalstrict: true
+        }]);
+      }
+    });
   };
 
   Doc.prototype.setBody = function (body) {
