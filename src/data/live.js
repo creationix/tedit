@@ -1,11 +1,13 @@
 /*global define, chrome*/
-/*jshint unused:strict,undef:true,trailing:true */
 define("data/live", function () {
 
   var fileSystem = chrome.fileSystem;
   var fail = require('ui/fail');
   var pathToEntry = require('data/repos').pathToEntry;
   var publisher = require('data/publisher');
+  var pathJoin = require('lib/pathjoin');
+  var modes = require("js-git/lib/modes");
+  var notify = require('ui/notify');
   var handlers = {
     amd: require("filters/amd")
   };
@@ -41,12 +43,13 @@ define("data/live", function () {
       // Mark the process as busy
       node.pulse = true;
       console.log("Export Start");
-      
+
       // Run the export script
       exportPath(settings.source, settings.name, rootEntry, onExport, onFail);
 
       function onExport() {
         node.pulse = false;
+        notify("Finished Export");
         console.log("Export Done");
         // If there was a pending request, run it now.
         if (dirty) {
@@ -55,40 +58,48 @@ define("data/live", function () {
           hook(newNode);
         }
       }
-      
+
       function onFail(err) {
         node.pulse = false;
+        notify("Export Failed");
         fail(node, err);
       }
 
     }
-      
+
 
     function exportPath(path, name, dir, onSuccess, onError) {
       var etag = memory[path];
-      servePath(path, etag, onResult);
-      
-      function onResult(err, result) {
-        if (!result) return onError(err || new Error("Can't find " + path));
-        // Always walk trees because there might be symlinks under them that point
-        // to changed content without  the tree's content actually changing.
-        if (result.tree) return exportTree(path, name, dir, result.tree, onSuccess, onError);
-        // If the etags match, it means we've already exported this version of this path.
-        if (etag && result.etag === etag) {
-          console.log("Skipping", path, etag)
-          return onSuccess();
-        }
-        // Mark this as being saved.
-        memory[path] = result.etag;
-        result.fetch(onBody);
+      return servePath(path, etag, onEntry);
+
+      function onEntry(err, entry) {
+        if (!entry) return onError(err || new Error("Can't find " + path));
+        return exportEntry(path, name, dir, entry, onSuccess, onError);
       }
+    }
+
+    function exportEntry(path, name, dir, entry, onSuccess, onError) {
+      var etag = memory[path];
+      // Always walk trees because there might be symlinks under them that point
+      // to changed content without  the tree's content actually changing.
+      if (entry.tree) return exportTree(path, name, dir, entry.tree, onSuccess, onError);
+      // If the etags match, it means we've already exported this version of this path.
+      if (etag && entry.etag === etag) {
+        // console.log("Skipping", path, etag);
+        return onSuccess();
+      }
+      console.log("Exporting", path, etag);
+
+      // Mark this as being saved.
+      memory[path] = entry.etag;
+      entry.fetch(onBody);
 
       function onBody(err, body) {
         if (body === undefined) return onError(err || new Error("Problem fetching response body"));
         return exportFile(name, dir, body, onSuccess, onError);
       }
     }
-    
+
     function exportTree(path, name, dir, tree, onSuccess, onError) {
       // Create the directoy
       dir.getDirectory(name, {create: true}, onDir, onError);
@@ -98,16 +109,14 @@ define("data/live", function () {
         exportChildren(path, tree, dirEntry, onSuccess, onError);
       }
     }
-    
+
     function exportChildren(base, tree, dir, onSuccess, onError) {
       var names = Object.keys(tree);
       check();
-      
+
       function check() {
         var name = names.shift();
-        if (!name) {
-          return onSuccess();
-        }
+        if (!name) return onSuccess();
         exportPath(base + "/" + name, name, dir, check, onError);
       }
     }
@@ -115,7 +124,7 @@ define("data/live", function () {
     function exportFile(name, dir, body, onSuccess, onError) {
       // Flag for onWriteEnd to know state
       var truncated = false;
-      
+
       // Create the file
       dir.getFile(name, {create:true}, onFile, onError);
 
@@ -123,7 +132,7 @@ define("data/live", function () {
       function onFile(file) {
         file.createWriter(onWriter, onError);
       }
-  
+
       // Setup the writer and start the write
       function onWriter(fileWriter) {
         fileWriter.onwriteend = onWriteEnd;

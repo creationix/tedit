@@ -15,6 +15,7 @@ define("ui/tree", function () {
   var importEntry = require('data/importfs');
   var notify = require('ui/notify');
   var live = require('data/live');
+  var rescape = require("lib/rescape");
 
   // Memory for opened trees.  Accessed by path
   var openPaths = prefs.get("openPaths", {});
@@ -38,7 +39,7 @@ define("ui/tree", function () {
 
 
   function updatePaths(oldPath, newPath) {
-    var reg = new RegExp("^" + oldPath.replace(/([.?*+^$[\]\\(){}|])/g, "\\$1") + "(?=/|$)");
+    var reg = new RegExp("^" + rescape(oldPath) + "(?=/|$)");
     if (reg.test(activePath)) {
       var doc = docPaths[activePath];
       activePath = activePath.replace(reg, newPath);
@@ -224,7 +225,7 @@ define("ui/tree", function () {
           {name: "path", placeholder: "path", required:true, value:node.localPath},
         ], onResult);
       });
-      
+
       function onResult(result) {
         if (!result) return;
         var entries = [{
@@ -409,7 +410,7 @@ define("ui/tree", function () {
         {name: "target", placeholder: "target", required:true},
         {name: "name", placeholder: "name", required:true},
       ], onResult);
-      
+
       function onResult(result) {
         if (!result) return;
         getUnique(node, result.name, function (err, name) {
@@ -556,7 +557,7 @@ define("ui/tree", function () {
       config.current = hash;
       if (isHead) return repo.updateRef("refs/heads/master", hash, onUpdate);
       return afterSave();
-      
+
       function onUpdate(err) {
         if (err) fail(node, err);
         config.head = hash;

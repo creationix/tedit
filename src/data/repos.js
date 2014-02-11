@@ -1,5 +1,4 @@
 /*global define*/
-/*jshint unused:strict,undef:true,trailing:true */
 define("data/repos", function () {
 
   var prefs = require('ui/prefs');
@@ -10,6 +9,7 @@ define("data/repos", function () {
   var clone = require('data/clone');
   var modes = require('js-git/lib/modes');
   var pathJoin = require('lib/pathjoin');
+  var rescape = require('lib/rescape');
   var repos = {};
 
   return {
@@ -42,7 +42,7 @@ define("data/repos", function () {
     var meta;
     pathToEntry(path + "/.gitmodules", onMetaEntry);
     pathToEntry(path + "/" + localPath, onTreeEntry);
-    
+
     function onMetaEntry(err, entry, result) {
       if (err) return callback(err);
       if (!entry) {
@@ -59,7 +59,7 @@ define("data/repos", function () {
       catch (err) { return callback(err); }
       join();
     }
-    
+
     function onTreeEntry(err, entry, result) {
       if (!entry) return callback(err || new Error("Missing parent tree " + localPath));
       if (result !== repo) return callback(new Error("repo mismatch"));
@@ -133,7 +133,7 @@ define("data/repos", function () {
       };
       callback(null, pair);
     }
-    
+
     function onCurrent(err, hash) {
       if (!hash) return callback(err || new Error("Invalid current hash"));
       config.current = hash;
@@ -226,12 +226,17 @@ define("data/repos", function () {
       require('js-git/mixins/indexed-db')(repo, config.prefix);
       require('js-git/mixins/create-tree')(repo);
     }
+
+    // Cache everything except blobs over 100 bytes in memory.
+    require('js-git/mixins/mem-cache')(repo);
+
     // Combine concurrent read requests for the same hash
     require('js-git/mixins/read-combiner')(repo);
 
+
     // Add delay to all I/O operations for debugging
     // require('delay')(repo, 300);
-    
+
     // Add format munging to add two new virtual types "array" and "text"
     require('js-git/mixins/formats')(repo);
     return repo;
@@ -239,14 +244,14 @@ define("data/repos", function () {
 
   // global-path based pathToEntry
   function pathToEntry(path, callback) {
-    console.log("pathToEntry", path);
+    // console.log("pathToEntry", path);
     var mode, hash, repo, rootPath, parts;
 
     // strip extra leading and trailing slashes
     path = path.split("/").filter(Boolean).join("/");
-    
+
     start();
-    
+
     function start() {
       try {
         // Find the nearest known repo root
@@ -273,7 +278,19 @@ define("data/repos", function () {
       if (!parts.length) return done({tree:tree});
       var name = parts.shift();
       var entry = tree[name];
-      if (!entry) return callback();
+      if (!entry) {
+        var match = findMatch(tree, name);
+        if (match) {
+          entry = tree[match.key];
+          return repo.loadAs("text", entry.hash, function (err, link) {
+            if (err) return callback(err);
+            mode = modes.sym;
+            hash = entry.hash + "-" + match.value;
+            return onSym(null, link.replace(match.variable, match.value));
+          });
+        }
+        return callback();
+      }
       mode = entry.mode;
       hash = entry.hash;
       if (mode === modes.tree) {
@@ -294,15 +311,15 @@ define("data/repos", function () {
       }
       return done({});
     }
-    
+
     function onSym(err, link) {
       if (link === undefined) return callback(err || new Error("Missing symlink " + hash));
       if (!parts.length && link.indexOf("|") >= 0) {
-        return done({link:link});
+        return done({etag:hash, link:link});
       }
       return pathToEntry(pathJoin(path, link, parts.join("/")), callback);
     }
-    
+
     function done(entry) {
       entry.mode = mode;
       entry.hash = hash;
@@ -313,7 +330,27 @@ define("data/repos", function () {
       callback(null, entry, repo);
     }
   }
-  
+
+  function findMatch(tree, name) {
+    for (var key in tree) {
+      if (tree[key].mode !== modes.sym) continue;
+      var match = key.match("^(.*)({[a-z]+})(.*)$");
+      if (!match) continue;
+      var variable = match[2];
+      var pattern = new RegExp("^" + rescape(match[1]) + "(.+)" + rescape(match[3]) + "$");
+      match = name.match(pattern);
+      if (!match) continue;
+      return {
+        pattern: pattern,
+        key: key,
+        variable: variable,
+        value: match[1]
+      };
+    }
+
+
+  }
+
   function initEmpty(repo, tree, callback) {
     if (tree) return onTree(null, tree);
     return repo.saveAs("tree", [], onTree);

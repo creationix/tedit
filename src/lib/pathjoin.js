@@ -1,7 +1,7 @@
 define("lib/pathjoin", function () {
   "use strict";
   return pathJoin;
-  
+
   function pathJoin(/* path segments */) {
     // Split the inputs into a list of path commands.
     var parts = [];
@@ -21,7 +21,7 @@ define("lib/pathjoin", function () {
       else newParts.push(part);
     }
     // Preserve the initial slash if there was one.
-    if (parts[0] === "") newParts.unshift("");
+    if (parts[0][0] === "/") newParts.unshift("");
     // Turn back into a single string path.
     return newParts.join("/") || (newParts.length ? "/" : ".");
   }
