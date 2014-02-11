@@ -31,10 +31,29 @@ define("ui/editor", function () {
   });
 
   // Use Tab for autocomplete
-  var cmd = editor.commands.byName.startAutocomplete;
-  cmd.bindKey = "Tab";
-  editor.commands.addCommand(cmd);  
+  function shouldComplete(editor) {
+    if (editor.getSelectedText()) {
+      return false;
+    }
+    var session = editor.getSession();
+    var doc = session.getDocument();
+    var pos = editor.getCursorPosition();
 
+    var line = doc.getLine(pos.row);
+    return ace.require("ace/autocomplete/util").retrievePrecedingIdentifier(line, pos.column);
+  }
+  editor.commands.addCommand({
+    name: "completeOrIndent",
+    bindKey: "Tab",
+    exec: function(editor) {
+      if (shouldComplete(editor)) {
+        editor.execCommand("startAutocomplete");
+      } else {
+        editor.indent();
+      }
+    }
+  });  
+  
   editor.updatePath = function (doc) {
     if (doc !== currentDoc) return;
     updateTitle(doc.path);
