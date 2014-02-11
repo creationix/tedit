@@ -88,7 +88,7 @@ define("data/live", function () {
         // console.log("Skipping", path, etag);
         return onSuccess();
       }
-      console.log("Exporting", path, etag);
+      // console.log("Exporting", path, etag);
 
       // Mark this as being saved.
       memory[path] = entry.etag;
