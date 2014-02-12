@@ -50,6 +50,7 @@ module.exports = function (pathToEntry, handleCommand) {
       var name = args.shift();
 
       var req = {
+        hash: entry.hash,
         path: path,
         etag: etag,
         name: name,

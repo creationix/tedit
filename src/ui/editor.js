@@ -26,7 +26,7 @@ editor.nextTheme = nextTheme;
 // Turn on autocompletion
 editor.setOptions({
   enableBasicAutocompletion: true,
-  enableSnippets: true
+  // enableSnippets: true
 });
 
 // Use Tab for autocomplete

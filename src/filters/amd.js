@@ -24,7 +24,7 @@ function amd(servePath, req, callback) {
   var name = req.path.substring(req.path.lastIndexOf("/") + 1);
 
 
-  return callback(null, {etag: req.target.etag + "-amd", fetch: fetch});
+  return callback(null, {etag: req.hash + "-" + req.target.etag, fetch: fetch});
 
   function fetch(callback) {
     req.target.fetch(function (err, js) {
