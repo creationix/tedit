@@ -111,7 +111,6 @@ define("ui/tree", function () {
       node.makeMenu = makeMenu.bind(null, node);
       if (docPaths[path]) linkDoc(node, docPaths[path]);
       if (hookConfig[path]) {
-        console.log(path, hookConfig[path]);
         var hook = hookPaths[path];
         if (hook) hook(node, config);
         else hookPaths[path] = live.addExportHook(node, hookConfig[path], config);
