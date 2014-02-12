@@ -258,8 +258,8 @@ define("data/repos", function () {
         rootPath = findRoot(path);
         parts = path.substring(rootPath.length + 1).split("/").filter(Boolean);
         path = rootPath;
-        repo = repos[rootPath];
         var config = treeConfig[rootPath];
+        repo = repos[rootPath] || (repos[rootPath] = createRepo(config));
         // Read the commit to find root tree
         return repo.loadAs("commit", config.current, onCommit);
       }
