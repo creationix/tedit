@@ -301,13 +301,15 @@ define("data/repos", function () {
         return repo.loadAs("text", entry.hash, onSym);
       }
       if (entry.mode === modes.commit) {
-        console.log("TODO: COMMIT", {
-          path: path,
-          name: name,
-          parts: parts,
-          entry: entry
+        path += "/" + name;
+        return loadConfig(path, entry.hash, function (err, pair) {
+          if (err) return callback(err);
+          // Find the nearest known repo root
+          rootPath = path;
+          repo = pair.repo;
+          var config = pair.config;
+          return repo.loadAs("commit", config.current, onCommit);
         });
-        throw new Error("TODO: handle loading submodules");
       }
       return done({});
     }
