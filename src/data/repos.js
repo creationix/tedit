@@ -304,7 +304,7 @@ define("data/repos", function () {
         path += "/" + name;
         return loadConfig(path, entry.hash, function (err, pair) {
           if (err) return callback(err);
-          // Find the nearest known repo root
+          // Start over with this repo as the new root.
           rootPath = path;
           repo = pair.repo;
           var config = pair.config;
