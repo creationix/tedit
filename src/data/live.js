@@ -113,7 +113,7 @@ define("data/live", function () {
         // console.log("Skipping", path, etag);
         return onSuccess();
       }
-      notify("Exporting to " + rootEntry.fullPath + "/" + path + "...");
+      notify("Exporting " + path + "...");
       // console.log("Exporting", path, etag);
 
       // Mark this as being saved.
