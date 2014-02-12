@@ -1,0 +1,1 @@
+../../../src/lib/{name}.js|amd ..

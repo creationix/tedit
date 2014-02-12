@@ -1,35 +1,33 @@
-/*global define, chrome*/
-define("ui/elements", function () {
-  "use strict";
+"use strict";
+/*global chrome*/
 
-  // Create the main UI
-  var domBuilder = require('lib/dombuilder');
-  var $ = {};
-  document.body.appendChild(domBuilder([
-    [".wrap",
-      ["ul.tree$tree"],
-      [".main$main",
-        [".editor$editor"],
-        [".preview$preview", {css: {display:"none"}},
-          [".dragger$dragger"],
-          [".image$image"]
-        ]
-      ],
-      [".titlebar$titlebar", "welcome.jk"],
+// Create the main UI
+var domBuilder = require('../lib/dombuilder.js');
+var $ = {};
+document.body.appendChild(domBuilder([
+  [".wrap",
+    ["ul.tree$tree"],
+    [".main$main",
+      [".editor$editor"],
+      [".preview$preview", {css: {display:"none"}},
+        [".dragger$dragger"],
+        [".image$image"]
+      ]
     ],
-    [".closebox$closebox", {onclick: closeWindow}, "×"],
-  ], $));
+    [".titlebar$titlebar", "welcome.jk"],
+  ],
+  [".closebox$closebox", {onclick: closeWindow}, "×"],
+], $));
 
-  // Hook for global zoom keybindings
-  require('ui/zoom')(onZoom);
+// Hook for global zoom keybindings
+require('./zoom.js')(onZoom);
 
-  return $;
+module.exports = $;
 
-  function onZoom(scale) {
-    document.body.style.fontSize = (scale * 16) + "px";
-  }
+function onZoom(scale) {
+  document.body.style.fontSize = (scale * 16) + "px";
+}
 
-  function closeWindow() {
-    chrome.app.window.current().close();
-  }
-});
+function closeWindow() {
+  chrome.app.window.current().close();
+}

@@ -1,0 +1,1 @@
+../../../src/data/{name}.js|amd ..

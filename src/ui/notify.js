@@ -1,26 +1,23 @@
-/*global define*/
-define("ui/notify", function () {
-  "use strict";
-  var domBuilder = require('lib/dombuilder');
-  var popup = domBuilder([".popup"]);
-  var timeout = null;
-  hide();
-  document.body.appendChild(popup);
+"use strict";
 
-  return function (message) {
-    popup.textContent = message;
-    if (timeout) clearTimeout(timeout);
-    else show();
-    timeout = setTimeout(hide, 1000);
-  };
+var domBuilder = require('../lib/dombuilder.js');
+var popup = domBuilder([".popup"]);
+var timeout = null;
+hide();
+document.body.appendChild(popup);
 
-  function hide() {
-    popup.style.display = "none";
-    timeout = null;
-  }
+module.exports = function (message) {
+  popup.textContent = message;
+  if (timeout) clearTimeout(timeout);
+  else show();
+  timeout = setTimeout(hide, 1000);
+};
 
-  function show() {
-    popup.style.display = "block";
-  }
+function hide() {
+  popup.style.display = "none";
+  timeout = null;
+}
 
-});
+function show() {
+  popup.style.display = "block";
+}
