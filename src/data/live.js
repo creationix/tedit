@@ -180,7 +180,6 @@ define("data/live", function () {
     }
 
     function handleFilter(req, callback) {
-      throw "ME"
       var handler = handlers[req.name];
       if (handler) return handler(servePath, req, callback);
       return callback(new Error("Unknown filter handler " + JSON.stringify(req.name)));
