@@ -45,3 +45,7 @@
 [submodule "lib/css-parse"]
 	path = lib/css-parse
 	url = git@github.com:reworkcss/css-parse.git
+
+[submodule "filters"]
+	path = filters
+	url = git@github.com:creationix/my-filters.git

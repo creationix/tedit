@@ -9,6 +9,7 @@
   window.define = define;
   window.require = requireSync;
   window.requireAsync = requireAsync;
+  window.defs = defs;
   document.body.textContent = "";
 
   requireAsync("main.js");

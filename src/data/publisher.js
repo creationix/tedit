@@ -2,12 +2,15 @@
 
 var pathJoin = require('pathjoin');
 var rescape = require('data/rescape');
+var loadModule = require('./load-module');
 var modes = require('js-git/lib/modes');
 
 // pathToEntry accepts a path and returns {mode,hash,{tree|link}} in callback
-// handleCommand takes req and returns {etag,{tree|fetch},{mime}}
 // req contains(...TODO: document...)
-module.exports = function (pathToEntry, handleCommand) {
+module.exports = function (pathToEntry, settings) {
+
+  var filters;
+  var filtersHash;
 
   return servePath;
 
@@ -132,7 +135,38 @@ module.exports = function (pathToEntry, handleCommand) {
     }
   }
 
+  function handleCommand(req, callback) {
+    pathToEntry(settings.filters, onFiltersEntry);
+
+    function onFiltersEntry(err, entry) {
+      if (!entry) return callback(err || new Error("Missing " + settings.filters));
+      if (entry.hash !== filtersHash) {
+        filtersHash = entry.hash;
+        filters = {};
+      }
+      if (req.name in filters) return filters[req.name](servePath, req, callback);
+
+      return pathToEntry(pathJoin(settings.filters, req.name + ".js"), onCodeEntry);
+    }
+
+    function onCodeEntry(err, entry, repo) {
+      if (!entry) return callback(err || new Error("Missing filter " + req.name));
+      return repo.loadAs("text", entry.hash, onCode);
+    }
+
+    function onCode(err, code) {
+      if (err) return callback(err);
+      var module = loadModule(code);
+      if (typeof module !== "function") {
+        return callback(new Error(req.name + " exports was not a function"));
+      }
+      filters[req.name] = module;
+      filters[req.name](servePath, req, callback);
+    }
+  }
 };
+
+
 
 function compile(srcDir, srcName, target) {
   // This assumes target has the {name} in the last segment

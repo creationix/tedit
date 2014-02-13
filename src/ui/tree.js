@@ -351,7 +351,7 @@ function renderRepo(repoPath, repoHash, onChange) {
     dialog.exportConfig({
       entry: prefs.get("defaultExportEntry"),
       source: node.path,
-      filters: "filters",
+      filters: node.path.substring(0, node.path.indexOf("/") + 1) + "filters",
       name: node.path.substring(node.path.indexOf("/") + 1)
     }, function (settings) {
       if (!settings) return;

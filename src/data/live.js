@@ -17,7 +17,7 @@ module.exports = {
 
 function addExportHook(node, settings) {
   var rootEntry;
-  var servePath = publisher(pathToEntry, handleFilter);
+  var servePath = publisher(pathToEntry, settings);
   var dirty = null;
   node.pulse = true;
   fileSystem.restoreEntry(settings.entry, function (entry) {
@@ -174,11 +174,5 @@ function addExportHook(node, settings) {
       // Trim any extra data leftover from a previous version of the file.
       this.truncate(this.position);
     }
-  }
-
-  function handleFilter(req, callback) {
-    var handler = handlers[req.name];
-    if (handler) return handler(servePath, req, callback);
-    return callback(new Error("Unknown filter handler " + JSON.stringify(req.name)));
   }
 }

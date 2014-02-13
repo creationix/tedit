@@ -264,7 +264,7 @@ function pathToEntry(path, callback) {
     catch (err) { return callback(err); }
   }
 
-  function onCommit(err, commit, hash) {
+  function onCommit(err, commit) {
     if (!commit) return callback(err || new Error("Missing commit " + hash));
     mode = modes.tree;
     hash = commit.tree;
