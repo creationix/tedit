@@ -1,8 +1,8 @@
 "use strict";
 
-var mine = require("lib/mine.js");
-var pathJoin = require("lib/pathjoin.js");
-var binary = require('js-git/lib/binary.js');
+var mine = require("lib/mine");
+var pathJoin = require("lib/pathjoin");
+var binary = require('js-git/lib/binary');
 module.exports = amd;
 
 function amd(servePath, req, callback) {
