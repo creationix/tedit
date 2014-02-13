@@ -1,47 +1,47 @@
-[submodule "modules/filters"]
-	path = modules/filters
+[submodule "lib/filters"]
+	path = lib/filters
 	url = git@github.com:creationix/my-filters.git
 
 [submodule "ace-builds"]
 	path = ace-builds
 	url = git@github.com:ajaxorg/ace-builds.git
 
-[submodule "modules/git-sha1"]
-	path = modules/git-sha1
+[submodule "lib/git-sha1"]
+	path = lib/git-sha1
 	url = git@github.com:creationix/git-sha1.git
 
-[submodule "modules/parallel-continuable"]
-	path = modules/parallel-continuable
+[submodule "lib/parallel-continuable"]
+	path = lib/parallel-continuable
 	url = git@github.com:creationix/parallel-continuable.git
 
-[submodule "modules/js-git"]
-	path = modules/js-git
+[submodule "lib/js-git"]
+	path = lib/js-git
 	url = git@github.com:creationix/js-git.git
 
-[submodule "modules/mine"]
-	path = modules/mine
+[submodule "lib/mine"]
+	path = lib/mine
 	url = git@github.com:creationix/mine.git
 
-[submodule "modules/dombuilder"]
-	path = modules/dombuilder
+[submodule "lib/dombuilder"]
+	path = lib/dombuilder
 	url = git@github.com:creationix/dombuilder.git
 
-[submodule "modules/pathjoin"]
-	path = modules/pathjoin
+[submodule "lib/pathjoin"]
+	path = lib/pathjoin
 	url = git@github.com:creationix/pathjoin.git
 
-[submodule "modules/bodec"]
-	path = modules/bodec
+[submodule "lib/bodec"]
+	path = lib/bodec
 	url = git@github.com:creationix/bodec.git
 
-[submodule "modules/carallel"]
-	path = modules/carallel
+[submodule "lib/carallel"]
+	path = lib/carallel
 	url = git@github.com:creationix/carallel.git
 
-[submodule "modules/simple-mime"]
-	path = modules/simple-mime
+[submodule "lib/simple-mime"]
+	path = lib/simple-mime
 	url = git@github.com:creationix/simple-mime.git
 
-[submodule "modules/css-parse"]
-	path = modules/css-parse
+[submodule "lib/css-parse"]
+	path = lib/css-parse
 	url = git@github.com:reworkcss/css-parse.git

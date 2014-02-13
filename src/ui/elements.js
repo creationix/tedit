@@ -2,7 +2,7 @@
 /*global chrome*/
 
 // Create the main UI
-var domBuilder = require('lib/dombuilder');
+var domBuilder = require('dombuilder');
 // Hook for global zoom keybindings
 require('./zoom')(onZoom);
 

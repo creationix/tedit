@@ -1,14 +1,14 @@
 /*global chrome*/
 
 var modes = require('js-git/lib/modes');
+var domBuilder = require('dombuilder');
 
 var repos = require('data/repos');
 var live = require('data/live');
 var importEntry = require('data/importfs');
 var newDoc = require('data/document');
+var rescape = require("data/rescape");
 
-var domBuilder = require('lib/dombuilder');
-var rescape = require("lib/rescape");
 
 var $ = require('./elements');
 var makeRow = require('./row');

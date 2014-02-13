@@ -1,7 +1,7 @@
 "use strict";
 
-var pathJoin = require('lib/pathjoin');
-var rescape = require('lib/rescape');
+var pathJoin = require('pathjoin');
+var rescape = require('data/rescape');
 var modes = require('js-git/lib/modes');
 
 // pathToEntry accepts a path and returns {mode,hash,{tree|link}} in callback

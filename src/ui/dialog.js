@@ -1,7 +1,7 @@
 "use strict";
 /*global chrome*/
 
-var domBuilder = require('lib/dombuilder');
+var domBuilder = require('dombuilder');
 var fileSystem = chrome.fileSystem;
 
 // dialog.alert = alertDialog;

@@ -1,7 +1,7 @@
 "use strict";
 /*global ace*/
 
-var parseCss = require('lib/css-parse');
+var parseCss = require('css-parse');
 
 var template = {
   ".tree": {

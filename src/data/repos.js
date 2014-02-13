@@ -6,8 +6,8 @@ var encodeConfig = require('js-git/lib/config-codec').encode;
 var importEntry = require('./importfs');
 var clone = require('./clone');
 var modes = require('js-git/lib/modes');
-var pathJoin = require('lib/pathjoin');
-var rescape = require('lib/rescape');
+var pathJoin = require('pathjoin');
+var rescape = require('data/rescape');
 var repos = {};
 
 module.exports = {

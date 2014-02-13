@@ -5,7 +5,7 @@ var modelist = ace.require('ace/ext/modelist');
 var whitespace = ace.require('ace/ext/whitespace');
 
 var editor = require('ui/editor');
-var binary = require('js-git/lib/binary');
+var binary = require('bodec');
 var modes = require('js-git/lib/modes');
 var recent = [];
 var recentIndex = 0;

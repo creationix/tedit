@@ -1,0 +1,1 @@
+../../../modules/filters/amd.js|amd ..

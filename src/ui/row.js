@@ -2,7 +2,7 @@
 // This module handles rendering for rows in the file tree
 // It exports an object with data-bound properties that control the UI
 
-var domBuilder = require('lib/dombuilder');
+var domBuilder = require('dombuilder');
 var modes = require('js-git/lib/modes');
 
 module.exports = makeRow;

@@ -1,6 +1,6 @@
 "use strict";
 
-var domBuilder = require('lib/dombuilder');
+var domBuilder = require('dombuilder');
 
 module.exports = ContextMenu;
 

@@ -1,7 +1,7 @@
 "use strict";
 /*global ace*/
 
-var domBuilder = require('lib/dombuilder');
+var domBuilder = require('dombuilder');
 
 var notify = require('./notify');
 var $ = require('./elements');
@@ -220,7 +220,7 @@ function setTheme(name, quiet) {
   var theme = themes[name];
   document.body.setAttribute("class", "theme-" + (theme.isDark ? "dark" : "light"));
   editor.renderer.setTheme(theme.theme, function () {
-    require('./applytheme.js')(theme);
+    require('./applytheme')(theme);
     if (!quiet) notify(theme.caption);
   });
 }
