@@ -1,1 +1,1 @@
-../../../../js-git/lib/{name}.js|amd ../..
+../../../../modules/js-git/lib/{name}.js|amd ../../..

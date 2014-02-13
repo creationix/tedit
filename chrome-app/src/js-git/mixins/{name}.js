@@ -1,1 +1,1 @@
-../../../../js-git/mixins/{name}.js|amd ../..
+../../../../modules/js-git/mixins/{name}.js|amd ../../..

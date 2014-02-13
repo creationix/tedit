@@ -1,11 +1,47 @@
-[submodule "filters"]
-	path = filters
+[submodule "modules/filters"]
+	path = modules/filters
 	url = git@github.com:creationix/my-filters.git
 
 [submodule "ace-builds"]
 	path = ace-builds
 	url = git@github.com:ajaxorg/ace-builds.git
 
-[submodule "js-git"]
-	path = js-git
+[submodule "modules/git-sha1"]
+	path = modules/git-sha1
+	url = git@github.com:creationix/git-sha1.git
+
+[submodule "modules/parallel-continuable"]
+	path = modules/parallel-continuable
+	url = git@github.com:creationix/parallel-continuable.git
+
+[submodule "modules/js-git"]
+	path = modules/js-git
 	url = git@github.com:creationix/js-git.git
+
+[submodule "modules/mine"]
+	path = modules/mine
+	url = git@github.com:creationix/mine.git
+
+[submodule "modules/dombuilder"]
+	path = modules/dombuilder
+	url = git@github.com:creationix/dombuilder.git
+
+[submodule "modules/pathjoin"]
+	path = modules/pathjoin
+	url = git@github.com:creationix/pathjoin.git
+
+[submodule "modules/bodec"]
+	path = modules/bodec
+	url = git@github.com:creationix/bodec.git
+
+[submodule "modules/carallel"]
+	path = modules/carallel
+	url = git@github.com:creationix/carallel.git
+
+[submodule "modules/simple-mime"]
+	path = modules/simple-mime
+	url = git@github.com:creationix/simple-mime.git
+
+[submodule "modules/css-parse"]
+	path = modules/css-parse
+	url = git@github.com:reworkcss/css-parse.git
