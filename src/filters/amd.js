@@ -1,4 +1,3 @@
-define("filters/amd.js", ["lib/mine.js","lib/pathjoin.js","js-git/lib/binary.js"], function (module, exports) {
 "use strict";
 
 var mine = require("lib/mine.js");
@@ -48,5 +47,3 @@ function amd(servePath, req, callback) {
     });
   }
 }
-
-});
