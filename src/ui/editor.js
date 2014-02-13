@@ -16,7 +16,7 @@ var themeIndex = prefs.get("themeIndex", themeNames.indexOf("clouds_midnight"));
 
 var code = jack.toString().substr(20);
 code = code.substr(0, code.length - 5);
-code = code.split("\n").map(function (line) { return line.substr(4); }).join("\n");
+code = code.split("\n").map(function (line) { return line.substr(2); }).join("\n");
 
 var editor = ace.edit($.editor);
 editor.setTheme = setTheme;
