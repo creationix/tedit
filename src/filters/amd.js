@@ -1,8 +1,9 @@
+define("filters/amd.js", ["lib/mine.js","lib/pathjoin.js","js-git/lib/binary.js"], function (module, exports) {
 "use strict";
 
-var mine = require("lib/mine");
-var pathJoin = require("lib/pathjoin");
-var binary = require('js-git/lib/binary');
+var mine = require("lib/mine.js");
+var pathJoin = require("lib/pathjoin.js");
+var binary = require('js-git/lib/binary.js');
 module.exports = amd;
 
 function amd(servePath, req, callback) {
@@ -35,7 +36,8 @@ function amd(servePath, req, callback) {
       var paths = new Array(length);
       for (var i = length - 1; i >= 0; i--) {
         var dep = deps[i];
-        var depPath = pathJoin(base, dep.name);
+        var depPath = dep.name[0] === "." ? pathJoin(base, dep.name) : dep.name;
+        if (!(/\.[^\/]+$/.test(depPath))) depPath += ".js";
         paths[i] = depPath;
         js = js.substr(0, dep.offset) + depPath + js.substr(dep.offset + dep.name.length);
       }
@@ -46,3 +48,5 @@ function amd(servePath, req, callback) {
     });
   }
 }
+
+});
