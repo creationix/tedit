@@ -1,14 +1,16 @@
 "use strict";
 /*global ace*/
 
-var notify = require('./notify.js');
-var $ = require('./elements.js');
+var domBuilder = require('lib/dombuilder');
+
+var notify = require('./notify');
+var $ = require('./elements');
+var prefs = require('./prefs');
+var zoom = require('./zoom');
 
 ace.require("ace/ext/language_tools"); // Trigger the extension.
 var whitespace = ace.require('ace/ext/whitespace');
 var themes = ace.require('ace/ext/themelist').themesByName;
-var domBuilder = require('../lib/dombuilder.js');
-var prefs = require('./prefs.js');
 var themeNames = Object.keys(ace.require('ace/ext/themelist').themesByName);
 var themeIndex = prefs.get("themeIndex", themeNames.indexOf("clouds_midnight"));
 
@@ -28,6 +30,9 @@ editor.setOptions({
   enableBasicAutocompletion: true,
   // enableSnippets: true
 });
+
+zoom(onZoom);
+
 
 // Use Tab for autocomplete
 function shouldComplete(editor) {
@@ -148,8 +153,6 @@ function updateTitle(path) {
 }
 
 editor.setDoc();
-
-require('./zoom.js')(onZoom);
 
 function onZoom(scale) {
   editor.setFontSize(16 * scale);

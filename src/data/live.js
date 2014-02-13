@@ -1,12 +1,12 @@
 /*global chrome*/
 
 var fileSystem = chrome.fileSystem;
-var fail = require('../ui/fail.js');
-var pathToEntry = require('./repos.js').pathToEntry;
-var publisher = require('../data/publisher.js');
-var notify = require('../ui/notify.js');
+var fail = require('ui/fail');
+var pathToEntry = require('./repos').pathToEntry;
+var publisher = require('data/publisher');
+var notify = require('ui/notify');
 var handlers = {
-  amd: require("../filters/amd.js")
+  amd: require("filters/amd")
 };
 
 var memory = {};

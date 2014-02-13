@@ -4,9 +4,9 @@
 var modelist = ace.require('ace/ext/modelist');
 var whitespace = ace.require('ace/ext/whitespace');
 
-var editor = require('../ui/editor.js');
-var binary = require('../js-git/lib/binary.js');
-var modes = require('../js-git/lib/modes.js');
+var editor = require('ui/editor');
+var binary = require('js-git/lib/binary');
+var modes = require('js-git/lib/modes');
 var recent = [];
 var recentIndex = 0;
 var current;

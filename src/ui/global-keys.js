@@ -1,9 +1,9 @@
 /*global chrome*/
 "use strict";
 
-var zoom = require('./zoom.js');
-var editor = require('./editor.js');
-var doc = require('../data/document.js');
+var zoom = require('./zoom');
+var editor = require('./editor');
+var doc = require('data/document');
 var pending;
 
 window.addEventListener("keydown", onDown, true);

@@ -2,7 +2,10 @@
 /*global chrome*/
 
 // Create the main UI
-var domBuilder = require('../lib/dombuilder.js');
+var domBuilder = require('lib/dombuilder');
+// Hook for global zoom keybindings
+require('./zoom')(onZoom);
+
 var $ = {};
 document.body.appendChild(domBuilder([
   [".wrap",
@@ -19,8 +22,6 @@ document.body.appendChild(domBuilder([
   [".closebox$closebox", {onclick: closeWindow}, "×"],
 ], $));
 
-// Hook for global zoom keybindings
-require('./zoom.js')(onZoom);
 
 module.exports = $;
 

@@ -1,6 +1,6 @@
 "use strict";
 
-var modes = require('../js-git/lib/modes.js');
+var modes = require('js-git/lib/modes');
 var ignores = importEntry.ignores = [".git", "node_modules"];
 
 module.exports = importEntry;

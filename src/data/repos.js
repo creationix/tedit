@@ -1,13 +1,13 @@
 
-var prefs = require('../ui/prefs.js');
+var prefs = require('ui/prefs');
 var treeConfig = prefs.get("treeConfig", {});
-var parseConfig = require('../js-git/lib/config-codec.js').parse;
-var encodeConfig = require('../js-git/lib/config-codec.js').encode;
-var importEntry = require('./importfs.js');
-var clone = require('./clone.js');
-var modes = require('../js-git/lib/modes.js');
-var pathJoin = require('../lib/pathjoin.js');
-var rescape = require('../lib/rescape.js');
+var parseConfig = require('js-git/lib/config-codec').parse;
+var encodeConfig = require('js-git/lib/config-codec').encode;
+var importEntry = require('./importfs');
+var clone = require('./clone');
+var modes = require('js-git/lib/modes');
+var pathJoin = require('lib/pathjoin');
+var rescape = require('lib/rescape');
 var repos = {};
 
 module.exports = {
@@ -211,32 +211,32 @@ function createRepo(config) {
   var repo = {};
   if (config.githubName) {
     var githubToken = prefs.get("githubToken", "");
-    require('../js-git/mixins/github-db.js')(repo, config.githubName, githubToken);
+    require('js-git/mixins/github-db')(repo, config.githubName, githubToken);
     // Github has this built-in, but it's currently very buggy
-    require('../js-git/mixins/create-tree.js')(repo);
+    require('js-git/mixins/create-tree')(repo);
     // Cache github objects locally in indexeddb
-    require('../js-git/mixins/add-cache.js')(repo, require('../js-git/mixins/indexed-db.js'));
+    require('js-git/mixins/add-cache')(repo, require('js-git/mixins/indexed-db'));
   }
   else {
     if (!config.prefix) {
       config.prefix = Date.now().toString(36) + "-" + (Math.random() * 0x100000000).toString(36);
     }
-    require('../js-git/mixins/indexed-db.js')(repo, config.prefix);
-    require('../js-git/mixins/create-tree.js')(repo);
+    require('js-git/mixins/indexed-db')(repo, config.prefix);
+    require('js-git/mixins/create-tree')(repo);
   }
 
   // Cache everything except blobs over 100 bytes in memory.
-  require('../js-git/mixins/mem-cache.js')(repo);
+  require('js-git/mixins/mem-cache')(repo);
 
   // Combine concurrent read requests for the same hash
-  require('../js-git/mixins/read-combiner.js')(repo);
+  require('js-git/mixins/read-combiner')(repo);
 
 
   // Add delay to all I/O operations for debugging
-  // require('delay')(repo, 300);
+  // require('js-git/mixins/delay')(repo, 300);
 
   // Add format munging to add two new virtual types "array" and "text"
-  require('../js-git/mixins/formats.js')(repo);
+  require('js-git/mixins/formats')(repo);
   return repo;
 }
 

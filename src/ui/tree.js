@@ -1,25 +1,28 @@
 /*global chrome*/
 
-var $ = require('./elements.js');
-var modes = require('../js-git/lib/modes.js');
-var domBuilder = require('../lib/dombuilder.js');
-var makeRow = require('./row.js');
-var dialog = require('./dialog.js');
-var prefs = require('./prefs.js');
-var contextMenu = require('./context-menu.js');
-var fail = require('./fail.js');
-var repos = require('../data/repos.js');
+var modes = require('js-git/lib/modes');
+
+var repos = require('data/repos');
+var live = require('data/live');
+var importEntry = require('data/importfs');
+var newDoc = require('data/document');
+
+var domBuilder = require('lib/dombuilder');
+var rescape = require("lib/rescape");
+
+var $ = require('./elements');
+var makeRow = require('./row');
+var dialog = require('./dialog');
+var prefs = require('./prefs');
+var contextMenu = require('./context-menu');
+var fail = require('./fail');
+var editor = require('./editor');
+
 var genName = repos.genName;
-var importEntry = require('../data/importfs.js');
-var notify = require('./notify.js');
-var live = require('../data/live.js');
-var rescape = require("../lib/rescape.js");
 
 // Memory for opened trees.  Accessed by path
 var openPaths = prefs.get("openPaths", {});
 
-var newDoc = require('../data/document.js');
-var editor = require('./editor.js');
 // Paths to the currently selected or active tree
 var selected, active;
 var activePath = prefs.get("activePath");

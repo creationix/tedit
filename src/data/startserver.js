@@ -2,7 +2,7 @@
 /*global chrome*/
 
 var socket = chrome.socket;
-var fail = require('../ui/fail.js');
+var fail = require('ui/fail');
 
 return function startServer(repo, config, node) {
   console.log({

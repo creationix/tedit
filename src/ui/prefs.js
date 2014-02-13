@@ -1,7 +1,7 @@
 "use strict";
 /*global chrome*/
 
-var defer = require('../js-git/lib/defer.js');
+var defer = require('js-git/lib/defer');
 var storage = chrome.storage.local;
 var prefs;
 var dirty = false;

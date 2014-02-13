@@ -1,9 +1,11 @@
 "use strict";
 
-require('./editor.js');
+require('./editor');
 
-var $ = require("./elements.js");
-var prefs = require('./prefs.js');
+var $ = require("./elements");
+var prefs = require('./prefs');
+require('./zoom')(onZoom);
+
 var position = null;
 var isTouch = false;
 var size = prefs.get("slider", 200);
@@ -20,7 +22,6 @@ gutter.addEventListener("touchstart", onStart, true);
 dragger.addEventListener("mousedown", onStart, true);
 dragger.addEventListener("touchstart", onStart, true);
 
-require('./zoom.js')(onZoom);
 
 function onZoom(scale, oldScale) {
   slide(Math.round(size / oldScale * scale));
