@@ -1,1 +1,1 @@
-../../modules/dombuilder/dombuilder.js|amd .
+../../lib/dombuilder/dombuilder.js|amd .

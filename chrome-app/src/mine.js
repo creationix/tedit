@@ -1,1 +1,1 @@
-../../modules/mine/mine.js|amd .
+../../lib/mine/mine.js|amd .

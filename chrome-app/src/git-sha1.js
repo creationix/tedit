@@ -1,0 +1,1 @@
+../../lib/git-sha1/git-sha1.js|amd .

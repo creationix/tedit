@@ -1,1 +1,1 @@
-../../modules/bodec/bodec.js|amd .
+../../lib/bodec/bodec.js|amd .

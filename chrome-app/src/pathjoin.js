@@ -1,1 +1,1 @@
-../../modules/pathjoin/pathjoin.js|amd .
+../../lib/pathjoin/pathjoin.js|amd .

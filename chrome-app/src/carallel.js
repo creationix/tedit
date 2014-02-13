@@ -1,1 +1,1 @@
-../../modules/carallel/carallel.js|amd .
+../../lib/carallel/carallel.js|amd .

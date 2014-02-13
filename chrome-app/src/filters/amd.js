@@ -1,1 +1,1 @@
-../../../modules/filters/amd.js|amd ..
+../../../lib/filters/amd.js|amd ..

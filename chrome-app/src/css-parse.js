@@ -1,1 +1,1 @@
-../../modules/css-parse/index.js|amd .
+../../lib/css-parse/index.js|amd .
