@@ -1,1 +1,0 @@
-../../../lib/filters/amd.js|amd ..

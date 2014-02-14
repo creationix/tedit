@@ -5,9 +5,6 @@ var fail = require('ui/fail');
 var pathToEntry = require('./repos').pathToEntry;
 var publisher = require('data/publisher');
 var notify = require('ui/notify');
-var handlers = {
-  amd: require("filters/amd")
-};
 
 var memory = {};
 
