@@ -243,7 +243,7 @@ function createRepo(config) {
 // global-path based pathToEntry
 function pathToEntry(path, callback) {
   // console.log("pathToEntry", path);
-  var mode, hash, repo, rootPath, parts;
+  var mode, hash, repo, config, rootPath, parts;
 
   // strip extra leading and trailing slashes
   path = path.split("/").filter(Boolean).join("/");
@@ -256,7 +256,7 @@ function pathToEntry(path, callback) {
       rootPath = findRoot(path);
       parts = path.substring(rootPath.length + 1).split("/").filter(Boolean);
       path = rootPath;
-      var config = treeConfig[rootPath];
+      config = treeConfig[rootPath];
       repo = repos[rootPath] || (repos[rootPath] = createRepo(config));
       // Read the commit to find root tree
       return repo.loadAs("commit", config.current, onCommit);
@@ -327,7 +327,7 @@ function pathToEntry(path, callback) {
     entry.path = path;
     entry.localPath = path.substring(rootPath.length + 1);
     // TODO: remove repo arg once code has been uddated to get it from entry
-    callback(null, entry, repo);
+    callback(null, entry, repo, config);
   }
 }
 

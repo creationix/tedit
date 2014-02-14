@@ -19,7 +19,7 @@ module.exports = function (pathToEntry, settings) {
     // console.log("servePath", path);
     return pathToEntry(path, onEntry);
 
-    function onEntry(err, entry, repo) {
+    function onEntry(err, entry, repo, config) {
       if (!entry) return callback(err);
 
       // Trees go straight through, but expand wildcard symlinks first
@@ -53,6 +53,7 @@ module.exports = function (pathToEntry, settings) {
       var name = args.shift();
 
       var req = {
+        current: config.current,
         hash: entry.hash,
         path: path,
         etag: etag,

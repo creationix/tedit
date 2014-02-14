@@ -59,7 +59,16 @@ function genRPC(worker, main) {
       return freeze(arg, i < args.length - 1, transfers);
     }, transfers)];
     // console.log(me + " out " + JSON.stringify(message));
-    worker.postMessage(message, transfers);
+    try {
+      worker.postMessage(message, transfers);
+    }
+    catch (err) {
+      console.error("Problem posting " + JSON.stringify({
+        message: message,
+        transferLengths: transfers.map(function (item) { return item.byteLength; })
+      }));
+      throw err;
+    }
   }
 
   // Freeze functions in a message by turning them into numbered tokens
@@ -82,8 +91,11 @@ function genRPC(worker, main) {
       return value.map(freeze);
     }
     if (value && type === "object") {
+      if (value instanceof Error) {
+        return {$e: value.toString()};
+      }
       if (value.constructor.name === "Uint8Array") {
-        transfers.push(value.buffer);
+        if (value.length) transfers.push(value.buffer);
         return value;
       }
       var object = {};
@@ -118,6 +130,9 @@ function genRPC(worker, main) {
     if (value && typeof value === "object") {
       if (value.constructor.name === "Uint8Array") {
         return value;
+      }
+      if (value.$e) {
+        return new Error(value.$e);
       }
       if (value.$) {
         return proxy(value.$);
