@@ -45,7 +45,7 @@ function genRPC(worker, main) {
   var nextId = 1;
   var functions = [];
   var callbacks = {};
-  var me = self === worker ? "worker" : "master";
+  // var me = self === worker ? "worker" : "master";
 
   worker.onmessage = onmessage;
 
@@ -54,17 +54,16 @@ function genRPC(worker, main) {
   };
 
   function send(id, args) {
-    var message = [id, Array.prototype.map.call(args, freezeArg)];
+    var transfers = [];
+    var message = [id, Array.prototype.map.call(args, function (arg, i) {
+      return freeze(arg, i < args.length - 1, transfers);
+    }, transfers)];
     // console.log(me + " out " + JSON.stringify(message));
-    worker.postMessage(message);
-  }
-
-  function freezeArg(arg, i, args) {
-    return freeze(arg, i < args.length - 1);
+    worker.postMessage(message, transfers);
   }
 
   // Freeze functions in a message by turning them into numbered tokens
-  function freeze(value, permanent) {
+  function freeze(value, permanent, transfers) {
     var type = typeof value;
     if (type === "function") {
       if (permanent) {
@@ -84,11 +83,12 @@ function genRPC(worker, main) {
     }
     if (value && type === "object") {
       if (value.constructor.name === "Uint8Array") {
+        transfers.push(value.buffer);
         return value;
       }
       var object = {};
       for (var key in value) {
-        object[key] = freeze(value[key]);
+        object[key] = freeze(value[key], false, transfers);
       }
       return object;
     }
