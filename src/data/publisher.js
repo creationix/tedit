@@ -9,8 +9,8 @@ var modes = require('js-git/lib/modes');
 // req contains(...TODO: document...)
 module.exports = function (pathToEntry, settings) {
 
-  var filters;
-  var filtersHash;
+  var codeHashes = {};
+  var filters = {};
 
   return servePath;
 
@@ -137,34 +137,39 @@ module.exports = function (pathToEntry, settings) {
   }
 
   function handleCommand(req, callback) {
-    pathToEntry(settings.filters, onFiltersEntry);
-
-    function onFiltersEntry(err, entry) {
-      if (!entry) return callback(err || new Error("Missing " + settings.filters));
-      if (entry.hash !== filtersHash) {
-        filtersHash = entry.hash;
-        filters = {};
-      }
-      if (req.name in filters) return filters[req.name](servePath, req, callback);
-
-      return pathToEntry(pathJoin(settings.filters, req.name + ".js"), onCodeEntry);
-    }
+    var codeHash;
+    var codePath = pathJoin(settings.filters, req.name + ".js");
+    pathToEntry(codePath, onCodeEntry);
 
     function onCodeEntry(err, entry, repo) {
-      if (!entry) return callback(err || new Error("Missing filter " + req.name));
+      if (!entry) return (err || new Error("Missing filter " + req.name));
+      codeHash = entry.hash;
+      // If the code hasn't changed, reuse the existing compiled worker.
+      if (codeHashes[req.name] === codeHash) {
+        return filters[req.name](servePath, req, onHandle);
+      }
       return repo.loadAs("text", entry.hash, onCode);
     }
 
     function onCode(err, code) {
       if (err) return callback(err);
+      console.log("Compiling filter " + req.name);
       var module = loadModule(code);
       if (typeof module !== "function") {
         return callback(new Error(req.name + " exports was not a function"));
       }
       filters[req.name] = module;
-      filters[req.name](servePath, req, callback);
+      codeHashes[req.name] = codeHash;
+      filters[req.name](servePath, req, onHandle);
+    }
+
+    function onHandle(err, result) {
+      if (!result) return callback(err);
+      if (result.etag) result.etag += "-" + codeHash;
+      return callback(null, result);
     }
   }
+
 };
 
 

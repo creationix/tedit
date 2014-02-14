@@ -8,6 +8,7 @@ document.body.appendChild(popup);
 
 module.exports = function (message) {
   popup.textContent = message;
+  console.info(message);
   if (timeout) clearTimeout(timeout);
   else show();
   timeout = setTimeout(hide, 1000);
