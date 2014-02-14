@@ -100,16 +100,13 @@ function genRPC(worker, main) {
     var id = parseInt(evt.data[0], 36);
     var args = thaw(evt.data[1]);
     var fn;
-    if (id < 0) fn = functions[1 - id];
+    if (id < 0) fn = functions[-1 - id];
     else if (id > 0) {
       fn = callbacks[evt.data[0]];
-      if (!fn) {
-        console.warn("missing callback " + id);
-        return;
-      }
       delete callbacks[id];
     }
     else fn = main;
+    if (!fn) throw new Error("Missing callback " + evt.data[0]);
     fn.apply(null, args);
   }
 
