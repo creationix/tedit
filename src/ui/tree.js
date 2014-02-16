@@ -1,4 +1,4 @@
-/*global chrome*/
+/*global chrome,-name*/
 
 var modes = require('js-git/lib/modes');
 var domBuilder = require('dombuilder');

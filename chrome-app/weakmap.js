@@ -1,0 +1,1 @@
+../lib/WeakMap/weakmap.js
