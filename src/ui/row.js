@@ -13,6 +13,7 @@ function makeRow(path, mode, hash, parent) {
   if (typeof path !== "string") throw new TypeError("path must be a string");
   if (typeof mode !== "number") throw new TypeError("mode must be a number");
   var errorMessage = "",
+      title,
       treeHash,
       pulse,
       exportPath,
@@ -27,6 +28,11 @@ function makeRow(path, mode, hash, parent) {
   var children;
   var node = {
     el: domBuilder(["li$el", ["$row", ["i$icon"], ["span$span"]]], $),
+    get title () { return title; },
+    set title( value) {
+      title = value;
+      updatePath();
+    },
     get pulse () { return pulse; },
     set pulse( value) {
       pulse = value;
@@ -180,6 +186,7 @@ function makeRow(path, mode, hash, parent) {
   function updatePath() {
     // Update the UI to show the short-name
     $.span.textContent = path.substring(path.lastIndexOf("/") + 1);
+    $.span.setAttribute("title", title || "");
   }
 
   function updateRow() {
