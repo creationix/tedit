@@ -49,11 +49,11 @@ function onRoots(err, tree, hash) {
 }
 
 function renderChild(path, name, mode, hash) {
-  // console.log("renderChild", arguments);
   var row = rows[path];
   if (row) {
     row.mode = mode;
     row.errorMessage = "";
+    // Skip nodes that haven't changed
     if (row.hash === hash) return row;
     row.hash = hash;
   }
@@ -174,13 +174,24 @@ function activateDoc(row) {
     doc = storage.doc;
     try {
       if (doc) doc.update(row.path, row.mode, blob);
-      else doc = storage.doc = newDoc(row.path, row.mode, blob);
+      else {
+        doc = storage.doc = newDoc(row.path, row.mode, blob);
+        doc.updateTree = updateDoc.bind(null, row);
+      }
       doc.activate();
     }
     catch (err) {
       fail(row.path, err);
     }
   }
+}
+
+function updateDoc(row, body) {
+  row.busy++;
+  fs.writeFile(row.path, body, function (err) {
+    row.busy--;
+    if (err) fail(row.path, err);
+  });
 }
 
 function editSymLink(row) {
