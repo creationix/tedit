@@ -1,8 +1,11 @@
 var rootEl = require('./elements').tree;
 var fs = require('data/fs');
 var makeRow = require('./row');
+var findStorage = require('data/storage');
 var modes = require('js-git/lib/modes');
 var prefs = require('./prefs');
+var editor = require('./editor');
+var newDoc = require('data/document');
 
 // Memory for opened trees.  Accessed by path
 var openPaths = prefs.get("openPaths", {});
@@ -11,6 +14,10 @@ var openPaths = prefs.get("openPaths", {});
 var rootHash;
 // Rows indexed by path
 var rows = {};
+
+var active;
+// Remember the path to the active document.
+var activePath = prefs.get("activePath", "");
 
 fs.addRoot("test", {githubName:"creationix/tedit-app"}, function (err, name) {
   if (err) fail("", err);
@@ -49,6 +56,8 @@ function renderChild(path, name, mode, hash) {
     fs.readCommit(path, onCommit);
   }
   if ((mode === modes.tree) && openPaths[path]) openTree(row);
+  if (activePath === path) activateDoc(row);
+
   return row;
 
   function onCommit(err, commit) {
@@ -102,8 +111,11 @@ function onGlobalClick(evt) {
     if (openPaths[row.path]) closeTree(row);
     else openTree(row);
   }
+  else if (modes.isFile(row.mode)) {
+    activateDoc(row);
+  }
   else {
-    console.log("onClick", row);
+    console.log("TODO: handle click", row);
   }
 }
 
@@ -127,4 +139,33 @@ function closeTree(row) {
   row.open = false;
   delete openPaths[row.path];
   prefs.save();
+}
+
+function activateDoc(row) {
+  var old = active;
+  active = row;
+  activePath = active ? active.path : null;
+  prefs.set("activePath", activePath);
+  if (old) old.active = false;
+  if (active) active.active = true;
+  if (!active) return editor.setDoc();
+  if (active === old) return;
+  var storage = findStorage(row);
+  var doc;
+  row.busy++;
+  fs.readFile(row.path, onBlob);
+
+  function onBlob(err, blob) {
+    row.busy--;
+    if (err) fail(row.path, err);
+    doc = storage.doc;
+    try {
+      if (doc) doc.update(row.path, row.mode, blob);
+      else doc = storage.doc = newDoc(row.path, row.mode, blob);
+      doc.activate();
+    }
+    catch (err) {
+      fail(row.path, err);
+    }
+  }
 }

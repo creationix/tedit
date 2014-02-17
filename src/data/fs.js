@@ -26,8 +26,6 @@ var cache = require('js-git/mixins/mem-cache').cache;
 var expandConfig = require('./projects').expandConfig;
 var loadSubModule = require('./projects').loadSubModule;
 
-var prefs = require('ui/prefs');
-
 module.exports = {
   // (name, storage) -> newName
   addRoot: addRoot,
@@ -217,7 +215,11 @@ function readCommit(path, callback) {
 
 // (path) => blob, hash
 function readFile(path, callback) {
-  callback("TODO: readFile");
+  pathToEntry(path, function (err, entry, repo) {
+    if (entry === undefined) return callback(err);
+    if (!modes.isFile(entry.mode)) return callback("Not a file " + path);
+    repo.loadAs("blob", entry.hash, callback);
+  });
 }
 
 // (path) => target, hash
