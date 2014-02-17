@@ -33,6 +33,7 @@ rootEl.addEventListener("click", onGlobalClick, false);
 
 function onRootChange(root, hash) {
   console.log("ROOT CHANGED", root, hash);
+  fs.readTree("", onRoots);
 }
 
 function onRoots(err, tree, hash) {
@@ -72,6 +73,7 @@ function renderChild(path, name, mode, hash) {
     row.busy--;
     if (!commit) fail(path, err || new Error("Missing commit " + path));
     row.treeHash = commit.tree;
+    row.staged = row.hash !== fs.configs[path].head;
     row.title = commit.author.date.toString() + "\n" + commit.author.name + " <" + commit.author.email + ">\n\n" + commit.message.trim();
     if (openPaths[path]) openTree(row);
   }

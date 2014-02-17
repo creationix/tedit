@@ -30,9 +30,12 @@ var pathJoin = require('pathjoin');
 var binary = require('bodec');
 var defer = require('js-git/lib/defer');
 
-var changeListeners = [];
+// Hold references to the root configs.
+var configs = {};
 
 module.exports = {
+
+  configs: configs,
 
   // (callback(path, hash))
   onChange: onChange,
@@ -56,7 +59,7 @@ module.exports = {
   getMode: getMode,
   // (path) => newPath
   makeUnique: makeUnique,
-  // (path) => repo
+  // (path) => repo, config
   getRepo: getRepo,
 
   // (path, blob) => hash
@@ -76,10 +79,9 @@ module.exports = {
 
 };
 
-// Hold references to the root configs.
-var configs = {};
-
 ////////////////////////////////////////////////////////////////////////////////
+
+var changeListeners = [];
 
 // Pending readEntry requests during a write
 // key is path, value is array of callbacks
@@ -159,19 +161,30 @@ function writeEntries() {
     });
     actions.base = cache[config.current].tree;
     return function (callback) {
+      var treeHash
       repo.createTree(actions, onTree);
 
       function onTree(err, hash) {
         if (err) return callback(err);
+        treeHash = hash;
+        if (config.head) {
+          return repo.loadAs("commit", config.head, onHead);
+        }
+        onHead();
+      }
+
+      function onHead(err, head) {
+        if (err) return callback(err);
+        // If the tree matches the one in HEAD, revert to head.
+        if (head.tree === treeHash) return callback(null, config.head, head);
         var commit = {
-          tree: hash,
+          tree: treeHash,
           author: {
             name: "AutoCommit",
             email: "tedit@creationix.com"
           },
           message: "Uncommitted changes in tedit"
         };
-        // TODO: revert to head commit if tree matches head's tree.
         if (config.head) commit.parent = config.head;
         repo.saveAs("commit", commit, callback);
       }
@@ -464,9 +477,9 @@ function makeUnique(path, callback) {
 // (path) => repo
 function getRepo(path, callback) {
   if (!callback) return getRepo.bind(null, path);
-  readEntry(path, function (err, entry, repo) {
+  readEntry(path, function (err, entry, repo, config) {
     if (!repo) return callback(err || new Error("Missing repo " + path));
-    callback(null, repo);
+    callback(null, repo, config);
   });
 }
 
