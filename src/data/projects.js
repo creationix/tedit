@@ -30,7 +30,7 @@ function createRepo(config) {
     require('js-git/mixins/create-tree')(repo);
   }
 
-  // require('js-git/mixins/delay')(repo, 10);
+  // require('js-git/mixins/delay')(repo, 200);
 
   // Cache everything except blobs over 100 bytes in memory.
   require('js-git/mixins/mem-cache')(repo);

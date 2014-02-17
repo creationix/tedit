@@ -25,10 +25,18 @@ var modes = require('js-git/lib/modes');
 var cache = require('js-git/mixins/mem-cache').cache;
 var expandConfig = require('./projects').expandConfig;
 var loadSubModule = require('./projects').loadSubModule;
+var carallel = require('carallel');
 var pathJoin = require('pathjoin');
 var binary = require('bodec');
+var defer = require('js-git/lib/defer');
+
+var changeListeners = [];
 
 module.exports = {
+
+  // (callback(path, hash))
+  onChange: onChange,
+
   // (name, storage) -> newName
   addRoot: addRoot,
   // (oldName, newName) -> newName
@@ -68,33 +76,188 @@ module.exports = {
 
 };
 
-var roots = {};
+// Hold references to the root configs.
+var configs = {};
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Store current active used by transactions.
-var currents = {};
-
 // Pending readEntry requests during a write
 // key is path, value is array of callbacks
-// It's null when there is no write in progress.
-var readQueues = null;
+var readQueues = {};
+
+// This stores to-be-saved changes
+var pendingWrites = null;
+// registered callbacks that want to know when the bulk write is done
+var writeCallbacks = null;
+// Flag to know if an actual write is in progress
+var writing = false;
 
 // Add a write to the write queue
 function writeEntry(path, entry, callback) {
-  callback("TODO: writeEntry");
+  if (!pendingWrites) {
+    // Start recording writes to be written
+    pendingWrites = {};
+    writeCallbacks = [];
+    // defer so that other writes this tick get bundled
+    defer(writeEntries);
+  }
+  pendingWrites[path] = entry;
+  if (callback) writeCallbacks.push(callback);
+}
+
+function writeEntries() {
+  // Import write data into this closure
+  // Other writes that happen while we're busy will get
+  var writes = pendingWrites;
+  pendingWrites = null;
+  var callbacks = writeCallbacks;
+  writeCallbacks = null;
+  // Lock reads to wait till thie write is finished
+  readQueues = {};
+  // New hashes to be written upon completion of transaction.
+  var currents = {};
+  writing = true;
+
+  // Break up the writes into the separate repos they belong in.
+  var groups = {};
+  var roots = Object.keys(configs);
+  Object.keys(writes).forEach(function (path) {
+    var root = configs[path] ? path : longestMatch(path, roots);
+    if (!root) return onWriteDone(new Error("Can't find root for " + path));
+    var group = groups[root] || (groups[root] = {});
+    var local = path.substring(root.length + 1);
+    group[local] = writes[path];
+  });
+
+  var leaves = findLeaves();
+  carallel(leaves.map(processLeaf), onProcessed);
+
+  // Find reop groups that have no dependencies and process them in parallel
+  function findLeaves() {
+    var paths = Object.keys(groups);
+    var parents = {};
+    paths.forEach(function (path) {
+      var parent = longestMatch(path, paths);
+      parents[parent] = true;
+    });
+    return paths.filter(function (path) {
+      return !parents[path];
+    });
+  }
+
+  // Delegate most of the work out to repo.createTree
+  // When it comes back, create a temporary commit.
+  function processLeaf(root) {
+    var config = configs[root];
+    var repo = findStorage(config).repo;
+    var group = groups[root];
+    delete groups[root];
+    var actions = Object.keys(group).map(function (path) {
+      var entry = group[path];
+      entry.path = path;
+      return entry;
+    });
+    actions.base = cache[config.current].tree;
+    return function (callback) {
+      repo.createTree(actions, onTree);
+
+      function onTree(err, hash) {
+        if (err) return callback(err);
+        var commit = {
+          tree: hash,
+          author: {
+            name: "AutoCommit",
+            email: "tedit@creationix.com"
+          },
+          message: "Uncommitted changes in tedit"
+        };
+        // TODO: revert to head commit if tree matches head's tree.
+        if (config.head) commit.parent = config.head;
+        repo.saveAs("commit", commit, callback);
+      }
+    };
+  }
+
+  function onProcessed(err, hashes) {
+    if (err) return onWriteDone(err);
+    leaves.forEach(function (path, i) {
+      var hash = hashes[i];
+      currents[path] = hash;
+      var parent = longestMatch(path, roots);
+      if (parent) {
+        groups[parent][path] = {
+          mode: modes.commit,
+          hash: hash
+        };
+      }
+    });
+    leaves = findLeaves();
+    if (!leaves.length) return onWriteDone();
+    carallel(leaves.map(processLeaf), onProcessed);
+  }
+
+  function onWriteDone(err) {
+    if (err) {
+      return callbacks.forEach(function (callback) {
+        callback(err);
+      });
+    }
+
+    // Process changed roots
+    Object.keys(currents).forEach(function (root) {
+      var hash = currents[root];
+      // Update the config
+      configs[root].current = hash;
+      // And notify and listeners
+      changeListeners.forEach(function (listener) {
+        listener(root, hash);
+      });
+    });
+
+    // Tell the callbacks we're done.
+    callbacks.forEach(function (callback) {
+      callback(err);
+    });
+
+    writing = false;
+
+    // Flush and pending reads that were waiting on us to finish writing
+    flushReads();
+
+    // If there are writes that were waiting on us, start them now.
+    if (pendingWrites) writeEntries();
+  }
+
+}
+
+function flushReads() {
+  var queues = readQueues;
+  readQueues = {};
+  Object.keys(queues).forEach(function (path) {
+    var callbacks = queues[path];
+    readEntry(path, function () {
+      for (var i = 0, l = callbacks.length; i < l; i++) {
+        callbacks[i].apply(null, arguments);
+      }
+    });
+  });
 }
 
 function readEntry(path, callback) {
-  if (readQueues) {
+  // If there is a write in progress, wait for it to finish before reading
+  if (writing) {
     if (readQueues[path]) readQueues[path].push(callback);
     else readQueues[path] = [callback];
     return;
   }
-  var root = path.substring(0, path.indexOf("/")) || path;
-  if (!root) return callback(new Error("Invalid path " + path));
-  var current = currents[root] || (currents[root] = roots[root].current);
-  pathToEntry(root, current, path, callback);
+  pathToEntry(path, callback);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+// Allows code to listen for changes to repo root commit hashes.
+function onChange(callback) {
+  changeListeners.push(callback);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -103,9 +266,9 @@ function readEntry(path, callback) {
 function addRoot(name, config, callback) {
   expandConfig(config, function (err) {
     if (err) return callback(err);
-    name = genName(name, roots);
+    name = genName(name, configs);
     config.root = name;
-    roots[name] = config;
+    configs[name] = config;
     callback(null, name);
   });
 }
@@ -123,19 +286,21 @@ function removeRoot(name) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-function pathToEntry(root, current, path, callback) {
+// The real work to convert a path to a git tree entry, repo, and config
+// This data is often cached and so non-callback style is used to keep stack small.
+function pathToEntry(path, callback) {
   var parts = path.split("/").filter(Boolean);
-  var index = 1;
-  if (root !== parts[0]) throw new TypeError("root mistmatch");
-
   var rootTree;
-  var config = roots[root];
+  var root = parts[0];
+  var index = 1;
+  var config = configs[root];
   if (!config) return callback();
+  if (!config.current) return callback(new Error("Missing current in config " + path));
   var repo = findStorage(config).repo;
   if (!repo) return callback(new Error("Missing repo for " + path));
 
   var mode = modes.commit;
-  var hash = current;
+  var hash = config.current;
   path = root;
 
   return walk();
@@ -160,9 +325,9 @@ function pathToEntry(root, current, path, callback) {
         mode = entry.mode;
         hash = entry.hash;
         if (mode === modes.commit) {
-          if (roots[path]) {
+          if (configs[path]) {
             root = path;
-            config = roots[root];
+            config = configs[root];
             repo = findStorage(config).repo;
           }
           else {
@@ -187,7 +352,7 @@ function pathToEntry(root, current, path, callback) {
   function onSubConfig(err, subConfig) {
     if (err) return callback(err);
     root = path;
-    config = roots[root] = subConfig;
+    config = configs[root] = subConfig;
     repo = findStorage(config).repo;
     return walk();
   }
@@ -222,12 +387,12 @@ function readTree(path, callback) {
 // Create a virtual tree containing all the roots as if they were submodules.
 function readRootTree(callback) {
   if (!callback) return readRootTree;
-  var names = Object.keys(roots).sort();
+  var names = Object.keys(configs).sort();
   var tree = {};
   names.forEach(function (name) {
     tree[name] = {
       mode: modes.commit,
-      hash: roots[name].current
+      hash: configs[name].current
     };
   });
   callback(null, tree, hashAs("tree", tree));
@@ -310,17 +475,20 @@ function getRepo(path, callback) {
 // (path, blob) => hash
 function writeFile(path, blob, callback) {
   if (!callback) return writeFile.bind(null, path, blob);
+  var mode;
 
-  getRepo(path, onRepo);
+  readEntry(path, onEntry);
 
-  function onRepo(err, repo) {
+  function onEntry(err, entry, repo) {
     if (err) return callback(err);
+    // Set mode to normal file unless file exists already and is executable
+    mode = (entry && entry.mode === modes.exec) ? entry.mode : modes.file;
     repo.saveAs("blob", blob, onHash);
   }
 
   function onHash(err, hash) {
     if (err) return callback(err);
-    writeEntry(path, { fallback: modes.file, hash: hash }, callback);
+    writeEntry(path, { mode: mode, hash: hash }, callback);
   }
 }
 
@@ -344,7 +512,7 @@ function writeLink(path, target, callback) {
 // (path) =>
 function deleteEntry(path, callback) {
   if (!callback) return deleteEntry.bind(null, path);
-  writeEntry(path, {remove:true}, callback);
+  writeEntry(path, {}, callback);
 }
 
 // (oldPath, newPath) =>
@@ -354,7 +522,7 @@ function moveEntry(oldPath, newPath, callback) {
 
   function onEntry(err, entry) {
     if (!entry) return callback(err || new Error("Not found " + oldPath));
-    writeEntry(oldPath, {remove:true});
+    writeEntry(oldPath, {});
     writeEntry(newPath, entry, callback);
   }
 }
@@ -375,7 +543,28 @@ function copyEntry(oldPath, newPath, callback) {
 // (path, mode) =>
 function setMode(path, mode, callback) {
   if (!callback) return setMode.bind(null, path, mode);
-  writeEntry(path, {mode:mode}, callback);
+  var type = modes.toType(mode);
+  readEntry(path, onEntry);
+
+  function onEntry(err, entry, repo) {
+    if (err) return callback(err);
+    if (!entry) {
+      var body;
+      if (type === "blob") body = "";
+      else if (type === "tree") body = {};
+      else return callback(new Error("Can't create empty " + type));
+      return repo.saveAs(type, body, onHash);
+    }
+    if (modes.toType(entry.mode) !== type) {
+      return callback(new Error("Incompatable modes"));
+    }
+    onHash(null, entry.hash);
+  }
+
+  function onHash(err, hash) {
+    if (err) return callback(err);
+    writeEntry(path, { mode: mode, hash: hash }, callback);
+  }
 }
 
 // (path, url) =>
@@ -395,4 +584,18 @@ function genName(string, obj) {
     name = base + "-" + (++i);
   }
   return name;
+}
+
+// Given an array of paths and a path, find the longest substring.
+// This is good for finding the nearest ancestor for tree paths.
+function longestMatch(path, roots) {
+  var longest = "";
+  for (var i = 0, l = roots.length; i < l; i++) {
+    var root = roots[i];
+    if (root.length < longest.length) continue;
+    if (path.substring(0, root.length + 1) === root + "/") {
+      longest = root;
+    }
+  }
+  return longest;
 }

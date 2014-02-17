@@ -27,7 +27,13 @@ fs.addRoot("test", {githubName:"creationix/tedit-app"}, function (err, name) {
   fs.readTree("", onRoots);
 });
 
+fs.onChange(onRootChange);
+
 rootEl.addEventListener("click", onGlobalClick, false);
+
+function onRootChange(root, hash) {
+  console.log("ROOT CHANGED", root, hash);
+}
 
 function onRoots(err, tree, hash) {
   if (err) fail("", err);
@@ -177,7 +183,9 @@ function activateDoc(row) {
 
 function editSymLink(row) {
   var target;
+  row.busy++;
   fs.readLink(row.path, function (err, result) {
+    row.busy--;
     target = result;
     if (target === undefined) fail(row.path, err || new Error("Missing SymLink " + row.path));
     dialog.multiEntry("Edit SymLink", [
@@ -194,7 +202,6 @@ function editSymLink(row) {
       return fs.writeLink(result.path, result.target, function (err) {
         row.busy--;
         if (err) fail(row.path, err);
-        console.log("TODO: reload tree");
       });
     }
     row.busy++;
@@ -208,7 +215,6 @@ function editSymLink(row) {
       ], function (err) {
         row.busy--;
         if (err) fail(row.path, err);
-        console.log("TODO: reload tree");
       });
     });
   }

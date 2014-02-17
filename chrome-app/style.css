@@ -106,7 +106,8 @@ body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
   font-size: 1em;
   line-height: 2em;
   height: 2em;
-  text-align: center;
+  text-align: left;
+  padding-left: 1em;
 }
 .titlebar .fade {
   opacity: 0.6;

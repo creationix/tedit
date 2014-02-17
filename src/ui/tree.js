@@ -38,7 +38,6 @@ $.tree.addEventListener("click", onGlobalClick, false);
 
 render();
 
-
 function updatePaths(oldPath, newPath) {
   var reg = new RegExp("^" + rescape(oldPath) + "(?=/|$)");
   if (reg.test(activePath)) {
