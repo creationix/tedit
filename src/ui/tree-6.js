@@ -6,6 +6,8 @@ var modes = require('js-git/lib/modes');
 var prefs = require('./prefs');
 var editor = require('./editor');
 var newDoc = require('data/document');
+var dialog = require('./dialog');
+var carallel = require('carallel');
 
 // Memory for opened trees.  Accessed by path
 var openPaths = prefs.get("openPaths", {});
@@ -114,6 +116,9 @@ function onGlobalClick(evt) {
   else if (modes.isFile(row.mode)) {
     activateDoc(row);
   }
+  else if (row.mode === modes.sym) {
+    editSymLink(row);
+  }
   else {
     console.log("TODO: handle click", row);
   }
@@ -167,5 +172,44 @@ function activateDoc(row) {
     catch (err) {
       fail(row.path, err);
     }
+  }
+}
+
+function editSymLink(row) {
+  var target;
+  fs.readLink(row.path, function (err, result) {
+    target = result;
+    if (target === undefined) fail(row.path, err || new Error("Missing SymLink " + row.path));
+    dialog.multiEntry("Edit SymLink", [
+      {name: "target", placeholder: "target", required:true, value: target},
+      {name: "path", placeholder: "path", required:true, value: row.path},
+    ], onResult);
+  });
+
+  function onResult(result) {
+    if (!result) return;
+    if (result.path === row.path) {
+      if (target === result.target) return;
+      row.busy++;
+      return fs.writeLink(result.path, result.target, function (err) {
+        row.busy--;
+        if (err) fail(row.path, err);
+        console.log("TODO: reload tree");
+      });
+    }
+    row.busy++;
+    fs.makeUnique(result.path, function (err, path) {
+      row.busy--;
+      if (err) fail(row.path, err);
+      row.busy++;
+      carallel([
+        fs.writeLink(path, result.target),
+        fs.deleteEntry(row.path)
+      ], function (err) {
+        row.busy--;
+        if (err) fail(row.path, err);
+        console.log("TODO: reload tree");
+      });
+    });
   }
 }

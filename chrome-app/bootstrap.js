@@ -15,6 +15,7 @@
   requireAsync("main.js");
 
   function requireAsync(name, callback) {
+    if (!(/\.[^\/]+$/.test(name))) name += ".js";
     load(name, function () {
       var module = requireSync(name);
       if (callback) callback(module);
@@ -22,6 +23,7 @@
   }
 
   function requireSync(name) {
+    if (!(/\.[^\/]+$/.test(name))) name += ".js";
     if (name in modules) return modules[name].exports;
     var exports = {};
     var module = modules[name] = {exports:exports};

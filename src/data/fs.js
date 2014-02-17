@@ -25,6 +25,8 @@ var modes = require('js-git/lib/modes');
 var cache = require('js-git/mixins/mem-cache').cache;
 var expandConfig = require('./projects').expandConfig;
 var loadSubModule = require('./projects').loadSubModule;
+var pathJoin = require('pathjoin');
+var binary = require('bodec');
 
 module.exports = {
   // (name, storage) -> newName
@@ -171,6 +173,7 @@ function pathToEntry(path, callback) {
 
 // (path) => tree, hash
 function readTree(path, callback) {
+  if (!callback) return readTree.bind(null, path);
   if (!path) return readRootTree(callback);
   return pathToEntry(path, onEntry);
 
@@ -193,6 +196,7 @@ function readTree(path, callback) {
 
 // Create a virtual tree containing all the roots as if they were submodules.
 function readRootTree(callback) {
+  if (!callback) return readRootTree;
   var names = Object.keys(roots).sort();
   var tree = {};
   names.forEach(function (name) {
@@ -206,6 +210,7 @@ function readRootTree(callback) {
 
 // (path) => commit, hash
 function readCommit(path, callback) {
+  if (!callback) return readCommit.bind(null, path);
   pathToEntry(path, function (err, entry, repo) {
     if (!entry) return callback(err);
     if (entry.mode !== modes.commit) return callback("Not a commit " + path);
@@ -215,6 +220,7 @@ function readCommit(path, callback) {
 
 // (path) => blob, hash
 function readFile(path, callback) {
+  if (!callback) return readFile.bind(null, path);
   pathToEntry(path, function (err, entry, repo) {
     if (entry === undefined) return callback(err);
     if (!modes.isFile(entry.mode)) return callback("Not a file " + path);
@@ -224,23 +230,50 @@ function readFile(path, callback) {
 
 // (path) => target, hash
 function readLink(path, callback) {
-  callback("TODO: readLink");
+  if (!callback) return readLink.bind(null, path);
+  pathToEntry(path, onEntry);
+
+  function onEntry(err, entry, repo) {
+    if (entry === undefined) return callback(err);
+    if (entry.mode !== modes.sym) return callback("Not a symlink " + path);
+    repo.loadAs("blob", entry.hash, onBlob);
+  }
+
+  function onBlob(err, blob, hash) {
+    if (err) return callback(err);
+    var text;
+    try { text = binary.toUnicode(blob); }
+    catch (err) { return callback(err); }
+    callback(null, text, hash);
+  }
 }
 
 // (path) => mode, hash
 function getMode(path, callback) {
+  if (!callback) return getMode.bind(null, path);
   callback("TODO: getMode");
 }
 
 // Given a path, return a path in the same folder that's unique
 // (path) => newPath
 function makeUnique(path, callback) {
-  callback("TODO: makeUnique");
+  if (!callback) return makeUnique.bind(null, path);
+  var index = path.lastIndexOf("/");
+  var dir = path.substring(0, index);
+  var name = path.substring(index + 1);
+  readTree(dir, onTree);
+
+  function onTree(err, tree) {
+    if (err) return callback(err);
+    if (!tree) return callback(null, path);
+    callback(null, pathJoin(dir, genName(name, tree)));
+  }
 }
 
 // Given a path, return the repo that controls that segment
 // (path) => repo
 function getRepo(path, callback) {
+  if (!callback) return getRepo.bind(null, path);
   callback("TODO: getRepo");
 }
 
@@ -248,26 +281,31 @@ function getRepo(path, callback) {
 
 // (path, blob) => hash
 function writeFile(path, blob, callback) {
+  if (!callback) return writeFile.bind(null, path, blob);
   callback("TODO: writeFile");
 }
 
 // (path, target) => hash
 function writeLink(path, target, callback) {
+  if (!callback) return writeLink.bind(null, path, target);
   callback("TODO: writeLink");
 }
 
 // (path) =>
 function deleteEntry(path, callback) {
+  if (!callback) return deleteEntry.bind(null, path);
   callback("TODO: deleteEntry");
 }
 
 // (oldPath, newPath) =>
 function moveEntry(oldPath, newPath, callback) {
+  if (!callback) return moveEntry.bind(null, oldPath, newPath);
   callback("TODO: moveEntry");
 }
 
 // (oldPath, newPath) =>
 function copyEntry(oldPath, newPath, callback) {
+  if (!callback) return copyEntry.bind(null, oldPath, newPath);
   callback("TODO: copyEntry");
 }
 
@@ -275,11 +313,13 @@ function copyEntry(oldPath, newPath, callback) {
 // If it exists and the old mode is compatable, update the mode
 // (path, mode) =>
 function setMode(path, mode, callback) {
+  if (!callback) return setMode.bind(null, path, mode);
   callback("TODO: setMode");
 }
 
 // (path, url) =>
 function addSubModule(path, url, callback) {
+  if (!callback) return addSubModule.bind(null, path, url);
   callback("TODO: addSubModule");
 }
 
