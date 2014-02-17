@@ -72,6 +72,33 @@ var roots = {};
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// Store current active used by transactions.
+var currents = {};
+
+// Pending readEntry requests during a write
+// key is path, value is array of callbacks
+// It's null when there is no write in progress.
+var readQueues = null;
+
+// Add a write to the write queue
+function writeEntry(path, entry, callback) {
+  callback("TODO: writeEntry");
+}
+
+function readEntry(path, callback) {
+  if (readQueues) {
+    if (readQueues[path]) readQueues[path].push(callback);
+    else readQueues[path] = [callback];
+    return;
+  }
+  var root = path.substring(0, path.indexOf("/")) || path;
+  if (!root) return callback(new Error("Invalid path " + path));
+  var current = currents[root] || (currents[root] = roots[root].current);
+  pathToEntry(root, current, path, callback);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 // (name, config) => newName
 function addRoot(name, config, callback) {
   expandConfig(config, function (err) {
@@ -96,20 +123,19 @@ function removeRoot(name) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-function pathToEntry(path, callback) {
+function pathToEntry(root, current, path, callback) {
   var parts = path.split("/").filter(Boolean);
-  var index = 0;
+  var index = 1;
+  if (root !== parts[0]) throw new TypeError("root mistmatch");
 
-  var root = parts[index++];
   var rootTree;
   var config = roots[root];
   if (!config) return callback();
-  if (!config.current) return callback(new Error("Missing current hash for " + path));
   var repo = findStorage(config).repo;
   if (!repo) return callback(new Error("Missing repo for " + path));
 
   var mode = modes.commit;
-  var hash = config.current;
+  var hash = current;
   path = root;
 
   return walk();
@@ -129,7 +155,7 @@ function pathToEntry(path, callback) {
         if (path === root) rootTree = cached;
         var part = parts[index++];
         var entry = cached[part];
-        if (!entry) return callback();
+        if (!entry) return callback(null, null, repo, config);
         path += "/" + part;
         mode = entry.mode;
         hash = entry.hash;
@@ -145,7 +171,7 @@ function pathToEntry(path, callback) {
         }
         continue;
       }
-      return callback();
+      return callback(null, null, repo, config);
     }
     callback(null, {
       mode: mode,
@@ -168,14 +194,13 @@ function pathToEntry(path, callback) {
 
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 
 // (path) => tree, hash
 function readTree(path, callback) {
   if (!callback) return readTree.bind(null, path);
   if (!path) return readRootTree(callback);
-  return pathToEntry(path, onEntry);
+  return readEntry(path, onEntry);
 
   function onEntry(err, entry, repo) {
     if (!entry) return callback(err);
@@ -211,7 +236,7 @@ function readRootTree(callback) {
 // (path) => commit, hash
 function readCommit(path, callback) {
   if (!callback) return readCommit.bind(null, path);
-  pathToEntry(path, function (err, entry, repo) {
+  readEntry(path, function (err, entry, repo) {
     if (!entry) return callback(err);
     if (entry.mode !== modes.commit) return callback("Not a commit " + path);
     repo.loadAs("commit", entry.hash, callback);
@@ -221,7 +246,7 @@ function readCommit(path, callback) {
 // (path) => blob, hash
 function readFile(path, callback) {
   if (!callback) return readFile.bind(null, path);
-  pathToEntry(path, function (err, entry, repo) {
+  readEntry(path, function (err, entry, repo) {
     if (entry === undefined) return callback(err);
     if (!modes.isFile(entry.mode)) return callback("Not a file " + path);
     repo.loadAs("blob", entry.hash, callback);
@@ -231,7 +256,7 @@ function readFile(path, callback) {
 // (path) => target, hash
 function readLink(path, callback) {
   if (!callback) return readLink.bind(null, path);
-  pathToEntry(path, onEntry);
+  readEntry(path, onEntry);
 
   function onEntry(err, entry, repo) {
     if (entry === undefined) return callback(err);
@@ -274,7 +299,10 @@ function makeUnique(path, callback) {
 // (path) => repo
 function getRepo(path, callback) {
   if (!callback) return getRepo.bind(null, path);
-  callback("TODO: getRepo");
+  readEntry(path, function (err, entry, repo) {
+    if (!repo) return callback(err || new Error("Missing repo " + path));
+    callback(null, repo);
+  });
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -282,31 +310,64 @@ function getRepo(path, callback) {
 // (path, blob) => hash
 function writeFile(path, blob, callback) {
   if (!callback) return writeFile.bind(null, path, blob);
-  callback("TODO: writeFile");
+
+  getRepo(path, onRepo);
+
+  function onRepo(err, repo) {
+    if (err) return callback(err);
+    repo.saveAs("blob", blob, onHash);
+  }
+
+  function onHash(err, hash) {
+    if (err) return callback(err);
+    writeEntry(path, { fallback: modes.file, hash: hash }, callback);
+  }
 }
 
 // (path, target) => hash
 function writeLink(path, target, callback) {
   if (!callback) return writeLink.bind(null, path, target);
-  callback("TODO: writeLink");
+
+  getRepo(path, onRepo);
+
+  function onRepo(err, repo) {
+    if (err) return callback(err);
+    repo.saveAs("blob", binary.fromUnicode(target), onHash);
+  }
+
+  function onHash(err, hash) {
+    if (err) return callback(err);
+    writeEntry(path, { mode: modes.sym, hash: hash }, callback);
+  }
 }
 
 // (path) =>
 function deleteEntry(path, callback) {
   if (!callback) return deleteEntry.bind(null, path);
-  callback("TODO: deleteEntry");
+  writeEntry(path, {remove:true}, callback);
 }
 
 // (oldPath, newPath) =>
 function moveEntry(oldPath, newPath, callback) {
   if (!callback) return moveEntry.bind(null, oldPath, newPath);
-  callback("TODO: moveEntry");
+  readEntry(oldPath, onEntry);
+
+  function onEntry(err, entry) {
+    if (!entry) return callback(err || new Error("Not found " + oldPath));
+    writeEntry(oldPath, {remove:true});
+    writeEntry(newPath, entry, callback);
+  }
 }
 
 // (oldPath, newPath) =>
 function copyEntry(oldPath, newPath, callback) {
   if (!callback) return copyEntry.bind(null, oldPath, newPath);
-  callback("TODO: copyEntry");
+  readEntry(oldPath, onEntry);
+
+  function onEntry(err, entry) {
+    if (!entry) return callback(err || new Error("Not found " + oldPath));
+    writeEntry(newPath, entry, callback);
+  }
 }
 
 // Create or update an entry.  If it doesn't exist, create an empty file or folder
@@ -314,7 +375,7 @@ function copyEntry(oldPath, newPath, callback) {
 // (path, mode) =>
 function setMode(path, mode, callback) {
   if (!callback) return setMode.bind(null, path, mode);
-  callback("TODO: setMode");
+  writeEntry(path, {mode:mode}, callback);
 }
 
 // (path, url) =>
