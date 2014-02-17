@@ -30,10 +30,10 @@ function createRepo(config) {
     require('js-git/mixins/create-tree')(repo);
   }
 
+  // require('js-git/mixins/delay')(repo, 10);
+
   // Cache everything except blobs over 100 bytes in memory.
   require('js-git/mixins/mem-cache')(repo);
-
-  // require('js-git/mixins/delay')(repo, 400);
 
   // Combine concurrent read requests for the same hash
   require('js-git/mixins/read-combiner')(repo);

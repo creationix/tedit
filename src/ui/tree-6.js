@@ -37,6 +37,7 @@ function renderChild(path, name, mode, hash) {
   var row = rows[path];
   if (row) {
     row.mode = mode;
+    row.errorMessage = "";
     if (row.hash === hash) return row;
     row.hash = hash;
   }
@@ -47,10 +48,7 @@ function renderChild(path, name, mode, hash) {
     row.busy++;
     fs.readCommit(path, onCommit);
   }
-  if ((mode === modes.tree) && openPaths[path]) {
-    row.busy++;
-    fs.readTree(path, onTree);
-  }
+  if ((mode === modes.tree) && openPaths[path]) openTree(row);
   return row;
 
   function onCommit(err, commit) {
@@ -58,24 +56,18 @@ function renderChild(path, name, mode, hash) {
     if (!commit) fail(path, err || new Error("Missing commit " + path));
     row.treeHash = commit.tree;
     row.title = commit.author.date.toString() + "\n" + commit.author.name + " <" + commit.author.email + ">\n\n" + commit.message.trim();
-    // TODO: look up openPaths config instead of hard-coding to true
-    if (openPaths[path]) {
-      row.busy++;
-      fs.readTree(path, onTree);
-    }
+    if (openPaths[path]) openTree(row);
   }
 
-  function onTree(err, tree) {
-    row.busy--;
-    if (!tree) fail(path, err || new Error("Missing tree " + path));
-    renderChildren(row, tree);
-  }
 }
 
 function renderChildren(row, tree) {
   var path = row.path;
-  // TODO: this might be an update in which case we need to reuse as many
-  // children as possible.
+  // renderChild will cache rows that have been seen already, so it's effecient
+  // to simply remove all children and then re-add the ones still here all in
+  // one tick. Also we don't have to worry about sort order because that's
+  // handled internally by row.addChild().
+  row.removeChildren();
   Object.keys(tree).forEach(function (name) {
     var entry = tree[name];
     var child = renderChild(path + "/" + name, name, entry.mode, entry.hash);
@@ -84,7 +76,9 @@ function renderChildren(row, tree) {
 }
 
 function fail(path, err) {
-  console.error("Problem at " + path + "...");
+  var row = rows[path];
+  if (row) row.errorMessage = err.toString();
+  else console.error("Problem at " + path + "...");
   throw err;
 }
 

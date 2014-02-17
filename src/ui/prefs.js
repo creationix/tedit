@@ -39,12 +39,15 @@ function save() {
 }
 
 function onSave() {
-  saving = false;
   if (chrome.runtime.lastError) console.error(chrome.runtime.lastError.message);
+  setTimeout(reset, 1000);
+}
+
+function reset() {
+  saving = false;
   if (!dirty) return;
   dirty = false;
-  saving = true;
-  storage.set({prefs:prefs}, onSave);
+  save();
 }
 
 function clearSync(names, callback) {
