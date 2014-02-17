@@ -1,15 +1,11 @@
 /*
 This is a mutable filesystem abstraction on top of the repos tree.
-This handles write batching / transactions, retry logic, etc.
-
-Each tree is independent in terms of transactions.
-If a new write starts while an old write was saving, the old save is canceled.
-All writes are stored in a global change list so that retry and transactions work
-Reads check the in-progress writes first so that data is available immedietly
-Reads for trees still calculating their hash will wait for the data instead of loading old data.
-The UI needs to show spinners for all writes in progress, this includes parent folders.
-This way the user can see what's going on.  There need to be timeouts that auto-fail slow writes
-
+This has a global read/write lock.  Reads are allowed to happen without restriction
+as long as there are no writes happening.  When a write gets requested, a write batch
+is created.  It will wait till end of event tick to see if there are any more changes
+to write.  Once the write has started, further reads and writes are queued.  When the
+write finishes, it first releases the queued reads and lets them run in the background.
+If there were queued writes as well, the process will start over with the new write batch.
 
 Path is a global path including root-project name as the first path segment.
 Commit nodes can be read as either tree or commit depending on which data
@@ -161,7 +157,7 @@ function writeEntries() {
     });
     actions.base = cache[config.current].tree;
     return function (callback) {
-      var treeHash
+      var treeHash;
       repo.createTree(actions, onTree);
 
       function onTree(err, hash) {
@@ -198,7 +194,8 @@ function writeEntries() {
       currents[path] = hash;
       var parent = longestMatch(path, roots);
       if (parent) {
-        groups[parent][path] = {
+        var parentGroup = groups[parent] || (groups[parent] = {});
+        parentGroup[path] = {
           mode: modes.commit,
           hash: hash
         };
@@ -403,6 +400,8 @@ function readRootTree(callback) {
   var names = Object.keys(configs).sort();
   var tree = {};
   names.forEach(function (name) {
+    // Only include root repos.
+    if (name.indexOf("/") >= 0) return;
     tree[name] = {
       mode: modes.commit,
       hash: configs[name].current

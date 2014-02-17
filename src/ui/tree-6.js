@@ -33,7 +33,7 @@ rootEl.addEventListener("click", onGlobalClick, false);
 
 function onRootChange(root, hash) {
   console.log("ROOT CHANGED", root, hash);
-  fs.readTree("", onRoots);
+  renderChild(root, root.substring(root.lastIndexOf("/") + 1), modes.commit, hash);
 }
 
 function onRoots(err, tree, hash) {
