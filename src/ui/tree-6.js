@@ -32,7 +32,6 @@ fs.onChange(onRootChange);
 rootEl.addEventListener("click", onGlobalClick, false);
 
 function onRootChange(root, hash) {
-  console.log("ROOT CHANGED", root, hash);
   var name = root.substring(root.lastIndexOf("/") + 1);
   renderChild(root, name, modes.commit, hash);
 }

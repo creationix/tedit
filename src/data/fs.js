@@ -216,10 +216,13 @@ function writeEntries() {
 
     // Process changed roots
     Object.keys(currents).forEach(function (root) {
+      // Skip submodules, they will get changed later.
+      if (root.indexOf("/") >= 0) return;
+
       var hash = currents[root];
       // Update the config
       configs[root].current = hash;
-      // And notify and listeners
+      // And notify and listeners for root paths
       changeListeners.forEach(function (listener) {
         listener(root, hash);
       });
