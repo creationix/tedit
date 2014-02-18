@@ -272,15 +272,12 @@ function onChange(callback) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// (name, config) => newName
+// (name, config) -> newName
 function addRoot(name, config, callback) {
-  expandConfig(config, function (err) {
-    if (err) return callback(err);
-    name = genName(name, configs);
-    config.root = name;
-    configs[name] = config;
-    callback(null, name);
-  });
+  name = genName(name, configs);
+  config.root = name;
+  configs[name] = config;
+  return name;
 }
 
 
@@ -305,7 +302,7 @@ function pathToEntry(path, callback) {
   var index = 1;
   var config = configs[root];
   if (!config) return callback();
-  if (!config.current) return callback(new Error("Missing current in config " + path));
+  if (!config.current) return expandConfig(config, onExpanded);
   var repo = findStorage(config).repo;
   if (!repo) return callback(new Error("Missing repo for " + path));
 
@@ -314,6 +311,12 @@ function pathToEntry(path, callback) {
   path = root;
 
   return walk();
+
+  function onExpanded(err) {
+    if (err) return callback(err);
+    if (!config.current) return callback(new Error("Unable to find current " + path));
+    return pathToEntry(path, callback);
+  }
 
   function walk() {
     var cached;
@@ -396,7 +399,6 @@ function readTree(path, callback) {
 
 // Create a virtual tree containing all the roots as if they were submodules.
 function readRootTree(callback) {
-  if (!callback) return readRootTree;
   var names = Object.keys(configs).sort();
   var tree = {};
   names.forEach(function (name) {
@@ -404,7 +406,7 @@ function readRootTree(callback) {
     if (name.indexOf("/") >= 0) return;
     tree[name] = {
       mode: modes.commit,
-      hash: configs[name].current
+      hash: configs[name].current || ""
     };
   });
   callback(null, tree, hashAs("tree", tree));

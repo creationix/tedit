@@ -44,6 +44,7 @@ function createRepo(config) {
 // Take a minimal config and load enough data to make it usable
 // This gurantees to at-least have a "current" hash to start walking it's tree
 function expandConfig(config, callback) {
+  if (!callback) return expandConfig.bind(null, config);
   var storage = findStorage(config);
   var repo = storage.repo || (storage.repo = createRepo(config));
 

@@ -1,3 +1,4 @@
+/* global chrome*/
 var rootEl = require('./elements').tree;
 var fs = require('data/fs');
 var makeRow = require('./row');
@@ -6,6 +7,7 @@ var prefs = require('./prefs');
 var setDoc = require('data/document');
 var dialog = require('./dialog');
 var carallel = require('carallel');
+var contextMenu = require('./context-menu');
 
 setDoc.updateDoc = updateDoc;
 setDoc.setActive = setActive;
@@ -22,15 +24,21 @@ var active;
 // Remember the path to the active document.
 var activePath = prefs.get("activePath", "");
 
-fs.addRoot("test", {githubName:"creationix/tedit-app"}, function (err, name) {
-  if (err) fail("", err);
-  openPaths[name] = true;
-  fs.readTree("", onRoots);
-});
+addRoot("conquest", {url:"git@github.com:creationix/conquest.git"});
+// addRoot("tedit-app", {githubName:"creationix/tedit-app"});
 
 fs.onChange(onRootChange);
 
 rootEl.addEventListener("click", onGlobalClick, false);
+rootEl.addEventListener("contextmenu", onGlobalContextMenu, false);
+
+
+function addRoot(name, config) {
+  name = fs.addRoot(name, config);
+  openPaths[name] = true;
+  fs.readTree("", onRoots);
+}
+
 
 function onRootChange(root, hash) {
   var name = root.substring(root.lastIndexOf("/") + 1);
@@ -134,6 +142,13 @@ function onGlobalClick(evt) {
   }
 }
 
+function onGlobalContextMenu(evt) {
+  nullify(evt);
+  var row = findRow(evt.target);
+  var menu = makeMenu(row);
+  contextMenu(evt, row, menu);
+}
+
 function openTree(row) {
   var path = row.path;
   row.busy++;
@@ -226,4 +241,115 @@ function editSymLink(row) {
       });
     });
   }
+}
+
+function createEmpty() {
+  dialog.prompt("Enter name for empty repo", "", function (name) {
+    if (!name) return;
+    addRoot(name, {});
+  });
+}
+
+function createFromFolder() {
+  return chrome.fileSystem.chooseEntry({ type: "openDirectory"}, onEntry);
+
+  function onEntry(entry) {
+    if (!entry) return;
+    addRoot(entry.name, {entry:entry});
+  }
+}
+
+function createClone() {
+  dialog.multiEntry("Clone Remote Repo", [
+    {name: "url", placeholder: "git@hostname:path/to/repo.git", required:true},
+    {name: "name", placeholder: "localname"}
+  ], function (result) {
+    if (!result) return;
+    addRoot(result.name || result.url, { url: result.url });
+  });
+}
+
+function createGithubMount() {
+  var githubToken = prefs.get("githubToken", "");
+  dialog.multiEntry("Mount Github Repo", [
+    {name: "path", placeholder: "user/name", required:true},
+    {name: "name", placeholder: "localname"},
+    {name: "token", placeholder: "Enter github auth token", required:true, value: githubToken}
+  ], function (result) {
+    if (!result) return;
+    if (result.token !== githubToken) {
+      prefs.set("githubToken", result.token);
+    }
+    addRoot(result.name || result.path, { githubName: result.path });
+  });
+}
+
+function removeAll() {
+  throw "TODO: implement removeAll";
+  // // indexedDB.deleteDatabase("tedit");
+  // prefs.clearSync(["treeConfig", "openPaths", "activePath", "hookConfig"], chrome.runtime.reload);
+}
+
+
+function makeMenu(row) {
+  if (!row) {
+    return [
+      {icon:"git", label: "Create Empty Git Repo", action: createEmpty},
+      {icon:"hdd", label:"Create Repo From Folder", action: createFromFolder},
+      {icon:"fork", label: "Clone Remote Repo", action: createClone},
+      {icon:"github", label: "Live Mount Github Repo", action: createGithubMount},
+      {icon:"ccw", label: "Remove All", action: removeAll}
+    ];
+  }
+  var actions = [];
+  var type = row.mode === modes.tree ? "Folder" :
+             modes.isFile(row.mode) ? "File" :
+             row.mode === modes.sym ? "SymLink" :
+             onChange ? "Repo" : "Submodule";
+  if (row.mode === modes.tree || row.mode === modes.commit) {
+    if (openPaths[row.path]) {
+      actions.push({icon:"doc", label:"Create File", action: createFile});
+      actions.push({icon:"folder", label:"Create Folder", action: createFolder});
+      actions.push({icon:"link", label:"Create SymLink", action: createSymLink});
+      actions.push({sep:true});
+      actions.push({icon:"fork", label: "Add Submodule", action: addSubmodule});
+      actions.push({icon:"folder", label:"Import Folder", action: importFolder});
+    }
+  }
+  if (row.mode === modes.commit) {
+    if (config.head !== config.current) {
+      actions.push({sep:true});
+      actions.push({icon:"floppy", label:"Commit Changes", action: commitChanges});
+      actions.push({icon:"ccw", label:"Revert all Changes", action: revertChanges});
+    }
+    actions.push({sep:true});
+    if (config.githubName) {
+      actions.push({icon:"github", label:"Check for Updates", action: checkHead});
+    }
+    else {
+      actions.push({icon:"download-cloud", label:"Pull from Remote"});
+      actions.push({icon:"upload-cloud", label:"Push to Remote"});
+    }
+  }
+  else if (modes.isFile(row.mode)) {
+    actions.push({sep:true});
+    var label = (row.mode === modes.exec) ?
+      "Make not Executable" :
+      "Make Executable";
+    actions.push({icon:"asterisk", label: label, action: toggleExec});
+  }
+  actions.push({sep:true});
+  if (row.path.indexOf("/") >= 0) {
+    actions.push({icon:"pencil", label:"Rename " + type, action: renameEntry});
+    actions.push({icon:"trash", label:"Delete " + type, action: removeEntry});
+  }
+  else {
+    actions.push({icon:"pencil", label:"Rename Repo"});
+    actions.push({icon:"trash", label:"Remove Repo"});
+  }
+  actions.push({sep:true});
+  actions.push({icon:"globe", label:"Serve Over HTTP"});
+  actions.push({icon:"hdd", label:"Live Export to Disk", action: liveExport});
+  if (actions[0].sep) actions.shift();
+  return actions;
 }
