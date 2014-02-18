@@ -278,7 +278,7 @@ function onChange(callback) {
 ////////////////////////////////////////////////////////////////////////////////
 
 // (name, config) -> newName
-function addRoot(name, config, callback) {
+function addRoot(name, config) {
   name = genName(name, configs);
   config.root = name;
   configs[name] = config;
@@ -289,12 +289,18 @@ function addRoot(name, config, callback) {
 
 // (oldName, newName) -> newName
 function renameRoot(oldName, newName) {
-  throw "TODO: Implement renameRoot";
+  var config = configs[oldName];
+  if (!config) throw new Error("No such root " + oldName);
+  removeRoot(oldName);
+  return addRoot(newName, config);
 }
 
 // (name) ->
 function removeRoot(name) {
-  throw "TODO: Implement removeRoot";
+  if (!(name in configs)) throw new Error("No such root " + name);
+  delete configs[name];
+  // TODO: delete any submodules under this path and clean up other resources
+  prefs.save();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

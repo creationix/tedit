@@ -393,13 +393,33 @@ function copyEntry(row) {
 }
 
 function removeEntry(row) {
-  dialog.confirm("Are you sure you want to remove " + row.path + "?", function (confirm) {
+  dialog.confirm("Are you sure you want to delete " + row.path + "?", function (confirm) {
     if (!confirm) return;
     row.busy++;
     fs.deleteEntry(row.path, function (err) {
       row.busy--;
       if (err) fail(row.path, err);
     });
+  });
+}
+
+function renameRepo(row) {
+  dialog.prompt("Enter new name for repo", row.path, function (name) {
+    if (!name || name === row.path) return;
+    row.busy++;
+    try { fs.renameRoot(row.path, name); }
+    catch (err) { fail(row.path, err); }
+    fs.readTree("", onRoots);
+  });
+}
+
+function removeRepo(row) {
+  dialog.confirm("Are you sure you want to delete " + row.path + "?", function (confirm) {
+    if (!confirm) return;
+    row.busy++;
+    try { fs.removeRoot(row.path); }
+    catch (err) { fail(row.path, err); }
+    fs.readTree("", onRoots);
   });
 }
 
@@ -445,8 +465,12 @@ function createGithubMount() {
 }
 
 function removeAll() {
-  // indexedDB.deleteDatabase("tedit");
-  prefs.clearSync(["treeConfig", "openPaths", "activePath", "hookConfig"], chrome.runtime.reload);
+  dialog.confirm("Are you sure you want to reset app to factory settings?", function (confirm) {
+    if (!confirm) return;
+    window.indexedDB.deleteDatabase("tedit");
+    chrome.storage.local.clear();
+    chrome.runtime.reload();
+  });
 }
 
 
@@ -504,8 +528,8 @@ function makeMenu(row) {
     actions.push({icon:"trash", label:"Delete " + type, action: removeEntry});
   }
   else {
-    actions.push({icon:"pencil", label:"Rename Repo"});
-    actions.push({icon:"trash", label:"Remove Repo"});
+    actions.push({icon:"pencil", label:"Rename Repo", action: renameRepo});
+    actions.push({icon:"trash", label:"Remove Repo", action: removeRepo});
   }
   // actions.push({sep:true});
   // actions.push({icon:"globe", label:"Serve Over HTTP"});
