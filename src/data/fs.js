@@ -172,7 +172,8 @@ function writeEntries() {
       function onHead(err, head) {
         if (err) return callback(err);
         // If the tree matches the one in HEAD, revert to head.
-        if (head.tree === treeHash) return callback(null, config.head, head);
+        if (head && head.tree === treeHash) return callback(null, config.head);
+        // If not create a temporary commit.
         var commit = {
           tree: treeHash,
           author: {
@@ -195,7 +196,7 @@ function writeEntries() {
       var parent = longestMatch(path, roots);
       if (parent) {
         var parentGroup = groups[parent] || (groups[parent] = {});
-        parentGroup[path] = {
+        parentGroup[path.substring(parent.length + 1)] = {
           mode: modes.commit,
           hash: hash
         };

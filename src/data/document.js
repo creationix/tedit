@@ -94,6 +94,7 @@ Doc.prototype.activate = function () {
   current = this;
   reset();
   editor.setDoc(this);
+  editor.focus();
 };
 
 Doc.prototype.save = function (text) {

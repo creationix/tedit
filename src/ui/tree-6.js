@@ -33,7 +33,8 @@ rootEl.addEventListener("click", onGlobalClick, false);
 
 function onRootChange(root, hash) {
   console.log("ROOT CHANGED", root, hash);
-  renderChild(root, root.substring(root.lastIndexOf("/") + 1), modes.commit, hash);
+  var name = root.substring(root.lastIndexOf("/") + 1);
+  renderChild(root, name, modes.commit, hash);
 }
 
 function onRoots(err, tree, hash) {
@@ -69,9 +70,10 @@ function renderChild(path, name, mode, hash) {
 
   return row;
 
-  function onCommit(err, commit) {
+  function onCommit(err, commit, hash) {
     row.busy--;
     if (!commit) fail(path, err || new Error("Missing commit " + path));
+    row.hash = hash;
     row.treeHash = commit.tree;
     row.staged = row.hash !== fs.configs[path].head;
     row.title = commit.author.date.toString() + "\n" + commit.author.name + " <" + commit.author.email + ">\n\n" + commit.message.trim();
