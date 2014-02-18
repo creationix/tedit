@@ -72,7 +72,8 @@ module.exports = {
   setMode: setMode,
   // (path, url) =>
   addSubModule: addSubModule,
-
+  // (path, entry) =>
+  writeEntry: writeEntry,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -461,12 +462,6 @@ function readLink(path, callback) {
   }
 }
 
-// (path) => mode, hash
-function getMode(path, callback) {
-  if (!callback) return getMode.bind(null, path);
-  callback("TODO: getMode");
-}
-
 // Given a path, return a path in the same folder that's unique
 // (path) => newPath
 function makeUnique(path, callback) {
@@ -535,12 +530,15 @@ function writeLink(path, target, callback) {
 // (path) =>
 function deleteEntry(path, callback) {
   if (!callback) return deleteEntry.bind(null, path);
+  // TODO: if path is a submodule (or contains one), remove .gitmodules entry
   writeEntry(path, {}, callback);
 }
 
 // (oldPath, newPath) =>
 function moveEntry(oldPath, newPath, callback) {
   if (!callback) return moveEntry.bind(null, oldPath, newPath);
+  // TODO: if oldPath is a submodule (or contains one), move .gitmodules entry
+  // TODO: if oldPath and newPath are different repos, deep-copy all entries
   readEntry(oldPath, onEntry);
 
   function onEntry(err, entry) {
@@ -553,6 +551,8 @@ function moveEntry(oldPath, newPath, callback) {
 // (oldPath, newPath) =>
 function copyEntry(oldPath, newPath, callback) {
   if (!callback) return copyEntry.bind(null, oldPath, newPath);
+  // TODO: if oldPath is a submodule (or contains one), duplicate .gitmodules entry
+  // TODO: if oldPath and newPath are different repos, deep-copy all entries
   readEntry(oldPath, onEntry);
 
   function onEntry(err, entry) {
@@ -593,6 +593,8 @@ function setMode(path, mode, callback) {
 // (path, url) =>
 function addSubModule(path, url, callback) {
   if (!callback) return addSubModule.bind(null, path, url);
+
+  console.log({path:path,url:url});
   callback("TODO: addSubModule");
 }
 

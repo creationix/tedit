@@ -8,6 +8,7 @@ var setDoc = require('data/document');
 var dialog = require('./dialog');
 var carallel = require('carallel');
 var contextMenu = require('./context-menu');
+var importEntry = require('data/importfs');
 
 setDoc.updateDoc = updateDoc;
 setDoc.setActive = setActive;
@@ -36,7 +37,6 @@ function addRoot(name, config) {
   openPaths[name] = true;
   fs.readTree("", onRoots);
 }
-
 
 function onRootChange(root, hash) {
   var name = root.substring(root.lastIndexOf("/") + 1);
@@ -241,6 +241,168 @@ function editSymLink(row) {
   }
 }
 
+function createFile(row) {
+  dialog.prompt("Enter name for new file", "", function (name) {
+    row.busy++;
+    fs.makeUnique(row.path + "/" + name, function (err, path) {
+      if (err) fail(row.path, err);
+      fs.setMode(path, modes.file, function (err) {
+        row.busy--;
+        if (err) fail(row.path, err);
+      });
+    });
+  });
+}
+
+function createFolder(row) {
+  dialog.prompt("Enter name for new folder", "", function (name) {
+    row.busy++;
+    fs.makeUnique(row.path + "/" + name, function (err, path) {
+      if (err) fail(row.path, err);
+      openPaths[path] = true;
+      prefs.save();
+      fs.setMode(path, modes.tree, function (err) {
+        row.busy--;
+        if (err) fail(row.path, err);
+      });
+    });
+  });
+}
+
+function createSymLink(row) {
+  dialog.multiEntry("Create SymLink", [
+    {name: "target", placeholder: "target", required:true},
+    {name: "name", placeholder: "name"},
+  ], onResult);
+
+  function onResult(result) {
+    if (!result) return;
+    row.busy++;
+    var name = result.name || result.target.substring(result.target.lastIndexOf("/") + 1);
+    fs.makeUnique(row.path + "/" + name, function (err, path) {
+      if (err) fail(row.path, err);
+      fs.writeLink(path, result.target, function (err) {
+        row.busy--;
+        if (err) fail(row.path, err);
+      });
+    });
+  }
+}
+
+function importFolder(row) {
+  var path, dir;
+  return chrome.fileSystem.chooseEntry({ type: "openDirectory"}, onDir);
+
+  function onDir(result) {
+    if (!result) return;
+    dir = result;
+    row.busy++;
+    fs.makeUnique(row.path + "/" + dir.name, onPath);
+  }
+
+  function onPath(err, result) {
+    if (err) fail(row.path, err);
+    path = result;
+    fs.readEntry(path, onEntry);
+  }
+
+  function onEntry(err, $, repo) {
+    if (err) fail(row.path, err);
+    importEntry(repo, dir, onHash);
+  }
+
+  function onHash(err, hash) {
+    if (err) fail(row.path, err);
+    openPaths[path] = true;
+    fs.writeEntry(path, {
+      mode: modes.tree,
+      hash: hash
+    }, onWrite);
+  }
+
+  function onWrite(err) {
+    row.busy--;
+    if (err) fail(row.path, err);
+  }
+}
+
+function addSubmodule(row) {
+  var url, name;
+  dialog.multiEntry("Add a submodule", [
+    {name: "url", placeholder: "git@hostname:path/to/repo.git", required:true},
+    {name: "name", placeholder: "localname"}
+  ], function (result) {
+    if (!result) return;
+    row.busy++;
+    url = result.url;
+    // Assume github if user/name combo is given
+    if (/^[^\/:@]+\/[^\/:@]+$/.test(url)) {
+      url = "git@github.com:" + url + ".git";
+    }
+    name = result.name || result.url.substring(result.url.lastIndexOf("/") + 1);
+    fs.makeUnique(row.path + "/" + name, onPath);
+  });
+
+
+  function onPath(err, path) {
+    if (err) fail(row.path, err);
+    fs.addSubModule(path, url, onWrite);
+  }
+
+  function onWrite(err) {
+    row.busy--;
+    if (err) fail(row.path, err);
+  }
+}
+
+function toggleExec(row) {
+  var newMode = row.mode === modes.exec ? modes.file : modes.exec;
+  row.busy++;
+  fs.setMode(row.path, newMode, function (err) {
+    row.busy--;
+    if (err) fail(row.path, err);
+  });
+}
+
+function moveEntry(row) {
+  var index = row.path.indexOf("/");
+  var root = row.path.substring(0, index);
+  var localPath = row.path.substring(index + 1);
+  dialog.prompt("Enter target path for move", localPath, function (newPath) {
+    if (!newPath || newPath === localPath) return;
+    row.busy++;
+    fs.moveEntry(row.path, root + "/" + newPath, function (err) {
+      row.busy--;
+      if (err) fail(row.path, err);
+    });
+  });
+}
+
+function copyEntry(row) {
+  var index = row.path.indexOf("/");
+  var root = row.path.substring(0, index);
+  var localPath = row.path.substring(index + 1);
+  dialog.prompt("Enter target path for copy", localPath, function (newPath) {
+    if (!newPath || newPath === localPath) return;
+    row.busy++;
+    fs.copyEntry(row.path, root + "/" + newPath, function (err) {
+      row.busy--;
+      if (err) fail(row.path, err);
+    });
+  });
+}
+
+function removeEntry(row) {
+  dialog.confirm("Are you sure you want to remove " + row.path + "?", function (confirm) {
+    if (!confirm) return;
+    row.busy++;
+    fs.deleteEntry(row.path, function (err) {
+      row.busy--;
+      if (err) fail(row.path, err);
+    });
+  });
+}
+
 function createEmpty() {
   dialog.prompt("Enter name for empty repo", "", function (name) {
     if (!name) return;
@@ -302,7 +464,7 @@ function makeMenu(row) {
   var type = row.mode === modes.tree ? "Folder" :
              modes.isFile(row.mode) ? "File" :
              row.mode === modes.sym ? "SymLink" :
-             onChange ? "Repo" : "Submodule";
+             row.path.indexOf("/") < 0 ? "Repo" : "Submodule";
   if (row.mode === modes.tree || row.mode === modes.commit) {
     if (openPaths[row.path]) {
       actions.push({icon:"doc", label:"Create File", action: createFile});
@@ -313,21 +475,21 @@ function makeMenu(row) {
       actions.push({icon:"folder", label:"Import Folder", action: importFolder});
     }
   }
-  if (row.mode === modes.commit) {
-    if (config.head !== config.current) {
-      actions.push({sep:true});
-      actions.push({icon:"floppy", label:"Commit Changes", action: commitChanges});
-      actions.push({icon:"ccw", label:"Revert all Changes", action: revertChanges});
-    }
-    actions.push({sep:true});
-    if (config.githubName) {
-      actions.push({icon:"github", label:"Check for Updates", action: checkHead});
-    }
-    else {
-      actions.push({icon:"download-cloud", label:"Pull from Remote"});
-      actions.push({icon:"upload-cloud", label:"Push to Remote"});
-    }
-  }
+  // if (row.mode === modes.commit) {
+  //   if (config.head !== config.current) {
+  //     actions.push({sep:true});
+  //     actions.push({icon:"floppy", label:"Commit Changes", action: commitChanges});
+  //     actions.push({icon:"ccw", label:"Revert all Changes", action: revertChanges});
+  //   }
+  //   actions.push({sep:true});
+  //   if (config.githubName) {
+  //     actions.push({icon:"github", label:"Check for Updates", action: checkHead});
+  //   }
+  //   else {
+  //     actions.push({icon:"download-cloud", label:"Pull from Remote"});
+  //     actions.push({icon:"upload-cloud", label:"Push to Remote"});
+  //   }
+  // }
   else if (modes.isFile(row.mode)) {
     actions.push({sep:true});
     var label = (row.mode === modes.exec) ?
@@ -337,16 +499,17 @@ function makeMenu(row) {
   }
   actions.push({sep:true});
   if (row.path.indexOf("/") >= 0) {
-    actions.push({icon:"pencil", label:"Rename " + type, action: renameEntry});
+    actions.push({icon:"pencil", label:"Move " + type, action: moveEntry});
+    actions.push({icon:"docs", label:"Copy " + type, action: copyEntry});
     actions.push({icon:"trash", label:"Delete " + type, action: removeEntry});
   }
   else {
     actions.push({icon:"pencil", label:"Rename Repo"});
     actions.push({icon:"trash", label:"Remove Repo"});
   }
-  actions.push({sep:true});
-  actions.push({icon:"globe", label:"Serve Over HTTP"});
-  actions.push({icon:"hdd", label:"Live Export to Disk", action: liveExport});
+  // actions.push({sep:true});
+  // actions.push({icon:"globe", label:"Serve Over HTTP"});
+  // actions.push({icon:"hdd", label:"Live Export to Disk", action: liveExport});
   if (actions[0].sep) actions.shift();
   return actions;
 }
