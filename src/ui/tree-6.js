@@ -40,6 +40,7 @@ function addRoot(name, config) {
 
 function onRootChange(root, hash) {
   var name = root.substring(root.lastIndexOf("/") + 1);
+  console.log("onRootChange", {root:root,hash:hash})
   renderChild(root, name, modes.commit, hash);
 }
 
@@ -149,8 +150,8 @@ function onGlobalContextMenu(evt) {
 
 function openTree(row) {
   var path = row.path;
-  row.busy++;
   row.open = true;
+  row.busy++;
   fs.readTree(path, onTree);
 
   function onTree(err, tree) {
@@ -202,6 +203,135 @@ function updateDoc(row, body) {
   });
 }
 
+function commitChanges(row) {
+  var current, preview;
+  var userEmail, userName;
+  var repo, config, head;
+  row.busy++;
+  fs.readEntry(row.path, onCurrent);
+
+  function onCurrent(err, entry, _repo, _config) {
+    row.busy--;
+    if (!entry) fail(row.path, err || new Error("Missing commit " + row.path));
+    repo = _repo;
+    config = _config;
+    row.busy++;
+    repo.loadAs("commit", entry.hash, onCommit);
+  }
+
+  function onCommit(err, commit) {
+    row.busy--;
+    if (!commit) fail(row.path, err || new Error("Missing commit " + row.path));
+    current = commit;
+    if (config.githubName) {
+      var previewDiff = "https://github.com/" + config.githubName + "/commit/" + config.current;
+      preview = window.open(previewDiff);
+    }
+    userName = prefs.get("userName", "");
+    userEmail = prefs.get("userEmail", "");
+    dialog.multiEntry("Enter Commit Message", [
+      {name: "message", placeholder: "Details about commit.", required:true},
+      {name: "name", placeholder: "Full Name", required:true, value:userName},
+      {name: "email", placeholder: "email@provider.com", required:true, value:userEmail},
+    ], onResult);
+  }
+
+  function onResult(result) {
+    if (preview) preview.close();
+    if (!result) return;
+    if (result.name !== userName) prefs.set("userName", result.name);
+    if (result.email !== userEmail) prefs.set("userEmail", result.email);
+    var commit = {
+      tree: current.tree,
+      author: {
+        name: result.name,
+        email: result.email
+      },
+      parent: config.head,
+      message: result.message
+    };
+    row.busy++;
+    repo.saveAs("commit", commit, onSave);
+  }
+
+  function onSave(err, hash) {
+    row.busy--;
+    if (err) fail(row.path, err);
+    head = config.head = hash;
+    row.busy++;
+    fs.writeEntry(row.path, {
+      mode: modes.commit,
+      hash: hash
+    }, onWrite);
+  }
+
+  function onWrite(err) {
+    row.busy--;
+    if (err) fail(row.path, err);
+    row.busy++;
+    repo.updateRef("refs/heads/master", head, onUpdate);
+  }
+
+  function onUpdate(err) {
+    row.busy--;
+    if (err) fail(row.path, err);
+    prefs.save();
+  }
+
+}
+
+function revertChanges(row) {
+  var current, preview;
+  var repo, config, head;
+  row.busy++;
+  fs.readEntry(row.path, onCurrent);
+
+  function onCurrent(err, entry, _repo, _config) {
+    row.busy--;
+    if (!entry) fail(row.path, err || new Error("Missing commit " + row.path));
+    repo = _repo;
+    config = _config;
+    if (!config.head) fail(row.path, new Error("Nothing to revert to"));
+    row.busy++;
+    repo.loadAs("commit", entry.hash, onCommit);
+  }
+
+  function onCommit(err, commit) {
+    row.busy--;
+    if (!commit) fail(row.path, err || new Error("Missing commit " + row.path));
+    current = commit;
+    if (config.githubName) {
+      var previewDiff = "https://github.com/" + config.githubName + "/commit/" + config.current;
+      preview = window.open(previewDiff);
+    }
+    dialog.confirm("Are you sure you want to lose all uncommitted changes?", onConfirm);
+  }
+
+  function onConfirm(confirm) {
+    if (!confirm) return;
+    config.current = config.head;
+    row.busy++;
+    fs.writeEntry(row.path, {
+      mode: modes.commit,
+      hash: config.head,
+    }, onWrite);
+  }
+
+  function onWrite(err) {
+    row.busy--;
+    if (err) fail(row.path, err);
+    row.busy++;
+    repo.updateRef("refs/heads/master", head, onUpdate);
+  }
+
+  function onUpdate(err) {
+    row.busy--;
+    if (err) fail(row.path, err);
+    prefs.save();
+  }
+}
+
+
 function editSymLink(row) {
   var target;
   row.busy++;
@@ -242,31 +372,37 @@ function editSymLink(row) {
 }
 
 function createFile(row) {
-  dialog.prompt("Enter name for new file", "", function (name) {
+  dialog.prompt("Enter name for new file", "", onName);
+
+  function onName(name) {
     row.busy++;
-    fs.makeUnique(row.path + "/" + name, function (err, path) {
-      if (err) fail(row.path, err);
-      fs.setMode(path, modes.file, function (err) {
-        row.busy--;
-        if (err) fail(row.path, err);
-      });
-    });
-  });
+    fs.createEntry(row.path + "/" + name, {
+      mode: modes.blob
+    }, onCreate);
+  }
+
+  function onCreate(err) {
+    row.busy--;
+    if (err) fail(row.path, err);
+  }
 }
 
 function createFolder(row) {
-  dialog.prompt("Enter name for new folder", "", function (name) {
+  dialog.prompt("Enter name for new folder", "", onName);
+
+  function onName(name) {
     row.busy++;
-    fs.makeUnique(row.path + "/" + name, function (err, path) {
-      if (err) fail(row.path, err);
-      openPaths[path] = true;
-      prefs.save();
-      fs.setMode(path, modes.tree, function (err) {
-        row.busy--;
-        if (err) fail(row.path, err);
-      });
-    });
-  });
+    fs.createEntry(row.path + "/" + name, {
+      mode: modes.tree
+    }, onCreate);
+  }
+
+  function onCreate(err, path) {
+    row.busy--;
+    if (err) fail(row.path, err);
+    openPaths[path] = true;
+    prefs.save();
+  }
 }
 
 function createSymLink(row) {
@@ -277,15 +413,17 @@ function createSymLink(row) {
 
   function onResult(result) {
     if (!result) return;
-    row.busy++;
     var name = result.name || result.target.substring(result.target.lastIndexOf("/") + 1);
-    fs.makeUnique(row.path + "/" + name, function (err, path) {
-      if (err) fail(row.path, err);
-      fs.writeLink(path, result.target, function (err) {
-        row.busy--;
-        if (err) fail(row.path, err);
-      });
-    });
+    row.busy++;
+    fs.createEntry(row.path + "/" + name, {
+      mode: modes.sym,
+      content: result.target
+    }, onWrite);
+  }
+
+  function onWrite(err) {
+    row.busy--;
+    if (err) fail(row.path, err);
   }
 }
 
@@ -301,19 +439,25 @@ function importFolder(row) {
   }
 
   function onPath(err, result) {
+    row.busy--;
     if (err) fail(row.path, err);
     path = result;
+    row.busy++;
     fs.readEntry(path, onEntry);
   }
 
   function onEntry(err, $, repo) {
+    row.busy--;
     if (err) fail(row.path, err);
+    row.busy++;
     importEntry(repo, dir, onHash);
   }
 
   function onHash(err, hash) {
+    row.busy--;
     if (err) fail(row.path, err);
     openPaths[path] = true;
+    row.busy++;
     fs.writeEntry(path, {
       mode: modes.tree,
       hash: hash
@@ -331,21 +475,25 @@ function addSubmodule(row) {
   dialog.multiEntry("Add a submodule", [
     {name: "url", placeholder: "git@hostname:path/to/repo.git", required:true},
     {name: "name", placeholder: "localname"}
-  ], function (result) {
+  ], onResult);
+
+  function onResult(result) {
     if (!result) return;
-    row.busy++;
     url = result.url;
     // Assume github if user/name combo is given
     if (/^[^\/:@]+\/[^\/:@]+$/.test(url)) {
       url = "git@github.com:" + url + ".git";
     }
     name = result.name || result.url.substring(result.url.lastIndexOf("/") + 1);
+    row.busy++;
     fs.makeUnique(row.path + "/" + name, onPath);
-  });
+  }
 
 
   function onPath(err, path) {
+    row.busy--;
     if (err) fail(row.path, err);
+    row.busy++;
     fs.addSubModule(path, url, onWrite);
   }
 
@@ -371,6 +519,7 @@ function moveEntry(row) {
   dialog.prompt("Enter target path for move", localPath, function (newPath) {
     if (!newPath || newPath === localPath) return;
     row.busy++;
+    // TODO: make this unique?
     fs.moveEntry(row.path, root + "/" + newPath, function (err) {
       row.busy--;
       if (err) fail(row.path, err);
@@ -385,6 +534,7 @@ function copyEntry(row) {
   dialog.prompt("Enter target path for copy", localPath, function (newPath) {
     if (!newPath || newPath === localPath) return;
     row.busy++;
+    // TODO: make this unique?
     fs.copyEntry(row.path, root + "/" + newPath, function (err) {
       row.busy--;
       if (err) fail(row.path, err);
@@ -393,20 +543,23 @@ function copyEntry(row) {
 }
 
 function removeEntry(row) {
-  dialog.confirm("Are you sure you want to delete " + row.path + "?", function (confirm) {
+  dialog.confirm("Are you sure you want to delete " + row.path + "?", onConfirm);
+
+  function onConfirm(confirm) {
     if (!confirm) return;
     row.busy++;
-    fs.deleteEntry(row.path, function (err) {
-      row.busy--;
-      if (err) fail(row.path, err);
-    });
-  });
+    fs.deleteEntry(row.path, onDelete);
+  }
+
+  function onDelete(err) {
+    row.busy--;
+    if (err) fail(row.path, err);
+  }
 }
 
 function renameRepo(row) {
   dialog.prompt("Enter new name for repo", row.path, function (name) {
     if (!name || name === row.path) return;
-    row.busy++;
     try { fs.renameRoot(row.path, name); }
     catch (err) { fail(row.path, err); }
     fs.readTree("", onRoots);
@@ -416,7 +569,6 @@ function renameRepo(row) {
 function removeRepo(row) {
   dialog.confirm("Are you sure you want to delete " + row.path + "?", function (confirm) {
     if (!confirm) return;
-    row.busy++;
     try { fs.removeRoot(row.path); }
     catch (err) { fail(row.path, err); }
     fs.readTree("", onRoots);
@@ -424,10 +576,12 @@ function removeRepo(row) {
 }
 
 function createEmpty() {
-  dialog.prompt("Enter name for empty repo", "", function (name) {
+  dialog.prompt("Enter name for empty repo", "", onName);
+
+  function onName(name) {
     if (!name) return;
     addRoot(name, {});
-  });
+  }
 }
 
 function createFromFolder() {
@@ -499,21 +653,19 @@ function makeMenu(row) {
       actions.push({icon:"folder", label:"Import Folder", action: importFolder});
     }
   }
-  // if (row.mode === modes.commit) {
-  //   if (config.head !== config.current) {
-  //     actions.push({sep:true});
-  //     actions.push({icon:"floppy", label:"Commit Changes", action: commitChanges});
-  //     actions.push({icon:"ccw", label:"Revert all Changes", action: revertChanges});
-  //   }
-  //   actions.push({sep:true});
-  //   if (config.githubName) {
-  //     actions.push({icon:"github", label:"Check for Updates", action: checkHead});
-  //   }
-  //   else {
-  //     actions.push({icon:"download-cloud", label:"Pull from Remote"});
-  //     actions.push({icon:"upload-cloud", label:"Push to Remote"});
-  //   }
-  // }
+  if (row.mode === modes.commit) {
+    var config = fs.configs[row.path];
+    if (config.head !== config.current) {
+      actions.push({sep:true});
+      actions.push({icon:"floppy", label:"Commit Changes", action: commitChanges});
+      actions.push({icon:"ccw", label:"Revert all Changes", action: revertChanges});
+    }
+    if (!config.githubName) {
+      actions.push({sep:true});
+      actions.push({icon:"download-cloud", label:"Pull from Remote"});
+      actions.push({icon:"upload-cloud", label:"Push to Remote"});
+    }
+  }
   else if (modes.isFile(row.mode)) {
     actions.push({sep:true});
     var label = (row.mode === modes.exec) ?

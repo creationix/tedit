@@ -74,6 +74,8 @@ module.exports = {
   addSubModule: addSubModule,
   // (path, entry) =>
   writeEntry: writeEntry,
+  // (path, entry) => newPath
+  createEntry: createEntry,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -121,14 +123,22 @@ function writeEntries() {
   var groups = {};
   var roots = Object.keys(configs);
   Object.keys(writes).forEach(function (path) {
-    var root = configs[path] ? path : longestMatch(path, roots);
-    if (!root) return onWriteDone(new Error("Can't find root for " + path));
+    var root = longestMatch(path, roots);
+    var entry = writes[path];
+    if (!root) {
+      if (path.indexOf("/") < 0 && entry.mode === modes.commit) {
+        currents[path] = entry.hash;
+        return;
+      }
+      return onWriteDone(new Error("Can't find root for " + path));
+    }
     var group = groups[root] || (groups[root] = {});
-    var local = path.substring(root.length + 1);
-    group[local] = writes[path];
+    var local = root ? path.substring(root.length + 1) : path;
+    group[local] = entry;
   });
 
   var leaves = findLeaves();
+  if (!leaves.length) return onWriteDone();
   carallel(leaves.map(processLeaf), onProcessed);
 
   // Find reop groups that have no dependencies and process them in parallel
@@ -603,6 +613,44 @@ function addSubModule(path, url, callback) {
   console.log({path:path,url:url});
   callback("TODO: addSubModule");
 }
+
+function createEntry(path, entry, callback) {
+  if (!callback) return createEntry.bind(null, path, entry);
+  makeUnique(path, onPath);
+
+  function onPath(err, result) {
+    if (err) return callback(err);
+    path = result;
+    if (entry.hash) return onHash();
+    return readEntry(path, onEntry);
+  }
+
+  function onEntry(err, _, repo) {
+    if (err) return callback(err);
+    var type = modes.toType(entry.mode);
+    var body;
+    if (entry.content) {
+      body = entry.content;
+      delete entry.content;
+    }
+    else if (type === "blob") body = "";
+    else if (type === "tree") body = [];
+    else return callback(new Error("Can't create empty " + type));
+    repo.saveAs(type, body, onHash);
+  }
+
+  function onHash(err, hash) {
+    if (err) return callback(err);
+    if (hash) entry.hash = hash;
+    writeEntry(path, entry, onWrite);
+  }
+
+  function onWrite(err) {
+    if (err) return callback(err);
+    callback(null, path);
+  }
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
