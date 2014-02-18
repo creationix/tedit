@@ -24,14 +24,12 @@ var active;
 // Remember the path to the active document.
 var activePath = prefs.get("activePath", "");
 
-addRoot("conquest", {url:"git@github.com:creationix/conquest.git"});
-// addRoot("tedit-app", {githubName:"creationix/tedit-app"});
-
 fs.onChange(onRootChange);
 
 rootEl.addEventListener("click", onGlobalClick, false);
 rootEl.addEventListener("contextmenu", onGlobalContextMenu, false);
 
+fs.readTree("", onRoots);
 
 function addRoot(name, config) {
   name = fs.addRoot(name, config);
@@ -285,9 +283,8 @@ function createGithubMount() {
 }
 
 function removeAll() {
-  throw "TODO: implement removeAll";
-  // // indexedDB.deleteDatabase("tedit");
-  // prefs.clearSync(["treeConfig", "openPaths", "activePath", "hookConfig"], chrome.runtime.reload);
+  // indexedDB.deleteDatabase("tedit");
+  prefs.clearSync(["treeConfig", "openPaths", "activePath", "hookConfig"], chrome.runtime.reload);
 }
 
 

@@ -7,6 +7,7 @@ var encodeConfig = require('js-git/lib/config-codec').encode;
 var binary = require('bodec');
 
 module.exports = {
+  createRepo: createRepo,
   expandConfig: expandConfig,
   loadSubModule: loadSubModule,
 };

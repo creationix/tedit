@@ -48,7 +48,7 @@ function promptDialog(prompt, value, callback) {
   var $ = dialog(prompt, [
     ["form", {onsubmit: submit},
       [".input",
-        ["input.input-field$input", {value:value}],
+        ["input.input-field$input", {value:value,required:true}],
         ["input.input-item", {type:"submit",value:"OK"}]
       ]
     ]

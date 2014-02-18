@@ -20,14 +20,16 @@ var hashAs = require('js-git/lib/encoders').hashAs;
 var modes = require('js-git/lib/modes');
 var cache = require('js-git/mixins/mem-cache').cache;
 var expandConfig = require('./projects').expandConfig;
+var createRepo = require('./projects').createRepo;
 var loadSubModule = require('./projects').loadSubModule;
 var carallel = require('carallel');
 var pathJoin = require('pathjoin');
 var binary = require('bodec');
 var defer = require('js-git/lib/defer');
+var prefs = require('ui/prefs');
 
 // Hold references to the root configs.
-var configs = {};
+var configs = prefs.get("treeConfig", {});
 
 module.exports = {
 
@@ -224,6 +226,8 @@ function writeEntries() {
       });
     });
 
+    prefs.save();
+
     // Tell the callbacks we're done.
     callbacks.forEach(function (callback) {
       callback(err);
@@ -277,6 +281,7 @@ function addRoot(name, config, callback) {
   name = genName(name, configs);
   config.root = name;
   configs[name] = config;
+  prefs.save();
   return name;
 }
 
@@ -303,7 +308,8 @@ function pathToEntry(path, callback) {
   var config = configs[root];
   if (!config) return callback();
   if (!config.current) return expandConfig(config, onExpanded);
-  var repo = findStorage(config).repo;
+  var storage = findStorage(config);
+  var repo = storage.repo || (storage.repo = createRepo(config));
   if (!repo) return callback(new Error("Missing repo for " + path));
 
   var mode = modes.commit;
@@ -315,6 +321,7 @@ function pathToEntry(path, callback) {
   function onExpanded(err) {
     if (err) return callback(err);
     if (!config.current) return callback(new Error("Unable to find current " + path));
+    prefs.save();
     return pathToEntry(path, callback);
   }
 
@@ -341,7 +348,8 @@ function pathToEntry(path, callback) {
           if (configs[path]) {
             root = path;
             config = configs[root];
-            repo = findStorage(config).repo;
+            storage = findStorage(config);
+            repo = storage.repo || (storage.repo = createRepo(config));
           }
           else {
             return loadSubModule(repo, config, rootTree, root, path, onSubConfig);
@@ -366,6 +374,7 @@ function pathToEntry(path, callback) {
     if (err) return callback(err);
     root = path;
     config = configs[root] = subConfig;
+    prefs.save();
     repo = findStorage(config).repo;
     return walk();
   }
