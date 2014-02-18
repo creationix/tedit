@@ -158,7 +158,6 @@ function closeTree(row) {
 
 function setActive(path) {
   var row = rows[path];
-  console.log("ROW", path, row);
   var old = active;
   active = row;
   activePath = active ? active.path : null;

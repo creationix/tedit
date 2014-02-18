@@ -214,8 +214,6 @@ function writeEntries() {
 
     // Process changed roots
     Object.keys(currents).forEach(function (root) {
-      // Skip submodules, they will get changed later.
-      if (root.indexOf("/") >= 0) return;
 
       var hash = currents[root];
       // Update the config
