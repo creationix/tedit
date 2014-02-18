@@ -1,13 +1,14 @@
 var rootEl = require('./elements').tree;
 var fs = require('data/fs');
 var makeRow = require('./row');
-var findStorage = require('data/storage');
 var modes = require('js-git/lib/modes');
 var prefs = require('./prefs');
-var editor = require('./editor');
-var newDoc = require('data/document');
+var setDoc = require('data/document');
 var dialog = require('./dialog');
 var carallel = require('carallel');
+
+setDoc.updateDoc = updateDoc;
+setDoc.setActive = setActive;
 
 // Memory for opened trees.  Accessed by path
 var openPaths = prefs.get("openPaths", {});
@@ -155,35 +156,29 @@ function closeTree(row) {
   prefs.save();
 }
 
-function activateDoc(row) {
+function setActive(path) {
+  var row = rows[path];
+  console.log("ROW", path, row);
   var old = active;
   active = row;
   activePath = active ? active.path : null;
   prefs.set("activePath", activePath);
   if (old) old.active = false;
   if (active) active.active = true;
-  if (!active) return editor.setDoc();
-  if (active === old) return;
-  var storage = findStorage(row);
-  var doc;
-  row.busy++;
-  fs.readFile(row.path, onBlob);
+}
 
-  function onBlob(err, blob) {
+function activateDoc(row) {
+  var path = row.path;
+  setActive(path);
+  if (!active) return setDoc();
+  row.busy++;
+  fs.readFile(path, onFile);
+
+  function onFile(err, blob) {
     row.busy--;
-    if (err) fail(row.path, err);
-    doc = storage.doc;
-    try {
-      if (doc) doc.update(row.path, row.mode, blob);
-      else {
-        doc = storage.doc = newDoc(row.path, row.mode, blob);
-        doc.updateTree = updateDoc.bind(null, row);
-      }
-      doc.activate();
-    }
-    catch (err) {
-      fail(row.path, err);
-    }
+    if (!blob) fail(path, err || new Error("Problem loading doc " + path));
+    try { setDoc(row, blob); }
+    catch (err) {  fail(row.path, err);  }
   }
 }
 

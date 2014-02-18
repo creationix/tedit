@@ -3,6 +3,7 @@
 
 var modelist = ace.require('ace/ext/modelist');
 var whitespace = ace.require('ace/ext/whitespace');
+var findStorage = require('data/storage');
 
 var editor = require('ui/editor');
 var binary = require('bodec');
@@ -11,16 +12,93 @@ var recent = [];
 var recentIndex = 0;
 var current;
 
-Doc.next = next;
-Doc.reset = reset;
-module.exports = Doc;
+var imageTypes = {
+  png: "image/png",
+  gif: "image/gif",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  svg: "image/svg+xml",
+};
+
+// JSHint Options for JavaScript files
+var hintOptions = [{
+  unused: true,
+  undef: true,
+  esnext: true,
+  browser: true,
+  node: true,
+  onevar: false,
+  passfail: false,
+  maxerr: 100,
+  multistr: true,
+  globalstrict: true
+}];
+
+module.exports = setDoc;
+setDoc.next = next;
+setDoc.reset = reset;
+
+function setDoc(row, body) {
+  if (!row) return editor.setDoc();
+  var storage = findStorage(row);
+  var doc = storage.doc || (storage.doc = { save: save });
+
+  var ext = row.path.match(/[^.]*$/)[0].toLowerCase();
+  var imageType = imageTypes[ext];
+  if (imageType) {
+    if (doc.session) delete doc.session;
+    if (doc.hash !== row.hash) {
+      var blob = new Blob([body], { type: imageType });
+      doc.url = window.URL.createObjectURL(blob);
+    }
+  }
+  else {
+    var code = binary.toUnicode(body);
+    if (doc.url) delete doc.url;
+    if (!doc.session) {
+      doc.session = ace.createEditSession(code);
+      doc.code = code;
+      doc.session.setTabSize(2);
+      whitespace.detectIndentation(doc.session);
+      doc.mode = 0;
+    }
+    else if (doc.code !== code) {
+      doc.session.setValue(code, 1);
+      doc.code = code;
+      whitespace.detectIndentation(doc.session);
+    }
+    if (doc.mode !== row.mode) {
+      var aceMode = row.mode === modes.sym ?
+        "ace/mode/text" : modelist.getModeForPath(row.path).mode;
+      doc.session.setMode(aceMode, function () {
+        if (aceMode !== "ace/mode/javascript") return;
+        doc.session.$worker.call("setOptions", hintOptions);
+      });
+      doc.mode = row.mode;
+    }
+
+  }
+  doc.path = row.path;
+  doc.hash = row.hash;
+
+  current = doc;
+  reset();
+  editor.setDoc(doc);
+  editor.focus();
+
+  function save(text) {
+    if (text === doc.code) return;
+    doc.code = text;
+    setDoc.updateDoc(row, binary.fromUnicode(text));
+  }
+}
 
 function next() {
   if (!recent.length) return;
   recentIndex = (recentIndex + 1) % recent.length;
   current = recent[recentIndex];
   editor.setDoc(current);
-  console.log("NEXT");
+  setDoc.setActive(current.path);
 }
 
 function reset() {
@@ -31,75 +109,3 @@ function reset() {
   recent.unshift(current);
   recentIndex = 0;
 }
-
-function Doc(path, mode, body) {
-  if (!(this instanceof Doc)) return new Doc(path, mode, body);
-  var code = binary.toUnicode(body);
-  this.path = path;
-  this.mode = mode;
-  this.code = code;
-  this.session = ace.createEditSession(code);
-  this.session.setTabSize(2);
-  this.updateAceMode();
-  whitespace.detectIndentation(this.session);
-}
-
-Doc.prototype.update = function (path, mode, body) {
-  this.path = path;
-  this.mode = mode;
-  this.updateAceMode();
-  if (body !== undefined) this.setBody(body);
-};
-
-Doc.prototype.updatePath = function (path) {
-  this.path = path;
-  this.updateAceMode();
-  editor.updatePath(this);
-};
-
-Doc.prototype.updateAceMode = function () {
-  var aceMode = this.mode === modes.sym ?
-    "ace/mode/text" : modelist.getModeForPath(this.path).mode;
-  if (this.aceMode === aceMode) return;
-  this.aceMode = aceMode;
-  var session = this.session;
-  session.setMode(aceMode, function () {
-    if (aceMode === "ace/mode/javascript") {
-      // Tweak js-hint settings for JavaScript
-      session.$worker.call("setOptions", [{
-        unused: true,
-        undef: true,
-        esnext: true,
-        browser: true,
-        node: true,
-        onevar: false,
-        passfail: false,
-        maxerr: 100,
-        multistr: true,
-        globalstrict: true
-      }]);
-    }
-  });
-};
-
-Doc.prototype.setBody = function (body) {
-  var code = binary.toUnicode(body);
-  if (code === this.code) return;
-  this.code = code;
-  this.session.setValue(code, 1);
-  whitespace.detectIndentation(this.session);
-};
-
-Doc.prototype.activate = function () {
-  current = this;
-  reset();
-  editor.setDoc(this);
-  editor.focus();
-};
-
-Doc.prototype.save = function (text) {
-  if (text === this.code) return;
-  this.code = text;
-  var body = binary.fromUnicode(text);
-  this.updateTree(body);
-};

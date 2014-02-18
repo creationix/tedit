@@ -164,7 +164,6 @@ body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
 .preview .dragger {
   width: 2em;
   right: auto;
-  background-color: #3a3a3a;
 }
 .preview .image {
   left: 2em;

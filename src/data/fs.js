@@ -51,12 +51,10 @@ module.exports = {
   readFile: readFile,
   // (path) => target, hash
   readLink: readLink,
-  // (path) => mode, hash
-  getMode: getMode,
   // (path) => newPath
   makeUnique: makeUnique,
-  // (path) => repo, config
-  getRepo: getRepo,
+  // (path) => entry, repo, config
+  readEntry: readEntry,
 
   // (path, blob) => hash
   writeFile: writeFile,

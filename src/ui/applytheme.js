@@ -37,7 +37,7 @@ var template = {
     "background": [".ace_gutter"],
     "background-image": [".ace_gutter"],
   },
-  ".titlebar, .dialog .title, .input-item": {
+  ".titlebar, .dialog .title, .input-item, .dragger": {
     "background-color": [".ace_gutter"],
     "background": [".ace_gutter"],
     "background-image": [".ace_text-layer", ".ace_gutter"],

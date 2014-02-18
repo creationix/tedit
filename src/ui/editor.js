@@ -124,23 +124,20 @@ editor.setDoc = function (doc) {
   }
   updateTitle(doc.path);
 
-  // if ("tiled" in doc) {
-  //   // This is an image url.
-  //   if (textMode) {
-  //     textMode = false;
-  //     $.preview.style.display = "block";
-  //     $.editor.style.display = "none";
-  //   }
-  //   return updateImage();
-  // }
-  // if (!textMode) {
-  //   textMode = true;
-  //   $.preview.style.display = "none";
-  //   $.editor.style.display = "block";
-  // }
-  // editor.setSession(doc);
-  // if (!doc.updateTitle) doc.updateTitle = updateTitle;
-  // doc.updateTitle();
+  if (doc.url) {
+    // This is an image url.
+    if (textMode) {
+      textMode = false;
+      $.preview.style.display = "block";
+      $.editor.style.display = "none";
+    }
+    return updateImage();
+  }
+  if (!textMode) {
+    textMode = true;
+    $.preview.style.display = "none";
+    $.editor.style.display = "block";
+  }
 };
 
 function updateTitle(path) {
