@@ -19,14 +19,14 @@ function makeRow(path, mode, hash, parent) {
       exportPath,
       serverPort,
       open = false,
-      busy = false,
+      busy = 0,
       active = false,
       selected = false,
       dirty = false,
       staged = false;
   var $ = {};
   var children;
-  var node = {
+  var row = {
     el: domBuilder(["li$el", ["$row", ["i$icon"], ["span$span"]]], $),
     get title () { return title; },
     set title( value) {
@@ -109,11 +109,11 @@ function makeRow(path, mode, hash, parent) {
     removeChildren: removeChildren,
     // return next row in list
     get next() {
-      return parent && parent.before(node);
+      return parent && parent.before(row);
     },
     // return previous row in list
     get prev() {
-      return parent && parent.after(node);
+      return parent && parent.after(row);
     },
     // return last child
     get last() {
@@ -123,14 +123,16 @@ function makeRow(path, mode, hash, parent) {
     get first() {
       return children && children.length && children[0];
     },
-    // Get node after specefied child
+    // Get row after specefied child
     after: after,
-    // Get node before specefied child
+    // Get row before specefied child
     before: before,
+    // Boilerplate helper to automate fs calls for a row
+    call: call,
   };
-  $.el.js = node;
+  $.el.js = row;
   updateAll();
-  return node;
+  return row;
 
   function updateIcon() {
     var value =
@@ -265,5 +267,48 @@ function makeRow(path, mode, hash, parent) {
     var index = children.indexOf(child);
     if (index > 1) return children[index - 1];
     throw "TODO: Implement before jump";
+  }
+
+  // First arg is function to call.
+  // row path is injected as first argument in function
+  // If first arg is a string, it's used at the path instead.
+  // callback is intercepted with error stripping/checking callback
+  // callback gets rest of original callback args.
+  function call(fn) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    // Strip original callback from end if it's there.
+    var cb = (typeof args[args.length - 1] === "function") && args.pop();
+    // Prepend path at front of args
+    if (typeof fn === "string") {
+      var path = fn;
+      fn = args[0];
+      args[0] = path;
+    }
+    else {
+      args.unshift(row.path);
+    }
+    // Append new callback at end
+    args.push(callback);
+    // Mark the row as busy and run the async action with error catching
+    row.busy++;
+    try { fn.apply(null, args); }
+    catch (err) { fail(err); }
+
+    function callback(err) {
+      // Mark the async action as done
+      row.busy--;
+      // If there was an async error, report it
+      if (err) fail(err);
+      if (!cb) return;
+      // Otherwise call the original callback with the rest of the args.
+      var args = Array.prototype.slice.call(arguments, 1);
+      try { cb.apply(null, args); }
+      catch (err) { fail(err); }
+    }
+  }
+
+  function fail(err) {
+    row.errorMessage = err.toString();
+    throw err;
   }
 }

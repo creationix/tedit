@@ -6,9 +6,9 @@ var modes = require('js-git/lib/modes');
 var prefs = require('./prefs');
 var setDoc = require('data/document');
 var dialog = require('./dialog');
-var carallel = require('carallel');
 var contextMenu = require('./context-menu');
 var importEntry = require('data/importfs');
+var rescape = require('data/rescape');
 
 setDoc.updateDoc = updateDoc;
 setDoc.setActive = setActive;
@@ -45,7 +45,7 @@ function onRootChange(root, hash) {
 }
 
 function onRoots(err, tree, hash) {
-  if (err) fail("", err);
+  if (err) throw err;
   if (hash === rootHash) return;
   rootHash = hash;
   rootEl.textContent = "";
@@ -57,6 +57,7 @@ function onRoots(err, tree, hash) {
 }
 
 function renderChild(path, name, mode, hash) {
+  if (!name) name = path.substring(path.lastIndexOf("/") + 1);
   var row = rows[path];
   if (row) {
     row.mode = mode;
@@ -69,20 +70,18 @@ function renderChild(path, name, mode, hash) {
     row = rows[path] = makeRow(path, mode, hash);
   }
   if (mode === modes.commit) {
-    row.busy++;
-    fs.readCommit(path, onCommit);
+    row.call(fs.readCommit, onCommit);
   }
   if ((mode === modes.tree) && openPaths[path]) openTree(row);
   if (activePath === path) activateDoc(row);
 
   return row;
 
-  function onCommit(err, commit, hash) {
-    row.busy--;
-    if (!commit) fail(path, err || new Error("Missing commit " + path));
-    row.hash = hash;
+  function onCommit(commit, hashes) {
+    if (!commit) throw new Error("Missing commit " + path);
+    row.hash = hashes.current;
     row.treeHash = commit.tree;
-    row.staged = row.hash !== fs.configs[path].head;
+    row.staged = fs.isDirty(path);
     row.title = commit.author.date.toString() + "\n" + commit.author.name + " <" + commit.author.email + ">\n\n" + commit.message.trim();
     if (openPaths[path]) openTree(row);
   }
@@ -91,23 +90,33 @@ function renderChild(path, name, mode, hash) {
 
 function renderChildren(row, tree) {
   var path = row.path;
+
+  // Trim rows that are not in the tree anymore.  I welcome a more effecient way
+  // to do this than scan over the entire list looking for patterns.
+  var pattern = new RegExp("^" + rescape(path) + "\/([^\/]+)(?=\/|$)");
+  var paths = Object.keys(rows);
+  for (var i = 0, l = paths.length; i < l; i++) {
+    var childPath = paths[i];
+    var match = childPath.match(pattern);
+    if (match && !tree[match[1]]) {
+      delete rows[childPath];
+    }
+  }
+
   // renderChild will cache rows that have been seen already, so it's effecient
   // to simply remove all children and then re-add the ones still here all in
   // one tick. Also we don't have to worry about sort order because that's
   // handled internally by row.addChild().
   row.removeChildren();
-  Object.keys(tree).forEach(function (name) {
+
+  // Add back all the immediate children.
+  var names = Object.keys(tree);
+  for (i = 0, l = names.length; i < l; i++) {
+    var name = names[i];
     var entry = tree[name];
     var child = renderChild(path + "/" + name, name, entry.mode, entry.hash);
     row.addChild(child);
-  });
-}
-
-function fail(path, err) {
-  var row = rows[path];
-  if (row) row.errorMessage = err.toString();
-  else console.error("Problem at " + path + "...");
-  throw err;
+  }
 }
 
 function nullify(evt) {
@@ -151,16 +160,11 @@ function onGlobalContextMenu(evt) {
 function openTree(row) {
   var path = row.path;
   row.open = true;
-  row.busy++;
-  fs.readTree(path, onTree);
-
-  function onTree(err, tree) {
-    row.busy--;
-    if (!tree) fail(path, err || new Error("Missing tree " + path));
+  row.call(fs.readTree, function (tree) {
     openPaths[path] = true;
     prefs.save();
     renderChildren(row, tree);
-  }
+  });
 }
 
 function closeTree(row) {
@@ -184,247 +188,157 @@ function activateDoc(row) {
   var path = row.path;
   setActive(path);
   if (!active) return setDoc();
-  row.busy++;
-  fs.readFile(path, onFile);
-
-  function onFile(err, blob) {
-    row.busy--;
-    if (!blob) fail(path, err || new Error("Problem loading doc " + path));
-    try { setDoc(row, blob); }
-    catch (err) {  fail(row.path, err);  }
-  }
-}
-
-function updateDoc(row, body) {
-  row.busy++;
-  fs.writeFile(row.path, body, function (err) {
-    row.busy--;
-    if (err) fail(row.path, err);
+  row.call(fs.readFile, function (blob) {
+    setDoc(row, blob);
   });
 }
 
+function updateDoc(row, body) {
+  row.call(fs.writeFile, body);
+}
+
 function commitChanges(row) {
-  var current, preview;
-  var userEmail, userName;
-  var repo, config, head;
-  row.busy++;
-  fs.readEntry(row.path, onCurrent);
-
-  function onCurrent(err, entry, _repo, _config) {
-    row.busy--;
-    if (!entry) fail(row.path, err || new Error("Missing commit " + row.path));
-    repo = _repo;
-    config = _config;
-    row.busy++;
-    repo.loadAs("commit", entry.hash, onCommit);
-  }
-
-  function onCommit(err, commit) {
-    row.busy--;
-    if (!commit) fail(row.path, err || new Error("Missing commit " + row.path));
-    current = commit;
-    if (config.githubName) {
-      var previewDiff = "https://github.com/" + config.githubName + "/commit/" + config.current;
-      preview = window.open(previewDiff);
+  row.call(fs.readCommit, function (current, hashes) {
+    var githubName = fs.isGithub(row.path);
+    if (githubName) {
+      var previewDiff = "https://github.com/" + githubName + "/commit/" + hashes.current;
+      window.open(previewDiff);
     }
-    userName = prefs.get("userName", "");
-    userEmail = prefs.get("userEmail", "");
+    var userName = prefs.get("userName", "");
+    var userEmail = prefs.get("userEmail", "");
     dialog.multiEntry("Enter Commit Message", [
       {name: "message", placeholder: "Details about commit.", required:true},
       {name: "name", placeholder: "Full Name", required:true, value:userName},
       {name: "email", placeholder: "email@provider.com", required:true, value:userEmail},
-    ], onResult);
-  }
-
-  function onResult(result) {
-    if (preview) preview.close();
-    if (!result) return;
-    if (result.name !== userName) prefs.set("userName", result.name);
-    if (result.email !== userEmail) prefs.set("userEmail", result.email);
-    var commit = {
-      tree: current.tree,
-      author: {
-        name: result.name,
-        email: result.email
-      },
-      parent: config.head,
-      message: result.message
-    };
-    row.busy++;
-    repo.saveAs("commit", commit, onSave);
-  }
-
-  function onSave(err, hash) {
-    row.busy--;
-    if (err) fail(row.path, err);
-    head = config.head = hash;
-    row.busy++;
-    fs.writeEntry(row.path, {
-      mode: modes.commit,
-      hash: hash
-    }, onWrite);
-  }
-
-  function onWrite(err) {
-    row.busy--;
-    if (err) fail(row.path, err);
-    row.busy++;
-    repo.updateRef("refs/heads/master", head, onUpdate);
-  }
-
-  function onUpdate(err) {
-    row.busy--;
-    if (err) fail(row.path, err);
-    prefs.save();
-  }
-
+    ], function onResult(result) {
+      if (!result) return;
+      if (result.name !== userName) prefs.set("userName", result.name);
+      if (result.email !== userEmail) prefs.set("userEmail", result.email);
+      var commit = {
+        tree: current.tree,
+        author: {
+          name: result.name,
+          email: result.email
+        },
+        parent: hashes.head,
+        message: result.message
+      };
+      row.call(fs.writeCommit, commit);
+    });
+  });
 }
 
 function revertChanges(row) {
-  var current, preview;
-  var repo, config, head;
-  row.busy++;
-  fs.readEntry(row.path, onCurrent);
-
-  function onCurrent(err, entry, _repo, _config) {
-    row.busy--;
-    if (!entry) fail(row.path, err || new Error("Missing commit " + row.path));
-    repo = _repo;
-    config = _config;
-    if (!config.head) fail(row.path, new Error("Nothing to revert to"));
-    row.busy++;
-    repo.loadAs("commit", entry.hash, onCommit);
-  }
-
-  function onCommit(err, commit) {
-    row.busy--;
-    if (!commit) fail(row.path, err || new Error("Missing commit " + row.path));
-    current = commit;
-    if (config.githubName) {
-      var previewDiff = "https://github.com/" + config.githubName + "/commit/" + config.current;
-      preview = window.open(previewDiff);
-    }
-    dialog.confirm("Are you sure you want to lose all uncommitted changes?", onConfirm);
-  }
-
-  function onConfirm(confirm) {
+  dialog.confirm("Are you sure you want to lose all uncommitted changes?", function (confirm) {
     if (!confirm) return;
-    config.current = config.head;
-    row.busy++;
-    fs.writeEntry(row.path, {
-      mode: modes.commit,
-      hash: config.head,
-    }, onWrite);
-  }
-
-  function onWrite(err) {
-    row.busy--;
-    if (err) fail(row.path, err);
-    row.busy++;
-    repo.updateRef("refs/heads/master", head, onUpdate);
-  }
-
-  function onUpdate(err) {
-    row.busy--;
-    if (err) fail(row.path, err);
-    prefs.save();
-  }
+    row.call(fs.revertToHead);
+  });
 }
 
 
 function editSymLink(row) {
-  var target;
-  row.busy++;
-  fs.readLink(row.path, function (err, result) {
-    row.busy--;
-    target = result;
-    if (target === undefined) fail(row.path, err || new Error("Missing SymLink " + row.path));
+  row.call(fs.readLink, function (target, hash) {
+    if (target === undefined) throw new Error("Missing SymLink " + row.path);
     dialog.multiEntry("Edit SymLink", [
       {name: "target", placeholder: "target", required:true, value: target},
       {name: "path", placeholder: "path", required:true, value: row.path},
-    ], onResult);
-  });
+    ], function (result) {
+      if (!result) return;
+      if (target === result.target) {
+        if (row.path === result.path) return;
+        return onHash(hash);
+      }
+      row.call(fs.saveAs, "blob", result.target, onHash);
 
-  function onResult(result) {
-    if (!result) return;
-    if (result.path === row.path) {
-      if (target === result.target) return;
-      row.busy++;
-      return fs.writeLink(result.path, result.target, function (err) {
-        row.busy--;
-        if (err) fail(row.path, err);
-      });
+      function onHash(hash) {
+        // If the user changed the path, we need to move things
+        if (row.path !== result.path) {
+          row.call(fs.deleteEntry);
+          rename(row.path, uniquePath(result.path, rows));
+        }
+        // Write the symlink
+        row.call(fs.writeEntry, {
+          mode: modes.sym,
+          hash: hash
+        });
+      }
+    });
+  });
+}
+
+function getUnique(row, name, callback) {
+
+}
+
+function addChild(row, name, mode, hash) {
+  // Walk the path making sure we don't overwrite existing files.
+  var parts = splitPath(name);
+  var path = row.path, index = 0;
+  row.call(fs.readTree, onTree);
+
+  function onTree(tree) {
+    var name = parts[index];
+    var entry = tree[name];
+    if (!entry) return onUnique();
+    if (entry.mode === modes.tree) {
+      index++;
+      path += "/" + name;
+      return row.call(path, fs.readTree, onTree);
     }
-    row.busy++;
-    fs.makeUnique(result.path, function (err, path) {
-      row.busy--;
-      if (err) fail(row.path, err);
-      row.busy++;
-      carallel([
-        fs.writeLink(path, result.target),
-        fs.deleteEntry(row.path)
-      ], function (err) {
-        row.busy--;
-        if (err) fail(row.path, err);
+    parts[index] = uniquePath(name, tree);
+    onUnique();
+  }
+
+  function onUnique() {
+    path = row.path + "/" + parts.join("/");
+    var child = renderChild(path, null, mode, hash);
+    row.addChild(child);
+    var dirParts = mode === modes.tree ? parts : parts.slice(0, parts.length - 1);
+    if (dirParts.length) {
+      path = row.path;
+      dirParts.forEach(function (name) {
+        path += "/" + name;
+        openPaths[path] = true;
       });
+      prefs.save();
+    }
+
+    child.call(fs.writeEntry, {
+      mode: mode,
+      hash: hash
     });
   }
 }
 
 function createFile(row) {
-  dialog.prompt("Enter name for new file", "", onName);
-
-  function onName(name) {
-    row.busy++;
-    fs.createEntry(row.path + "/" + name, {
-      mode: modes.blob
-    }, onCreate);
-  }
-
-  function onCreate(err) {
-    row.busy--;
-    if (err) fail(row.path, err);
-  }
+  dialog.prompt("Enter name for new file", "", function (name) {
+    if (!name) return;
+    row.call(fs.saveAs, "blob", "", function (hash) {
+      addChild(row, name, modes.file, hash);
+    });
+  });
 }
 
 function createFolder(row) {
-  dialog.prompt("Enter name for new folder", "", onName);
-
-  function onName(name) {
-    row.busy++;
-    fs.createEntry(row.path + "/" + name, {
-      mode: modes.tree
-    }, onCreate);
-  }
-
-  function onCreate(err, path) {
-    row.busy--;
-    if (err) fail(row.path, err);
-    openPaths[path] = true;
-    prefs.save();
-  }
+  dialog.prompt("Enter name for new folder", "", function (name) {
+    if (!name) return;
+    row.call(fs.saveAs, "tree", [], function (hash) {
+      addChild(row, name, modes.tree, hash);
+    });
+  });
 }
 
 function createSymLink(row) {
   dialog.multiEntry("Create SymLink", [
     {name: "target", placeholder: "target", required:true},
     {name: "name", placeholder: "name"},
-  ], onResult);
-
-  function onResult(result) {
+  ], function (result) {
     if (!result) return;
     var name = result.name || result.target.substring(result.target.lastIndexOf("/") + 1);
-    row.busy++;
-    fs.createEntry(row.path + "/" + name, {
-      mode: modes.sym,
-      content: result.target
-    }, onWrite);
-  }
-
-  function onWrite(err) {
-    row.busy--;
-    if (err) fail(row.path, err);
-  }
+    row.call(fs.saveAs, "blob", result.target, function (hash) {
+      addChild(row, name, modes.sym, hash);
+    });
+  });
 }
 
 function importFolder(row) {
@@ -506,10 +420,22 @@ function addSubmodule(row) {
 function toggleExec(row) {
   var newMode = row.mode === modes.exec ? modes.file : modes.exec;
   row.busy++;
-  fs.setMode(row.path, newMode, function (err) {
+  fs.readEntry(row.path, onEntry);
+
+  function onEntry(err, entry) {
+    row.busy--;
+    if (!entry) fail(row.path, err || new Error("Can't find " + row.path));
+    row.busy++;
+    fs.writeEntry(row.path, {
+      mode: newMode,
+      hash: entry.hash
+    }, onWrite);
+  }
+
+  function onWrite(err) {
     row.busy--;
     if (err) fail(row.path, err);
-  });
+  }
 }
 
 function moveEntry(row) {
@@ -560,8 +486,14 @@ function removeEntry(row) {
 function renameRepo(row) {
   dialog.prompt("Enter new name for repo", row.path, function (name) {
     if (!name || name === row.path) return;
-    try { fs.renameRoot(row.path, name); }
-    catch (err) { fail(row.path, err); }
+    try {
+      name = fs.renameRoot(row.path, name);
+      rename(row.path, name);
+    }
+    catch (err) {
+      row.errorMessage = err.toString();
+      throw err;
+    }
     fs.readTree("", onRoots);
   });
 }
@@ -569,8 +501,14 @@ function renameRepo(row) {
 function removeRepo(row) {
   dialog.confirm("Are you sure you want to delete " + row.path + "?", function (confirm) {
     if (!confirm) return;
-    try { fs.removeRoot(row.path); }
-    catch (err) { fail(row.path, err); }
+    try {
+      fs.removeRoot(row.path);
+      remove(row.path);
+    }
+    catch (err) {
+      row.errorMessage = err.toString();
+      throw err;
+    }
     fs.readTree("", onRoots);
   });
 }
@@ -654,17 +592,16 @@ function makeMenu(row) {
     }
   }
   if (row.mode === modes.commit) {
-    var config = fs.configs[row.path];
-    if (config.head !== config.current) {
+    if (fs.isDirty(row.path)) {
       actions.push({sep:true});
       actions.push({icon:"floppy", label:"Commit Changes", action: commitChanges});
       actions.push({icon:"ccw", label:"Revert all Changes", action: revertChanges});
     }
-    if (!config.githubName) {
-      actions.push({sep:true});
-      actions.push({icon:"download-cloud", label:"Pull from Remote"});
-      actions.push({icon:"upload-cloud", label:"Push to Remote"});
-    }
+    // if (!config.githubName) {
+    //   actions.push({sep:true});
+    //   actions.push({icon:"download-cloud", label:"Pull from Remote"});
+    //   actions.push({icon:"upload-cloud", label:"Push to Remote"});
+    // }
   }
   else if (modes.isFile(row.mode)) {
     actions.push({sep:true});
@@ -688,4 +625,52 @@ function makeMenu(row) {
   // actions.push({icon:"hdd", label:"Live Export to Disk", action: liveExport});
   if (actions[0].sep) actions.shift();
   return actions;
+}
+
+function remove(oldPath) {
+  var regExp = new RegExp("^" + rescape(oldPath) + "(?=$|/)");
+  var paths = Object.keys(rows);
+  for (var i = 0, l = paths.length; i < l; i++) {
+    var path = paths[i];
+    if (!regExp.test(path)) continue;
+    delete rows[path];
+    if (openPaths[path]) delete openPaths[path];
+  }
+  fs.removeRoots(regExp);
+  prefs.save();
+}
+
+function rename(oldPath, newPath) {
+  var regExp = new RegExp("^" + rescape(oldPath) + "(?=$|/)");
+  var paths = Object.keys(rows);
+  for (var i = 0, l = paths.length; i < l; i++) {
+    var path = paths[i];
+    if (!regExp.test(path)) continue;
+    var replacedPath = path.replace(regExp, newPath);
+    var row = rows[replacedPath] = rows[path];
+    row.path = replacedPath;
+    delete rows[path];
+    if (openPaths[path]) {
+      openPaths[replacedPath] = true;
+      delete openPaths[path];
+    }
+  }
+  fs.renameRoots(regExp, newPath);
+  prefs.save();
+}
+
+// Make a path unique
+function uniquePath(name, obj) {
+  var base = name;
+  var i = 1;
+  while (name in obj) {
+    name = base + "-" + (++i);
+  }
+  return name;
+}
+
+function splitPath(path) {
+  return path.split("/").map(function (part) {
+    return part.replace(/[^a-z0-9#.+!*'()_\- ]*/g, "").trim();
+  }).filter(Boolean);
 }
