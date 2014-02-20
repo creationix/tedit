@@ -813,6 +813,7 @@ function addGitmodule(path, url) {
 // Returns true if changes were made that need changing.
 function removeGitmodule(path) {
   var root = longestMatch(path, Object.keys(configs));
+  if (!root) return false;
   var localPath = path.substring(root.length + 1);
   var storage = findStorage(configs[root]);
   var gitmodules = storage.gitmodules;
@@ -839,6 +840,7 @@ function removeGitmodule(path) {
 // (path) -> {path, url}
 function getGitmodule(path) {
   var root = longestMatch(path, Object.keys(configs));
+  if (!root) return;
   var localPath = path.substring(root.length + 1);
   var storage = findStorage(configs[root]);
   var gitmodules = storage.gitmodules;
