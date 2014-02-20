@@ -2,33 +2,12 @@ var findStorage = require('./storage');
 var prefs = require('ui/prefs');
 var clone = require('./clone');
 var importEntry = require('./importfs');
-var parseConfig = require('js-git/lib/config-codec').parse;
-var encodeConfig = require('js-git/lib/config-codec').encode;
-var binary = require('bodec');
 
 module.exports = {
   configFromUrl: configFromUrl,
   createRepo: createRepo,
   expandConfig: expandConfig,
-  loadSubModule: loadSubModule,
-  addSubmoduleEntry: addSubmoduleEntry,
-  delSubmoduleEntry: delSubmoduleEntry,
 };
-
-function addSubmoduleEntry(text, entry) {
-  var meta = parseConfig(text);
-  var submodules = meta.submodule || (meta.submodule = {});
-  submodules[entry.path] = entry;
-  return encodeConfig(meta);
-}
-
-function delSubmoduleEntry(text, path) {
-  var meta = parseConfig(text);
-  var submodules = meta.submodule;
-  if (!submodules || !submodules[path]) return text;
-  delete submodules[path];
-  return encodeConfig(meta);
-}
 
 function configFromUrl(url, parent) {
   var match;
@@ -120,36 +99,4 @@ function initEmpty(repo, tree, callback) {
       message: "Initial Empty Commit"
     }, callback);
   }
-}
-
-function loadSubModule(repo, parent, rootTree, root, path, callback) {
-  var modulesEntry = rootTree[".gitmodules"];
-  if (!modulesEntry) return callback(new Error("Missing " + root + "/.gitmodules needed by " + path));
-
-  repo.loadAs("blob", modulesEntry.hash, onBlob);
-
-  function onBlob(err, blob) {
-    if (!blob) return callback(err);
-    var childConfig;
-    var localPath = path.substring(root.length + 1);
-    try {
-      var text = binary.toUnicode(blob);
-      var config = parseConfig(text);
-      var keys = Object.keys(config.submodule);
-      var entry;
-      for (var i = 0, l = keys.length; i < l; i++) {
-        var key = keys[i];
-        entry = config.submodule[key];
-        if (entry.path === localPath) break;
-      }
-      if (i >= l) {
-        throw new Error("Missing entry for " + localPath + " in " + root + "/.gitmodules");
-      }
-      if (!entry.url) throw new Error("Missing url in entry for " + localPath + " in " + root + "/.gitmodules");
-      childConfig = configFromUrl(entry.url, parent);
-    }
-    catch (err) { return callback(err); }
-    expandConfig(childConfig, callback);
-  }
-
 }

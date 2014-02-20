@@ -362,7 +362,7 @@ function addSubmodule(row) {
     }
     var name = result.name || result.url.substring(result.url.lastIndexOf("/") + 1);
     makeUnique(row, name, modes.commit, function (path) {
-      row.call(path, fs.addSubModule, url);
+      row.call(path, fs.writeSubmodule, url);
     });
   });
 }
@@ -392,6 +392,8 @@ function moveEntry(row) {
         mode: row.mode,
         hash: row.hash
       });
+      // Flush any changes to .gitmodules files in case we moved a submodule
+      row.call(fs.flushChanges);
     });
   });
 }
@@ -403,12 +405,17 @@ function copyEntry(row) {
   dialog.prompt("Enter target path for copy", localPath, function (newPath) {
     if (!newPath || newPath === localPath) return;
     var rootRow = rows[root];
+    // TODO: duplicate .gitmodules entries if submodules are copied
+    // TODO: deep copy when target is in another repo
     makeUnique(rootRow, newPath, row.mode, function (path) {
       if (modes.isFile(row.mode)) activePath = path;
+      row.call(copy, path);
       rootRow.call(path, fs.writeEntry, {
         mode: row.mode,
         hash: row.hash
       });
+      // Flush any changes to .gitmodules files in case we moved a submodule
+      row.call(fs.flushChanges);
     });
   });
 }
@@ -418,6 +425,8 @@ function removeEntry(row) {
     if (!confirm) return;
     row.call(remove);
     row.call(fs.writeEntry, {});
+    // Flush any changes to .gitmodules files in case we deleted a submodule
+    row.call(fs.flushChanges);
   });
 }
 
@@ -425,7 +434,9 @@ function renameRepo(row) {
   dialog.prompt("Enter new name for repo", row.path, function (name) {
     if (!name || name === row.path) return;
     row.call(fs.renameRoot, name);
-    row.call(rename, name, function () {
+    row.call(rename, name);
+    // Flush any changes to .gitmodules files in case we deleted a submodule
+    row.call(fs.flushChanges, function () {
       fs.readTree("", onRoots);
     });
   });
@@ -435,7 +446,9 @@ function removeRepo(row) {
   dialog.confirm("Are you sure you want to delete " + row.path + "?", function (confirm) {
     if (!confirm) return;
     row.call(fs.removeRoot);
-    row.call(remove, function () {
+    row.call(remove);
+    // Flush any changes to .gitmodules files in case we deleted a submodule
+    row.call(fs.flushChanges, function () {
       fs.readTree("", onRoots);
     });
   });
@@ -561,6 +574,19 @@ function remove(oldPath, callback) {
     if (openPaths[path]) delete openPaths[path];
   }
   fs.removeRoots(regExp, callback);
+  prefs.save();
+}
+
+function copy(oldPath, newPath, callback) {
+  var regExp = new RegExp("^" + rescape(oldPath) + "(?=$|/)");
+  var paths = Object.keys(rows);
+  for (var i = 0, l = paths.length; i < l; i++) {
+    var path = paths[i];
+    if (!regExp.test(path)) continue;
+    var replacedPath = path.replace(regExp, newPath);
+    if (openPaths[path]) openPaths[replacedPath] = true;
+  }
+  fs.copyRoots(regExp, newPath, callback);
   prefs.save();
 }
 
