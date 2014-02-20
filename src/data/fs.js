@@ -33,9 +33,10 @@ var configs = prefs.get("treeConfig", {});
 
 module.exports = {
 
+  // Garbage collection hooks
   removeRoots: removeRoots,
-
   renameRoots: renameRoots,
+  trimRoots: trimRoots,
 
   // onChange(callback(path, hash))
   //  Register a listener to be notified when the commit hash for a commit node
@@ -691,6 +692,7 @@ function removeRoots(regexp) {
   var dirty = false;
   Object.keys(configs).forEach(function (name) {
     if (regexp.test(name)) {
+      // TODO remove .gitmodules entry
       delete configs[name];
       dirty = true;
     }
@@ -703,12 +705,25 @@ function renameRoots(regexp, path) {
   Object.keys(configs).forEach(function (name) {
     if (regexp.test(name)) {
       var newName = name.replace(regexp, path);
+      // TODO update .gitmodules entry
       configs[newName] = configs[name];
       delete configs[name];
       dirty = true;
     }
   });
   if (dirty) prefs.save();
+}
+
+function trimRoots(regexp, tree) {
+  var paths = Object.keys(configs);
+  for (var i = 0, l = paths.length; i < l; i++) {
+    var path = paths[i];
+    var match = path.match(regexp);
+    if (match && !tree[match[1]]) {
+      // TODO remove .gitmodules entry
+      delete configs[path];
+    }
+  }
 }
 
 function customImport(path, importer, callback) {

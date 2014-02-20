@@ -91,17 +91,7 @@ function renderChild(path, name, mode, hash) {
 function renderChildren(row, tree) {
   var path = row.path;
 
-  // Trim rows that are not in the tree anymore.  I welcome a more effecient way
-  // to do this than scan over the entire list looking for patterns.
-  var pattern = new RegExp("^" + rescape(path) + "\/([^\/]+)(?=\/|$)");
-  var paths = Object.keys(rows);
-  for (var i = 0, l = paths.length; i < l; i++) {
-    var childPath = paths[i];
-    var match = childPath.match(pattern);
-    if (match && !tree[match[1]]) {
-      delete rows[childPath];
-    }
-  }
+  trim(path, tree);
 
   // renderChild will cache rows that have been seen already, so it's effecient
   // to simply remove all children and then re-add the ones still here all in
@@ -615,6 +605,22 @@ function rename(oldPath, newPath) {
   }
   fs.renameRoots(regExp, newPath);
   prefs.save();
+}
+
+function trim(path, tree) {
+  // Trim rows that are not in the tree anymore.  I welcome a more effecient way
+  // to do this than scan over the entire list looking for patterns.
+  var regExp = new RegExp("^" + rescape(path) + "\/([^\/]+)(?=\/|$)");
+  var paths = Object.keys(rows);
+  for (var i = 0, l = paths.length; i < l; i++) {
+    var childPath = paths[i];
+    var match = childPath.match(regExp);
+    if (match && !tree[match[1]]) {
+      delete rows[childPath];
+      if (openPaths[childPath]) delete openPaths[childPath];
+    }
+  }
+  fs.trimRoots(regExp, tree);
 }
 
 // Make a path unique
