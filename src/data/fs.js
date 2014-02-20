@@ -799,7 +799,8 @@ function addGitmodule(path, url) {
   var localPath = path.substring(root.length + 1);
   var storage = findStorage(configs[root]);
   var gitmodules = storage.gitmodules || (storage.gitmodules = {});
-  var submodules = gitmodules.meta.submodule || (gitmodules.meta.submodule = {});
+  var meta = gitmodules.meta || (gitmodules.meta = {});
+  var submodules = meta.submodule || (meta.submodule = {});
   submodules[localPath] = {
     path: localPath,
     url: url
@@ -814,8 +815,11 @@ function removeGitmodule(path) {
   var root = longestMatch(path, Object.keys(configs));
   var localPath = path.substring(root.length + 1);
   var storage = findStorage(configs[root]);
-  var gitmodules = storage.gitmodules || (storage.gitmodules = {});
-  var submodules = gitmodules.meta.submodule;
+  var gitmodules = storage.gitmodules;
+  if (!gitmodules) return false;
+  var meta = gitmodules.meta;
+  if (!meta) return false;
+  var submodules = meta.submodule;
   if (!submodules) return false;
   var dirty = false;
   Object.keys(submodules).forEach(function (name) {
@@ -837,8 +841,11 @@ function getGitmodule(path) {
   var root = longestMatch(path, Object.keys(configs));
   var localPath = path.substring(root.length + 1);
   var storage = findStorage(configs[root]);
-  var gitmodules = storage.gitmodules || (storage.gitmodules = {});
-  var submodules = gitmodules.meta.submodule;
+  var gitmodules = storage.gitmodules;
+  if (!gitmodules) return;
+  var meta = gitmodules.meta;
+  if (!meta) return;
+  var submodules = meta.submodule;
   if (!submodules) return;
   var name, submodule;
   var names = Object.keys(submodules);
