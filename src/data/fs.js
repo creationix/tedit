@@ -336,7 +336,6 @@ function addRoot(name, config) {
   return name;
 }
 
-
 // (oldName, newName) -> newName
 function renameRoot(oldName, newName) {
   var config = configs[oldName];
@@ -349,7 +348,6 @@ function renameRoot(oldName, newName) {
 function removeRoot(name) {
   if (!(name in configs)) throw new Error("No such root " + name);
   delete configs[name];
-  // TODO: delete any submodules under this path and clean up other resources
   prefs.save();
 }
 
