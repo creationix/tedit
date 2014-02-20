@@ -91,7 +91,6 @@ function renderChild(path, name, mode, hash) {
 function renderChildren(row, tree) {
   var path = row.path;
 
-  trim(path, tree);
 
   // renderChild will cache rows that have been seen already, so it's effecient
   // to simply remove all children and then re-add the ones still here all in
@@ -101,12 +100,14 @@ function renderChildren(row, tree) {
 
   // Add back all the immediate children.
   var names = Object.keys(tree);
-  for (i = 0, l = names.length; i < l; i++) {
+  for (var i = 0, l = names.length; i < l; i++) {
     var name = names[i];
     var entry = tree[name];
     var child = renderChild(path + "/" + name, name, entry.mode, entry.hash);
     row.addChild(child);
   }
+
+  row.call(trim, tree);
 }
 
 function nullify(evt) {
@@ -250,7 +251,7 @@ function editSymLink(row) {
         if (name !== result.name) {
           row.call(fs.writeEntry, {});
           var path = dir + "/" + result.name;
-          rename(row.path, uniquePath(path, rows));
+          row.call(rename, uniquePath(path, rows));
         }
         // Write the symlink
         row.call(fs.writeEntry, {
@@ -386,7 +387,7 @@ function moveEntry(row) {
     makeUnique(rootRow, newPath, row.mode, function (path) {
       if (modes.isFile(row.mode)) activePath = path;
       row.call(fs.writeEntry, {});
-      rename(row.path, path);
+      row.call(rename, path);
       row.call(fs.writeEntry, {
         mode: row.mode,
         hash: row.hash
@@ -415,7 +416,7 @@ function copyEntry(row) {
 function removeEntry(row) {
   dialog.confirm("Are you sure you want to delete " + row.path + "?", function (confirm) {
     if (!confirm) return;
-    remove(row.path);
+    row.call(remove);
     row.call(fs.writeEntry, {});
   });
 }
@@ -423,30 +424,20 @@ function removeEntry(row) {
 function renameRepo(row) {
   dialog.prompt("Enter new name for repo", row.path, function (name) {
     if (!name || name === row.path) return;
-    try {
-      name = fs.renameRoot(row.path, name);
-      rename(row.path, name);
-    }
-    catch (err) {
-      row.errorMessage = err.toString();
-      throw err;
-    }
-    fs.readTree("", onRoots);
+    row.call(fs.renameRoot, name);
+    row.call(rename, name, function () {
+      fs.readTree("", onRoots);
+    });
   });
 }
 
 function removeRepo(row) {
   dialog.confirm("Are you sure you want to delete " + row.path + "?", function (confirm) {
     if (!confirm) return;
-    try {
-      fs.removeRoot(row.path);
-      remove(row.path);
-    }
-    catch (err) {
-      row.errorMessage = err.toString();
-      throw err;
-    }
-    fs.readTree("", onRoots);
+    row.call(fs.removeRoot);
+    row.call(remove, function () {
+      fs.readTree("", onRoots);
+    });
   });
 }
 
@@ -560,7 +551,7 @@ function makeMenu(row) {
   return actions;
 }
 
-function remove(oldPath) {
+function remove(oldPath, callback) {
   var regExp = new RegExp("^" + rescape(oldPath) + "(?=$|/)");
   var paths = Object.keys(rows);
   for (var i = 0, l = paths.length; i < l; i++) {
@@ -569,11 +560,11 @@ function remove(oldPath) {
     delete rows[path];
     if (openPaths[path]) delete openPaths[path];
   }
-  fs.removeRoots(regExp);
+  fs.removeRoots(regExp, callback);
   prefs.save();
 }
 
-function rename(oldPath, newPath) {
+function rename(oldPath, newPath, callback) {
   var regExp = new RegExp("^" + rescape(oldPath) + "(?=$|/)");
   var paths = Object.keys(rows);
   for (var i = 0, l = paths.length; i < l; i++) {
@@ -588,11 +579,11 @@ function rename(oldPath, newPath) {
       delete openPaths[path];
     }
   }
-  fs.renameRoots(regExp, newPath);
+  fs.renameRoots(regExp, newPath, callback);
   prefs.save();
 }
 
-function trim(path, tree) {
+function trim(path, tree, callback) {
   // Trim rows that are not in the tree anymore.  I welcome a more effecient way
   // to do this than scan over the entire list looking for patterns.
   var regExp = new RegExp("^" + rescape(path) + "\/([^\/]+)(?=\/|$)");
@@ -605,7 +596,7 @@ function trim(path, tree) {
       if (openPaths[childPath]) delete openPaths[childPath];
     }
   }
-  fs.trimRoots(regExp, tree);
+  fs.trimRoots(regExp, tree, callback);
 }
 
 // Make a path unique

@@ -332,26 +332,28 @@ function onChange(callback) {
 ////////////////////////////////////////////////////////////////////////////////
 
 // (name, config) -> newName
-function addRoot(name, config) {
+function addRoot(name, config, callback) {
   name = genName(name, configs);
   configs[name] = config;
   prefs.save();
+  if (callback) callback(null, name);
   return name;
 }
 
 // (oldName, newName) -> newName
-function renameRoot(oldName, newName) {
+function renameRoot(oldName, newName, callback) {
   var config = configs[oldName];
   if (!config) throw new Error("No such root " + oldName);
   removeRoot(oldName);
-  return addRoot(newName, config);
+  return addRoot(newName, config, callback);
 }
 
 // (name) ->
-function removeRoot(name) {
+function removeRoot(name, callback) {
   if (!(name in configs)) throw new Error("No such root " + name);
   delete configs[name];
   prefs.save();
+  if (callback) callback();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -503,8 +505,6 @@ function pathToEntry(path, callback) {
 
 }
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
 
 // (path) => tree, hash, repo, config
@@ -624,7 +624,6 @@ function isGithub(path) {
   return config.githubName;
 }
 
-
 // Given a path, return the repo that controls that segment
 // (path) => repo
 function getRepo(path, callback) {
@@ -679,7 +678,6 @@ function writeLink(path, target, callback) {
     writeEntry(path, { mode: modes.sym, hash: hash }, callback);
   }
 }
-
 
 function writeCommit(path, commit, callback) {
   if (!callback) return writeCommit.bind(null, path, commit);
@@ -787,7 +785,7 @@ function findGitmodules(config) {
   return storage.gitmodules || (storage.gitmodules = {});
 }
 
-function removeRoots(regexp) {
+function removeRoots(regexp, callback) {
   var dirty = false;
   Object.keys(configs).forEach(function (name) {
     if (regexp.test(name)) {
@@ -797,9 +795,10 @@ function removeRoots(regexp) {
     }
   });
   if (dirty) prefs.save();
+  if (callback) callback();
 }
 
-function renameRoots(regexp, path) {
+function renameRoots(regexp, path, callback) {
   var dirty = false;
   Object.keys(configs).forEach(function (name) {
     if (regexp.test(name)) {
@@ -811,9 +810,10 @@ function renameRoots(regexp, path) {
     }
   });
   if (dirty) prefs.save();
+  if (callback) callback();
 }
 
-function trimRoots(regexp, tree) {
+function trimRoots(regexp, tree, callback) {
   var paths = Object.keys(configs);
   for (var i = 0, l = paths.length; i < l; i++) {
     var path = paths[i];
@@ -823,6 +823,7 @@ function trimRoots(regexp, tree) {
       delete configs[path];
     }
   }
+  if (callback) callback();
 }
 
 function customImport(path, importer, callback) {
