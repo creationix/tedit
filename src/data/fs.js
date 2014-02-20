@@ -23,8 +23,8 @@ var expandConfig = require('./projects').expandConfig;
 var createRepo = require('./projects').createRepo;
 var loadSubModule = require('./projects').loadSubModule;
 var configFromUrl = require('./projects').configFromUrl;
-var addSubmoduleEntry = require('./projects').addSubmoduleEntry;
-var delSubmoduleEntry = require('./projects').delSubmoduleEntry;
+var parseConfig = require('js-git/lib/config-codec').parse;
+var encodeConfig = require('js-git/lib/config-codec').encode;
 var carallel = require('carallel');
 var pathJoin = require('pathjoin');
 var binary = require('bodec');
@@ -334,7 +334,6 @@ function onChange(callback) {
 // (name, config) -> newName
 function addRoot(name, config) {
   name = genName(name, configs);
-  config.root = name;
   configs[name] = config;
   prefs.save();
   return name;
@@ -361,7 +360,7 @@ function removeRoot(name) {
 // This data is often cached and so non-callback style is used to keep stack small.
 function pathToEntry(path, callback) {
   var parts = path.split("/").filter(Boolean);
-  var rootTree;
+  var gitmodules;
   var root = parts[0];
   var index = 1;
   var config = configs[root];
@@ -383,6 +382,10 @@ function pathToEntry(path, callback) {
     return pathToEntry(path, callback);
   }
 
+  // This function has an interesting structure.  It's optimized to not grow
+  // the stack in the case of cached values.  When it encounters a value not
+  // in the cache, it aborts the loop and picks up where it left off after
+  // the value is loaded.
   function walk() {
     var cached;
     while (index < parts.length) {
@@ -395,7 +398,11 @@ function pathToEntry(path, callback) {
       if (mode === modes.tree) {
         cached = cache[hash];
         if (!cached) return repo.loadAs("tree", hash, onEntry);
-        if (path === root) rootTree = cached;
+        if (path === root) {
+          gitmodules = loadGitmodules(config, cached);
+          // If it needs to load the file, we can wait.
+          if (!gitmodules) return;
+        }
         var part = parts[index++];
         var entry = cached[part];
         if (!entry) return callback(null, null, repo, config);
@@ -409,7 +416,7 @@ function pathToEntry(path, callback) {
             repo = findRepo(config);
           }
           else {
-            return loadSubModule(repo, config, rootTree, root, path, onSubConfig);
+            return loadSubmodule();
           }
         }
         continue;
@@ -422,9 +429,67 @@ function pathToEntry(path, callback) {
     }, repo, config);
   }
 
+  // This is a generic callback that resumes flow at the top of flow after
+  // loading a cachable value (trees and commits).
   function onEntry(err, entry) {
     if (!entry) return callback(err || new Error("Missing entry"));
     return walk();
+  }
+
+  // Load and parse the .gitmodules file for a repo. The result is cached in
+  // memory and invalidated and reloaded when the entry's hash changes.
+  function loadGitmodules(config, tree) {
+    var gitmodules = findGitmodules(config);
+    var entry = tree[".gitmodules"];
+    // If there is no .gitmodules file, we're done.
+    if (!entry) return gitmodules;
+    // If the file hasn't changed, we're done.
+    if (gitmodules.hash === entry.hash) return gitmodules;
+    // If this is already being loaded, wait for it to finish.
+    if (gitmodules.loading) {
+      gitmodules.loading.push(walk);
+      return;
+    }
+
+    // Start a load
+    gitmodules.loading = [walk];
+    repo.loadAs("blob", entry.hash, function (err, blob) {
+      if (!blob) return callback(err || new Error("Missing blob"));
+
+      // Parse and store the value
+      try {
+        var text = binary.toUnicode(blob);
+        var meta = parseConfig(text);
+        gitmodules.hash = entry.hash;
+        gitmodules.meta = meta;
+      }
+      catch (err) { return callback(err); }
+
+      // Finish all the requests that were waiting on this value
+      var walks = gitmodules.loading;
+      delete gitmodules.loading;
+      walks.forEach(function (fn) { fn(); });
+    });
+  }
+
+  function loadSubmodule() {
+    var localPath = path.substring(root.length + 1);
+    try {
+      var entry;
+      var submodules = gitmodules.meta.submodule || {};
+      var keys = Object.keys(submodules);
+      for (var i = 0, l = keys.length; i < l; i++) {
+        var key = keys[i];
+        entry = submodules[key];
+        if (entry.path === localPath) break;
+      }
+      if (i >= l) {
+        throw new Error("Missing entry for " + localPath + " in " + root + "/.gitmodules");
+      }
+      if (!entry.url) throw new Error("Missing url in entry for " + localPath + " in " + root + "/.gitmodules");
+      expandConfig(configFromUrl(entry.url, config), onSubConfig);
+    }
+    catch (err) { return callback(err); }
   }
 
   function onSubConfig(err, subConfig) {
@@ -437,6 +502,8 @@ function pathToEntry(path, callback) {
   }
 
 }
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -646,29 +713,27 @@ function revertToHead(path, callback) {
 function addSubModule(path, url, callback) {
   if (!callback) return addSubModule.bind(null, path, url);
   var root = longestMatch(path, Object.keys(configs));
-  var configPath = root + "/.gitmodules";
-  var config = configs[path] = configFromUrl(url, configs[root]);
-  expandConfig(config, onExpanded);
+  var config = configs[root];
+  var gitmodules = findGitmodules(config);
+  var childConfig = configs[path] = configFromUrl(url, configs[root]);
+  expandConfig(childConfig, onExpanded);
 
   function onExpanded(err) {
     if (err) return callback(err);
-    readFile(configPath, onFile);
-  }
+    var localPath = path.substring(root.length + 1);
+    var submodules = gitmodules.meta.submodule || (gitmodules.meta.submodule = {});
 
-  function onFile(err, blob) {
-    if (err) return callback(err);
-    try {
-      blob = binary.fromUnicode(addSubmoduleEntry(blob ? binary.toUnicode(blob) : "", {
-        path: path.substring(root.length + 1),
-        url: url
-      }));
-    }
-    catch (err) {
-      return callback(err);
-    }
+    submodules[localPath] = {
+      path: localPath,
+      url: url
+    };
+    // Invalidate the hash now that we've changed the meta
+    gitmodules.hash = null;
+
+    var blob = binary.fromUnicode(encodeConfig(gitmodules.meta));
 
     carallel([
-      writeFile(configPath, blob),
+      writeFile(root + "/.gitmodules", blob),
       writeEntry(path, {
         mode: modes.commit,
         hash: config.current
@@ -715,6 +780,11 @@ function longestMatch(path, roots) {
 function findRepo(config) {
   var storage = findStorage(config);
   return storage.repo || (storage.repo = createRepo(config));
+}
+
+function findGitmodules(config) {
+  var storage = findStorage(config);
+  return storage.gitmodules || (storage.gitmodules = {});
 }
 
 function removeRoots(regexp) {
