@@ -280,12 +280,12 @@ function makeRow(path, mode, hash, parent) {
     var cb = (typeof args[args.length - 1] === "function") && args.pop();
     // Prepend path at front of args
     if (typeof fn === "string") {
-      var path = fn;
+      var newPath = fn;
       fn = args[0];
-      args[0] = path;
+      args[0] = newPath;
     }
     else {
-      args.unshift(row.path);
+      args.unshift(path);
     }
     // Append new callback at end
     args.push(callback);

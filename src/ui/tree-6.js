@@ -161,6 +161,7 @@ function openTree(row) {
   var path = row.path;
   row.open = true;
   row.call(fs.readTree, function (tree) {
+    if (!tree) throw new Error("Missing tree");
     openPaths[path] = true;
     prefs.save();
     renderChildren(row, tree);
@@ -235,26 +236,31 @@ function revertChanges(row) {
   });
 }
 
-
 function editSymLink(row) {
   row.call(fs.readLink, function (target, hash) {
     if (target === undefined) throw new Error("Missing SymLink " + row.path);
+    var index = row.path.lastIndexOf("/");
+    var name = row.path.substring(index + 1);
+    var dir = row.path.substring(0, index);
     dialog.multiEntry("Edit SymLink", [
       {name: "target", placeholder: "target", required:true, value: target},
-      {name: "path", placeholder: "path", required:true, value: row.path},
+      {name: "name", placeholder: "name", required:true, value: name},
     ], function (result) {
       if (!result) return;
+      result.name = result.name.substring(result.name.indexOf("/") + 1);
+      if (!result) return;
       if (target === result.target) {
-        if (row.path === result.path) return;
+        if (name === result.name) return;
         return onHash(hash);
       }
       row.call(fs.saveAs, "blob", result.target, onHash);
 
       function onHash(hash) {
         // If the user changed the path, we need to move things
-        if (row.path !== result.path) {
-          row.call(fs.deleteEntry);
-          rename(row.path, uniquePath(result.path, rows));
+        if (name !== result.name) {
+          row.call(fs.writeEntry, {});
+          var path = dir + "/" + result.name;
+          rename(row.path, uniquePath(path, rows));
         }
         // Write the symlink
         row.call(fs.writeEntry, {
@@ -266,11 +272,7 @@ function editSymLink(row) {
   });
 }
 
-function getUnique(row, name, callback) {
-
-}
-
-function addChild(row, name, mode, hash) {
+function makeUnique(row, name, mode, callback) {
   // Walk the path making sure we don't overwrite existing files.
   var parts = splitPath(name);
   var path = row.path, index = 0;
@@ -280,7 +282,7 @@ function addChild(row, name, mode, hash) {
     var name = parts[index];
     var entry = tree[name];
     if (!entry) return onUnique();
-    if (entry.mode === modes.tree) {
+    if (entry.mode === modes.tree && index < parts.length - 1) {
       index++;
       path += "/" + name;
       return row.call(path, fs.readTree, onTree);
@@ -291,23 +293,27 @@ function addChild(row, name, mode, hash) {
 
   function onUnique() {
     path = row.path + "/" + parts.join("/");
-    var child = renderChild(path, null, mode, hash);
-    row.addChild(child);
     var dirParts = mode === modes.tree ? parts : parts.slice(0, parts.length - 1);
     if (dirParts.length) {
-      path = row.path;
+      var dirPath = row.path;
       dirParts.forEach(function (name) {
-        path += "/" + name;
-        openPaths[path] = true;
+        dirPath += "/" + name;
+        openPaths[dirPath] = true;
       });
       prefs.save();
     }
+    callback(path);
+  }
+}
 
-    child.call(fs.writeEntry, {
+function addChild(row, name, mode, hash) {
+  makeUnique(row, name, mode, function (path) {
+    if (modes.isFile(mode)) activePath = path;
+    row.call(path, fs.writeEntry, {
       mode: mode,
       hash: hash
     });
-  }
+  });
 }
 
 function createFile(row) {
@@ -342,46 +348,14 @@ function createSymLink(row) {
 }
 
 function importFolder(row) {
-  var path, dir;
-  return chrome.fileSystem.chooseEntry({ type: "openDirectory"}, onDir);
-
-  function onDir(result) {
-    if (!result) return;
-    dir = result;
-    row.busy++;
-    fs.makeUnique(row.path + "/" + dir.name, onPath);
-  }
-
-  function onPath(err, result) {
-    row.busy--;
-    if (err) fail(row.path, err);
-    path = result;
-    row.busy++;
-    fs.readEntry(path, onEntry);
-  }
-
-  function onEntry(err, $, repo) {
-    row.busy--;
-    if (err) fail(row.path, err);
-    row.busy++;
-    importEntry(repo, dir, onHash);
-  }
-
-  function onHash(err, hash) {
-    row.busy--;
-    if (err) fail(row.path, err);
-    openPaths[path] = true;
-    row.busy++;
-    fs.writeEntry(path, {
-      mode: modes.tree,
-      hash: hash
-    }, onWrite);
-  }
-
-  function onWrite(err) {
-    row.busy--;
-    if (err) fail(row.path, err);
-  }
+  chrome.fileSystem.chooseEntry({ type: "openDirectory"}, function (dir) {
+    if (!dir) return;
+    row.call(fs.customImport, function (repo, callback) {
+      importEntry(repo, dir, callback);
+    }, function (hash) {
+      addChild(row, dir.name, modes.tree, hash);
+    });
+  });
 }
 
 function addSubmodule(row) {
@@ -419,23 +393,12 @@ function addSubmodule(row) {
 
 function toggleExec(row) {
   var newMode = row.mode === modes.exec ? modes.file : modes.exec;
-  row.busy++;
-  fs.readEntry(row.path, onEntry);
-
-  function onEntry(err, entry) {
-    row.busy--;
-    if (!entry) fail(row.path, err || new Error("Can't find " + row.path));
-    row.busy++;
-    fs.writeEntry(row.path, {
-      mode: newMode,
+  row.call(fs.readEntry, function (entry) {
+    row.call(fs.writeEntry, {
+      mode: row.mode = newMode,
       hash: entry.hash
-    }, onWrite);
-  }
-
-  function onWrite(err) {
-    row.busy--;
-    if (err) fail(row.path, err);
-  }
+    });
+  });
 }
 
 function moveEntry(row) {
@@ -444,11 +407,15 @@ function moveEntry(row) {
   var localPath = row.path.substring(index + 1);
   dialog.prompt("Enter target path for move", localPath, function (newPath) {
     if (!newPath || newPath === localPath) return;
-    row.busy++;
-    // TODO: make this unique?
-    fs.moveEntry(row.path, root + "/" + newPath, function (err) {
-      row.busy--;
-      if (err) fail(row.path, err);
+    var rootRow = rows[root];
+    makeUnique(rootRow, newPath, row.mode, function (path) {
+      if (modes.isFile(row.mode)) activePath = path;
+      row.call(fs.writeEntry, {});
+      rename(row.path, path);
+      row.call(fs.writeEntry, {
+        mode: row.mode,
+        hash: row.hash
+      });
     });
   });
 }
@@ -459,28 +426,23 @@ function copyEntry(row) {
   var localPath = row.path.substring(index + 1);
   dialog.prompt("Enter target path for copy", localPath, function (newPath) {
     if (!newPath || newPath === localPath) return;
-    row.busy++;
-    // TODO: make this unique?
-    fs.copyEntry(row.path, root + "/" + newPath, function (err) {
-      row.busy--;
-      if (err) fail(row.path, err);
+    var rootRow = rows[root];
+    makeUnique(rootRow, newPath, row.mode, function (path) {
+      if (modes.isFile(row.mode)) activePath = path;
+      rootRow.call(path, fs.writeEntry, {
+        mode: row.mode,
+        hash: row.hash
+      });
     });
   });
 }
 
 function removeEntry(row) {
-  dialog.confirm("Are you sure you want to delete " + row.path + "?", onConfirm);
-
-  function onConfirm(confirm) {
+  dialog.confirm("Are you sure you want to delete " + row.path + "?", function (confirm) {
     if (!confirm) return;
-    row.busy++;
-    fs.deleteEntry(row.path, onDelete);
-  }
-
-  function onDelete(err) {
-    row.busy--;
-    if (err) fail(row.path, err);
-  }
+    remove(row.path);
+    row.call(fs.writeEntry, {});
+  });
 }
 
 function renameRepo(row) {
@@ -514,26 +476,22 @@ function removeRepo(row) {
 }
 
 function createEmpty() {
-  dialog.prompt("Enter name for empty repo", "", onName);
-
-  function onName(name) {
+  dialog.prompt("Enter name for empty repo", "", function (name) {
     if (!name) return;
     addRoot(name, {});
-  }
+  });
 }
 
 function createFromFolder() {
-  return chrome.fileSystem.chooseEntry({ type: "openDirectory"}, onEntry);
-
-  function onEntry(entry) {
+  return chrome.fileSystem.chooseEntry({ type: "openDirectory"}, function (entry) {
     if (!entry) return;
     addRoot(entry.name, {entry:entry});
-  }
+  });
 }
 
 function createClone() {
   dialog.multiEntry("Clone Remote Repo", [
-    {name: "url", placeholder: "git@hostname:path/to/repo.git", required:true},
+    {name: "url", placeholder: "git@hostname:path/to/repo.git", required : true},
     {name: "name", placeholder: "localname"}
   ], function (result) {
     if (!result) return;

@@ -103,16 +103,12 @@ module.exports = {
   //  Move a tree back to the head commit.
   revertToHead: revertToHead,
 
-  // (path) =>
-  deleteEntry: deleteEntry,
   // (path, url) =>
   addSubModule: addSubModule,
   // (path, entry) =>
   writeEntry: writeEntry,
 
-  // makeUnique(path) => newPath
-  //  Find a unique path near the suggested path
-  makeUnique: makeUnique,
+  customImport: customImport,
 
   // saveAs(path, type, value) => hash
   //  Save a value in the git database.  Path is only used to lookup the repo
@@ -183,7 +179,7 @@ function writeEntries() {
         currents[path] = entry.hash;
         return;
       }
-      return onWriteDone(new Error("Can't find root for " + path));
+      return onWriteDone(new Error("Can't find root"));
     }
     var group = groups[root] || (groups[root] = {});
     var local = root ? path.substring(root.length + 1) : path;
@@ -369,7 +365,7 @@ function pathToEntry(path, callback) {
   if (!config) return callback();
   if (!config.current) return expandConfig(config, onExpanded);
   var repo = findRepo(config);
-  if (!repo) return callback(new Error("Missing repo for " + path));
+  if (!repo) return callback(new Error("Missing repo"));
 
   var mode = modes.commit;
   var hash = config.current;
@@ -379,7 +375,7 @@ function pathToEntry(path, callback) {
 
   function onExpanded(err) {
     if (err) return callback(err);
-    if (!config.current) return callback(new Error("Unable to find current " + path));
+    if (!config.current) return callback(new Error("Unable to find current"));
     prefs.save();
     return pathToEntry(path, callback);
   }
@@ -424,7 +420,7 @@ function pathToEntry(path, callback) {
   }
 
   function onEntry(err, entry) {
-    if (!entry) return callback(err || new Error("Missing entry at " + path));
+    if (!entry) return callback(err || new Error("Missing entry"));
     return walk();
   }
 
@@ -493,7 +489,7 @@ function readCommit(path, callback) {
     repo = _repo;
     config = _config;
     if (!entry) return callback(err);
-    if (entry.mode !== modes.commit) return callback("Not a commit " + path);
+    if (entry.mode !== modes.commit) return callback("Not a commit");
     // Sanity check.  These should always equal.
     config.current = entry.hash;
     hashes = { current: config.current };
@@ -521,7 +517,7 @@ function readFile(path, callback) {
   if (!callback) return readFile.bind(null, path);
   readEntry(path, function (err, entry, repo) {
     if (entry === undefined) return callback(err);
-    if (!modes.isFile(entry.mode)) return callback("Not a file " + path);
+    if (!modes.isFile(entry.mode)) return callback("Not a file");
     repo.loadAs("blob", entry.hash, callback);
   });
 }
@@ -533,7 +529,7 @@ function readLink(path, callback) {
 
   function onEntry(err, entry, repo) {
     if (entry === undefined) return callback(err);
-    if (entry.mode !== modes.sym) return callback("Not a symlink " + path);
+    if (entry.mode !== modes.sym) return callback("Not a symlink");
     repo.loadAs("blob", entry.hash, onBlob);
   }
 
@@ -554,7 +550,7 @@ function isDirty(path) {
 
 function isGithub(path) {
   var config = configs[path] || configs[longestMatch(path, configs)];
-  if (!config) throw new Error("Can't find config for " + path);
+  if (!config) throw new Error("Can't find config for");
   return config.githubName;
 }
 
@@ -570,7 +566,7 @@ function getRepo(path, callback) {
   }
   var dir = path.substring(0, path.lastIndexOf("/"));
   readEntry(dir, function (err, entry, repo, config) {
-    if (!repo) return callback(err || new Error("Missing repo " + path));
+    if (!repo) return callback(err || new Error("Missing repo"));
     callback(null, repo, config);
   });
 }
@@ -600,7 +596,6 @@ function writeFile(path, blob, callback) {
 // (path, target) => hash
 function writeLink(path, target, callback) {
   if (!callback) return writeLink.bind(null, path, target);
-  console.log("writeLink", arguments);
 
   getRepo(path, onRepo);
 
@@ -619,7 +614,7 @@ function writeLink(path, target, callback) {
 function writeCommit(path, commit, callback) {
   if (!callback) return writeCommit.bind(null, path, commit);
   var config = configs[path];
-  if (!config) return callback(new Error("Not a commit node " + path));
+  if (!config) return callback(new Error("Not a commit node"));
   var repo = findRepo(config);
   repo.saveAs("commit", commit, onHash);
 
@@ -638,17 +633,10 @@ function writeCommit(path, commit, callback) {
 function revertToHead(path, callback) {
   if (!callback) return revertToHead.bind(null, path);
   var config = configs[path];
-  if (!config) return callback(new Error("Missing config for " + path));
-  if (!config.head) return callback(new Error("No head to revert to " + path));
+  if (!config) return callback(new Error("Missing config"));
+  if (!config.head) return callback(new Error("No head to revert to"));
   config.current = config.head;
   writeEntry(path, { mode: modes.commit, hash: config.head}, callback);
-}
-
-// (path) =>
-function deleteEntry(path, callback) {
-  if (!callback) return deleteEntry.bind(null, path);
-  // TODO: if path is a submodule (or contains one), remove .gitmodules entry
-  writeEntry(path, {}, callback);
 }
 
 // (path, url) =>
@@ -657,24 +645,6 @@ function addSubModule(path, url, callback) {
 
   console.log({path:path,url:url});
   callback("TODO: addSubModule");
-}
-
-function makeUnique(path, callback) {
-  if (!callback) return makeUnique.bind(null, path);
-  var index = path.indexOf("/");
-  var dir = path.substring(0, index);
-  console.log("readTree", dir);
-  readTree(dir, function (err, tree) {
-    console.log("onreadTree", dir, arguments);
-    if (err) return callback(err);
-    if (tree) {
-      var name = path.substring(index + 1);
-      console.log({name:name,tree:tree})
-      name = genName(name, tree);
-      path = dir + "/" + name;
-    }
-    callback(null, path);
-  });
 }
 
 function saveAs(path, type, value, callback) {
@@ -739,4 +709,13 @@ function renameRoots(regexp, path) {
     }
   });
   if (dirty) prefs.save();
+}
+
+function customImport(path, importer, callback) {
+  getRepo(path, onRepo);
+
+  function onRepo(err, repo) {
+    if (err) return callback(err);
+    importer(repo, callback);
+  }
 }
