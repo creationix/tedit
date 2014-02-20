@@ -349,36 +349,21 @@ function importFolder(row) {
 }
 
 function addSubmodule(row) {
-  var url, name;
   dialog.multiEntry("Add a submodule", [
-    {name: "url", placeholder: "git@hostname:path/to/repo.git", required:true},
+    {name: "url", placeholder: "git@hostname:path/to/repo.git", required: true},
     {name: "name", placeholder: "localname"}
-  ], onResult);
-
-  function onResult(result) {
+  ], function (result) {
     if (!result) return;
-    url = result.url;
+    var url = result.url;
     // Assume github if user/name combo is given
     if (/^[^\/:@]+\/[^\/:@]+$/.test(url)) {
       url = "git@github.com:" + url + ".git";
     }
-    name = result.name || result.url.substring(result.url.lastIndexOf("/") + 1);
-    row.busy++;
-    fs.makeUnique(row.path + "/" + name, onPath);
-  }
-
-
-  function onPath(err, path) {
-    row.busy--;
-    if (err) fail(row.path, err);
-    row.busy++;
-    fs.addSubModule(path, url, onWrite);
-  }
-
-  function onWrite(err) {
-    row.busy--;
-    if (err) fail(row.path, err);
-  }
+    var name = result.name || result.url.substring(result.url.lastIndexOf("/") + 1);
+    makeUnique(row, name, modes.commit, function (path) {
+      row.call(path, fs.addSubModule, url);
+    });
+  });
 }
 
 function toggleExec(row) {

@@ -7,10 +7,36 @@ var encodeConfig = require('js-git/lib/config-codec').encode;
 var binary = require('bodec');
 
 module.exports = {
+  configFromUrl: configFromUrl,
   createRepo: createRepo,
   expandConfig: expandConfig,
   loadSubModule: loadSubModule,
+  addSubmoduleEntry: addSubmoduleEntry,
+  delSubmoduleEntry: delSubmoduleEntry,
 };
+
+function addSubmoduleEntry(text, entry) {
+  var meta = parseConfig(text);
+  var submodules = meta.submodule || (meta.submodule = {});
+  submodules[entry.path] = entry;
+  return encodeConfig(meta);
+}
+
+function delSubmoduleEntry(text, path) {
+  var meta = parseConfig(text);
+  var submodules = meta.submodule;
+  if (!submodules || !submodules[path]) return text;
+  delete submodules[path];
+  return encodeConfig(meta);
+}
+
+function configFromUrl(url, parent) {
+  var match;
+  if (parent.githubName && (match = url.match(/github.com[:\/](.*?)(?:\.git)?$/))) {
+    return { githubName: match[1] };
+  }
+  return { url: url };
+}
 
 function createRepo(config) {
   var repo = {};
@@ -120,13 +146,7 @@ function loadSubModule(repo, parent, rootTree, root, path, callback) {
         throw new Error("Missing entry for " + localPath + " in " + root + "/.gitmodules");
       }
       if (!entry.url) throw new Error("Missing url in entry for " + localPath + " in " + root + "/.gitmodules");
-      var match;
-      if (parent.githubName && (match = entry.url.match(/github.com[:\/](.*?)(?:\.git)?$/))) {
-        childConfig = { githubName: match[1] };
-      }
-      else {
-        childConfig = { url: entry.url };
-      }
+      childConfig = configFromUrl(entry.url, parent);
     }
     catch (err) { return callback(err); }
     expandConfig(childConfig, callback);

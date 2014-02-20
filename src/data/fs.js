@@ -22,6 +22,9 @@ var cache = require('js-git/mixins/mem-cache').cache;
 var expandConfig = require('./projects').expandConfig;
 var createRepo = require('./projects').createRepo;
 var loadSubModule = require('./projects').loadSubModule;
+var configFromUrl = require('./projects').configFromUrl;
+var addSubmoduleEntry = require('./projects').addSubmoduleEntry;
+var delSubmoduleEntry = require('./projects').delSubmoduleEntry;
 var carallel = require('carallel');
 var pathJoin = require('pathjoin');
 var binary = require('bodec');
@@ -145,6 +148,7 @@ function readEntry(path, callback) {
 
 // Add a write to the write queue
 function writeEntry(path, entry, callback) {
+  if (!callback) return writeEntry.bind(null, path, entry);
   if (!pendingWrites) {
     // Start recording writes to be written
     pendingWrites = {};
@@ -641,9 +645,36 @@ function revertToHead(path, callback) {
 // (path, url) =>
 function addSubModule(path, url, callback) {
   if (!callback) return addSubModule.bind(null, path, url);
+  var root = longestMatch(path, Object.keys(configs));
+  var configPath = root + "/.gitmodules";
+  var config = configs[path] = configFromUrl(url, configs[root]);
+  expandConfig(config, onExpanded);
 
-  console.log({path:path,url:url});
-  callback("TODO: addSubModule");
+  function onExpanded(err) {
+    if (err) return callback(err);
+    readFile(configPath, onFile);
+  }
+
+  function onFile(err, blob) {
+    if (err) return callback(err);
+    try {
+      blob = binary.fromUnicode(addSubmoduleEntry(blob ? binary.toUnicode(blob) : "", {
+        path: path.substring(root.length + 1),
+        url: url
+      }));
+    }
+    catch (err) {
+      return callback(err);
+    }
+
+    carallel([
+      writeFile(configPath, blob),
+      writeEntry(path, {
+        mode: modes.commit,
+        hash: config.current
+      })
+    ], callback);
+  }
 }
 
 function saveAs(path, type, value, callback) {
