@@ -1,6 +1,7 @@
 /* global chrome*/
 var rootEl = require('./elements').tree;
 var fs = require('data/fs');
+
 var makeRow = require('./row');
 var modes = require('js-git/lib/modes');
 var prefs = require('./prefs');
@@ -16,48 +17,31 @@ setDoc.setActive = setActive;
 // Memory for opened trees.  Accessed by path
 var openPaths = prefs.get("openPaths", {});
 
-// Basic check to know if nothing has changed in the root.
-var rootHash;
 // Rows indexed by path
 var rows = {};
+var rootRow;
 
 var active;
 // Remember the path to the active document.
 var activePath = prefs.get("activePath", "");
 
-fs.onChange(onRootChange);
+fs.init(onChange, function (err, hash) {
+  if (err) throw err;
+  console.log("INIT", hash);
+  openPaths[""] = true;
+  rootRow = renderChild("", modes.commit, hash);
+  rootEl.appendChild(rootRow.el);
+});
+
+function onChange(hash) {
+  console.log("CHANGE", hash);
+  renderChild("", modes.commit, hash);
+}
 
 rootEl.addEventListener("click", onGlobalClick, false);
 rootEl.addEventListener("contextmenu", onGlobalContextMenu, false);
 
-fs.readTree("", onRoots);
-
-function addRoot(name, config) {
-  name = fs.addRoot(name, config);
-  openPaths[name] = true;
-  fs.readTree("", onRoots);
-}
-
-function onRootChange(root, hash) {
-  var name = root.substring(root.lastIndexOf("/") + 1);
-  console.log("onRootChange", {root:root,hash:hash})
-  renderChild(root, name, modes.commit, hash);
-}
-
-function onRoots(err, tree, hash) {
-  if (err) throw err;
-  if (hash === rootHash) return;
-  rootHash = hash;
-  rootEl.textContent = "";
-  Object.keys(tree).sort().map(function (name) {
-    var entry = tree[name];
-    var child = renderChild(name, name, entry.mode, entry.hash);
-    rootEl.appendChild(child.el);
-  });
-}
-
-function renderChild(path, name, mode, hash) {
-  if (!name) name = path.substring(path.lastIndexOf("/") + 1);
+function renderChild(path, mode, hash) {
   var row = rows[path];
   if (row) {
     row.mode = mode;
@@ -73,15 +57,17 @@ function renderChild(path, name, mode, hash) {
     row.call(fs.readCommit, onCommit);
   }
   if ((mode === modes.tree) && openPaths[path]) openTree(row);
-  if (activePath === path) activateDoc(row);
+  if (activePath && activePath === path) activateDoc(row);
 
   return row;
 
-  function onCommit(commit, hashes) {
-    if (!commit) throw new Error("Missing commit " + path);
-    row.hash = hashes.current;
+  function onCommit(entry) {
+    if (!entry) throw new Error("Missing commit");
+    var commit = entry.commit;
+    var head = entry.head || {};
+    row.hash = entry.hash;
     row.treeHash = commit.tree;
-    row.staged = fs.isDirty(path);
+    row.staged = commit.tree !== head.tree;
     row.title = commit.author.date.toString() + "\n" + commit.author.name + " <" + commit.author.email + ">\n\n" + commit.message.trim();
     if (openPaths[path]) openTree(row);
   }
@@ -90,7 +76,6 @@ function renderChild(path, name, mode, hash) {
 
 function renderChildren(row, tree) {
   var path = row.path;
-
 
   // renderChild will cache rows that have been seen already, so it's effecient
   // to simply remove all children and then re-add the ones still here all in
@@ -103,7 +88,8 @@ function renderChildren(row, tree) {
   for (var i = 0, l = names.length; i < l; i++) {
     var name = names[i];
     var entry = tree[name];
-    var child = renderChild(path + "/" + name, name, entry.mode, entry.hash);
+    var childPath = path ? path + "/" + name : name;
+    var child = renderChild(childPath, entry.mode, entry.hash);
     row.addChild(child);
   }
 
@@ -151,11 +137,11 @@ function onGlobalContextMenu(evt) {
 function openTree(row) {
   var path = row.path;
   row.open = true;
-  row.call(fs.readTree, function (tree) {
-    if (!tree) throw new Error("Missing tree");
+  row.call(fs.readTree, function (entry) {
+    if (!entry) throw new Error("Missing tree");
     openPaths[path] = true;
     prefs.save();
-    renderChildren(row, tree);
+    renderChildren(row, entry.tree);
   });
 }
 
@@ -180,20 +166,25 @@ function activateDoc(row) {
   var path = row.path;
   setActive(path);
   if (!active) return setDoc();
-  row.call(fs.readFile, function (blob) {
-    setDoc(row, blob);
+  row.call(fs.readBlob, function (entry) {
+    setDoc(row, entry.blob);
   });
 }
 
 function updateDoc(row, body) {
-  row.call(fs.writeFile, body);
+  row.call(fs.readEntry, function (entry) {
+    row.call(fs.saveAs, "blob", body, function (hash) {
+      entry.hash = hash;
+      row.call(fs.writeEntry, entry);
+    });
+  });
 }
 
 function commitChanges(row) {
-  row.call(fs.readCommit, function (current, hashes) {
+  row.call(fs.readCommit, function (entry) {
     var githubName = fs.isGithub(row.path);
     if (githubName) {
-      var previewDiff = "https://github.com/" + githubName + "/commit/" + hashes.current;
+      var previewDiff = "https://github.com/" + githubName + "/commit/" + entry.hash;
       window.open(previewDiff);
     }
     var userName = prefs.get("userName", "");
@@ -207,15 +198,17 @@ function commitChanges(row) {
       if (result.name !== userName) prefs.set("userName", result.name);
       if (result.email !== userEmail) prefs.set("userEmail", result.email);
       var commit = {
-        tree: current.tree,
+        tree: entry.commit.tree,
         author: {
           name: result.name,
           email: result.email
         },
-        parent: hashes.head,
+        parent: entry.headHash,
         message: result.message
       };
-      row.call(fs.writeCommit, commit);
+      row.call(fs.saveAs, "commit", commit, function (hash) {
+        row.call(fs.setHead, hash);
+      });
     });
   });
 }
@@ -223,41 +216,39 @@ function commitChanges(row) {
 function revertChanges(row) {
   dialog.confirm("Are you sure you want to lose all uncommitted changes?", function (confirm) {
     if (!confirm) return;
-    row.call(fs.revertToHead);
+    row.call(fs.setCurrent, null);
   });
 }
 
 function editSymLink(row) {
-  row.call(fs.readLink, function (target, hash) {
-    if (target === undefined) throw new Error("Missing SymLink " + row.path);
-    var index = row.path.lastIndexOf("/");
-    var name = row.path.substring(index + 1);
-    var dir = row.path.substring(0, index);
+  row.call(fs.readLink, function (entry) {
+    var target = entry.link;
     dialog.multiEntry("Edit SymLink", [
-      {name: "target", placeholder: "target", required:true, value: target},
-      {name: "name", placeholder: "name", required:true, value: name},
+      {name: "target", placeholder: "target", required: true, value: target},
+      {name: "path", placeholder: "path", required: true, value: row.path},
     ], function (result) {
       if (!result) return;
-      result.name = result.name.substring(result.name.indexOf("/") + 1);
-      if (!result) return;
       if (target === result.target) {
-        if (name === result.name) return;
-        return onHash(hash);
+        if (row.path === result.path) return;
+        return onHash(entry.hash);
       }
       row.call(fs.saveAs, "blob", result.target, onHash);
-
       function onHash(hash) {
-        // If the user changed the path, we need to move things
-        if (name !== result.name) {
-          row.call(fs.writeEntry, {});
-          var path = dir + "/" + result.name;
-          row.call(rename, uniquePath(path, rows));
+        if (row.path === result.path) {
+          return onPath(row.path);
         }
-        // Write the symlink
-        row.call(fs.writeEntry, {
-          mode: modes.sym,
-          hash: hash
-        });
+        // If the user changed the path, we need to move things
+        makeUnique(rootRow, result.path, modes.sym, onPath);
+        function onPath(path) {
+          // Write the symlink
+          if (path !== row.path) {
+            row.call(fs.deleteEntry);
+          }
+          return row.call(path, fs.writeEntry, {
+            mode: modes.sym,
+            hash: hash
+          });
+        }
       }
     });
   });
@@ -269,13 +260,14 @@ function makeUnique(row, name, mode, callback) {
   var path = row.path, index = 0;
   row.call(fs.readTree, onTree);
 
-  function onTree(tree) {
+  function onTree(result) {
+    var tree = result.tree;
     var name = parts[index];
     var entry = tree[name];
     if (!entry) return onUnique();
-    if (entry.mode === modes.tree && index < parts.length - 1) {
+    if ((entry.mode === modes.tree || entry.mode === modes.commit) && index < parts.length - 1) {
       index++;
-      path += "/" + name;
+      path = path ? path + "/" + name : name;
       return row.call(path, fs.readTree, onTree);
     }
     parts[index] = uniquePath(name, tree);
@@ -283,12 +275,12 @@ function makeUnique(row, name, mode, callback) {
   }
 
   function onUnique() {
-    path = row.path + "/" + parts.join("/");
+    path = (row.path ? row.path + "/" : "") + parts.join("/");
     var dirParts = mode === modes.tree ? parts : parts.slice(0, parts.length - 1);
     if (dirParts.length) {
       var dirPath = row.path;
       dirParts.forEach(function (name) {
-        dirPath += "/" + name;
+        dirPath = dirPath ? dirPath + "/" + name : name;
         openPaths[dirPath] = true;
       });
       prefs.save();
@@ -299,7 +291,9 @@ function makeUnique(row, name, mode, callback) {
 
 function addChild(row, name, mode, hash) {
   makeUnique(row, name, mode, function (path) {
-    if (modes.isFile(mode)) activePath = path;
+    if (modes.isFile(mode)) {
+      activePath = path;
+    }
     row.call(path, fs.writeEntry, {
       mode: mode,
       hash: hash
@@ -341,10 +335,10 @@ function createSymLink(row) {
 function importFolder(row) {
   chrome.fileSystem.chooseEntry({ type: "openDirectory"}, function (dir) {
     if (!dir) return;
-    row.call(fs.customImport, function (repo, callback) {
-      importEntry(repo, dir, callback);
-    }, function (hash) {
-      addChild(row, dir.name, modes.tree, hash);
+    row.call(fs.getRepo, function (repo) {
+      row.call(repo, importEntry, dir, function (hash) {
+        addChild(row, dir.name, modes.tree, hash);
+      });
     });
   });
 }
@@ -378,44 +372,28 @@ function toggleExec(row) {
 }
 
 function moveEntry(row) {
-  var index = row.path.indexOf("/");
-  var root = row.path.substring(0, index);
-  var localPath = row.path.substring(index + 1);
-  dialog.prompt("Enter target path for move", localPath, function (newPath) {
-    if (!newPath || newPath === localPath) return;
-    var rootRow = rows[root];
+  dialog.prompt("Enter target path for move", row.path, function (newPath) {
+    if (!newPath || newPath === row.path) return;
     makeUnique(rootRow, newPath, row.mode, function (path) {
-      if (modes.isFile(row.mode)) activePath = path;
-      row.call(fs.writeEntry, {});
-      row.call(rename, path);
-      row.call(fs.writeEntry, {
-        mode: row.mode,
-        hash: row.hash
+      row.call(fs.prepEntry, newPath, function () {
+        if (modes.isFile(row.mode)) activePath = path;
+        var oldPath = row.path;
+        row.call(rename, path);
+        row.call(oldPath, fs.moveEntry, path);
       });
-      // Flush any changes to .gitmodules files in case we moved a submodule
-      row.call(fs.flushChanges);
     });
   });
 }
 
 function copyEntry(row) {
-  var index = row.path.indexOf("/");
-  var root = row.path.substring(0, index);
-  var localPath = row.path.substring(index + 1);
-  dialog.prompt("Enter target path for copy", localPath, function (newPath) {
-    if (!newPath || newPath === localPath) return;
-    var rootRow = rows[root];
-    // TODO: duplicate .gitmodules entries if submodules are copied
-    // TODO: deep copy when target is in another repo
+  dialog.prompt("Enter target path for copy", row.path, function (newPath) {
+    if (!newPath || newPath === row.path) return;
     makeUnique(rootRow, newPath, row.mode, function (path) {
-      if (modes.isFile(row.mode)) activePath = path;
-      row.call(copy, path);
-      rootRow.call(path, fs.writeEntry, {
-        mode: row.mode,
-        hash: row.hash
+      row.call(fs.prepEntry, newPath, function () {
+        if (modes.isFile(row.mode)) activePath = path;
+        row.call(copy, path);
+        row.call(fs.copyEntry, path);
       });
-      // Flush any changes to .gitmodules files in case we moved a submodule
-      row.call(fs.flushChanges);
     });
   });
 }
@@ -424,49 +402,25 @@ function removeEntry(row) {
   dialog.confirm("Are you sure you want to delete " + row.path + "?", function (confirm) {
     if (!confirm) return;
     row.call(remove);
-    row.call(fs.writeEntry, {});
-    // Flush any changes to .gitmodules files in case we deleted a submodule
-    row.call(fs.flushChanges);
+    row.call(fs.deleteEntry);
   });
 }
 
-function renameRepo(row) {
-  dialog.prompt("Enter new name for repo", row.path, function (name) {
-    if (!name || name === row.path) return;
-    row.call(fs.renameRoot, name);
-    row.call(rename, name);
-    // Flush any changes to .gitmodules files in case we deleted a submodule
-    row.call(fs.flushChanges, function () {
-      fs.readTree("", onRoots);
-    });
+function liveExport(row) {
+  var index = row.path.indexOf("/");
+  var root = index > 0 ? row.path.substring(0, index) : row.path;
+  dialog.exportConfig({
+    entry: prefs.get("defaultExportEntry"),
+    source: row.path,
+    filters: root + "/filters",
+    name: row.path.substring(row.path.indexOf("/") + 1)
+  }, function (settings) {
+    if (!settings) return;
+    prefs.set("defaultExportEntry", settings.entry);
+    row.call(fs.addExportHook, settings);
   });
 }
 
-function removeRepo(row) {
-  dialog.confirm("Are you sure you want to delete " + row.path + "?", function (confirm) {
-    if (!confirm) return;
-    row.call(fs.removeRoot);
-    row.call(remove);
-    // Flush any changes to .gitmodules files in case we deleted a submodule
-    row.call(fs.flushChanges, function () {
-      fs.readTree("", onRoots);
-    });
-  });
-}
-
-function createEmpty() {
-  dialog.prompt("Enter name for empty repo", "", function (name) {
-    if (!name) return;
-    addRoot(name, {});
-  });
-}
-
-function createFromFolder() {
-  return chrome.fileSystem.chooseEntry({ type: "openDirectory"}, function (entry) {
-    if (!entry) return;
-    addRoot(entry.name, {entry:entry});
-  });
-}
 
 function createClone() {
   dialog.multiEntry("Clone Remote Repo", [
@@ -474,7 +428,10 @@ function createClone() {
     {name: "name", placeholder: "localname"}
   ], function (result) {
     if (!result) return;
-    addRoot(result.name || result.url, { url: result.url });
+    var name = result.name || result.url;
+    makeUnique(rootRow, name, modes.commit, function (path) {
+      rootRow.call(path, fs.addRepo, { url: result.url });
+    });
   });
 }
 
@@ -489,7 +446,15 @@ function createGithubMount() {
     if (result.token !== githubToken) {
       prefs.set("githubToken", result.token);
     }
-    addRoot(result.name || result.path, { githubName: result.path });
+    var url = result.path;
+    // Assume github if user/name combo is given
+    if (/^[^\/:@]+\/[^\/:@]+$/.test(url)) {
+      url = "git@github.com:" + url + ".git";
+    }
+    var name = result.name || result.path;
+    makeUnique(rootRow, name, modes.commit, function (path) {
+      rootRow.call(path, fs.addRepo, { url: url, github: true });
+    });
   });
 }
 
@@ -504,15 +469,7 @@ function removeAll() {
 
 
 function makeMenu(row) {
-  if (!row) {
-    return [
-      {icon:"git", label: "Create Empty Git Repo", action: createEmpty},
-      {icon:"hdd", label:"Create Repo From Folder", action: createFromFolder},
-      {icon:"fork", label: "Clone Remote Repo", action: createClone},
-      {icon:"github", label: "Live Mount Github Repo", action: createGithubMount},
-      {icon:"ccw", label: "Remove All", action: removeAll}
-    ];
-  }
+  row = row || rootRow;
   var actions = [];
   var type = row.mode === modes.tree ? "Folder" :
              modes.isFile(row.mode) ? "File" :
@@ -523,9 +480,19 @@ function makeMenu(row) {
       actions.push({icon:"doc", label:"Create File", action: createFile});
       actions.push({icon:"folder", label:"Create Folder", action: createFolder});
       actions.push({icon:"link", label:"Create SymLink", action: createSymLink});
+
       actions.push({sep:true});
-      actions.push({icon:"fork", label: "Add Submodule", action: addSubmodule});
       actions.push({icon:"folder", label:"Import Folder", action: importFolder});
+      if (row.path) {
+        actions.push({icon:"fork", label: "Add Submodule", action: addSubmodule});
+      }
+      else {
+        actions.push(
+          {icon:"fork", label: "Clone Remote Repo", action: createClone},
+          {icon:"github", label: "Live Mount Github Repo", action: createGithubMount},
+          {icon:"ccw", label: "Remove All", action: removeAll}
+        );
+      }
     }
   }
   if (row.mode === modes.commit) {
@@ -547,20 +514,17 @@ function makeMenu(row) {
       "Make Executable";
     actions.push({icon:"asterisk", label: label, action: toggleExec});
   }
-  actions.push({sep:true});
-  if (row.path.indexOf("/") >= 0) {
+  if (row.path) {
+    actions.push({sep:true});
     actions.push({icon:"pencil", label:"Move " + type, action: moveEntry});
     actions.push({icon:"docs", label:"Copy " + type, action: copyEntry});
     actions.push({icon:"trash", label:"Delete " + type, action: removeEntry});
   }
-  else {
-    actions.push({icon:"pencil", label:"Rename Repo", action: renameRepo});
-    actions.push({icon:"trash", label:"Remove Repo", action: removeRepo});
-  }
-  // actions.push({sep:true});
-  // actions.push({icon:"globe", label:"Serve Over HTTP"});
-  // actions.push({icon:"hdd", label:"Live Export to Disk", action: liveExport});
+  actions.push({sep:true});
+  actions.push({icon:"globe", label:"Serve Over HTTP"});
+  actions.push({icon:"hdd", label:"Live Export to Disk", action: liveExport});
   if (actions[0].sep) actions.shift();
+
   return actions;
 }
 
@@ -573,7 +537,9 @@ function remove(oldPath, callback) {
     delete rows[path];
     if (openPaths[path]) delete openPaths[path];
   }
-  fs.removeRoots(regExp, callback);
+  // TODO: fix this
+  callback();
+  // fs.removeRoots(regExp, callback);
   prefs.save();
 }
 
@@ -586,7 +552,9 @@ function copy(oldPath, newPath, callback) {
     var replacedPath = path.replace(regExp, newPath);
     if (openPaths[path]) openPaths[replacedPath] = true;
   }
-  fs.copyRoots(regExp, newPath, callback);
+  // TODO: fix this
+  callback();
+  // fs.copyRoots(regExp, newPath, callback);
   prefs.save();
 }
 
@@ -605,7 +573,9 @@ function rename(oldPath, newPath, callback) {
       delete openPaths[path];
     }
   }
-  fs.renameRoots(regExp, newPath, callback);
+  // TODO: fix this
+  callback();
+  // fs.renameRoots(regExp, newPath, callback);
   prefs.save();
 }
 
@@ -614,15 +584,26 @@ function trim(path, tree, callback) {
   // to do this than scan over the entire list looking for patterns.
   var regExp = new RegExp("^" + rescape(path) + "\/([^\/]+)(?=\/|$)");
   var paths = Object.keys(rows);
+  var match;
   for (var i = 0, l = paths.length; i < l; i++) {
     var childPath = paths[i];
-    var match = childPath.match(regExp);
+    match = childPath.match(regExp);
     if (match && !tree[match[1]]) {
       delete rows[childPath];
       if (openPaths[childPath]) delete openPaths[childPath];
     }
   }
-  fs.trimRoots(regExp, tree, callback);
+
+  match = activePath && activePath.match(regExp);
+  if (match && !tree[match[1]]) {
+    activePath = null;
+    prefs.set("activePath", activePath);
+    setDoc();
+  }
+
+  // TODO: fix this
+  callback();
+  // fs.trimRoots(regExp, tree, callback);
 }
 
 // Make a path unique

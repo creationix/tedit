@@ -1,133 +1,458 @@
 /*
-This is a mutable filesystem abstraction on top of the repos tree.
-This has a global read/write lock.  Reads are allowed to happen without restriction
-as long as there are no writes happening.  When a write gets requested, a write batch
-is created.  It will wait till end of event tick to see if there are any more changes
-to write.  Once the write has started, further reads and writes are queued.  When the
-write finishes, it first releases the queued reads and lets them run in the background.
-If there were queued writes as well, the process will start over with the new write batch.
+ * This is a mutable filesystem abstraction on top a tree of repositories.
+ * This has a global read/write lock.  Reads are allowed to happen without
+ * restriction as long as there are no writes happening.  When a write gets
+ * requested, a write batch is created.  It will wait till end of event tick to
+ * see if there are any more changes to write.  Once the write has started,
+ * further reads and writes are queued.  When the write finishes, it first
+ * releases the queued reads and lets them run in the background. If there were
+ * queued writes as well, the process will start over with the new write batch.
+ *
+ * The workspace is represented as one git repository with nested submodules.
+ *
+ */
 
-Path is a global path including root-project name as the first path segment.
-Commit nodes can be read as either tree or commit depending on which data
-you're interested in.
+// Load dependencies
+{
+  var binary   = require('bodec');
+  var carallel = require('carallel');
+  var defer    = require('js-git/lib/defer');
+  var modes    = require('js-git/lib/modes');
+  var codec    = require('js-git/lib/config-codec');
+  var cache    = require('js-git/mixins/mem-cache').cache;
 
-*Entry operations don't work on root nodes.  They only work on nodes that have parent trees.
+  var prefs = require('ui/prefs');
+}
 
-*/
-
-var findStorage = require('./storage');
-var hashAs = require('js-git/lib/encoders').hashAs;
-var modes = require('js-git/lib/modes');
-var cache = require('js-git/mixins/mem-cache').cache;
-var expandConfig = require('./projects').expandConfig;
-var createRepo = require('./projects').createRepo;
-var configFromUrl = require('./projects').configFromUrl;
-var parseConfig = require('js-git/lib/config-codec').parse;
-var encodeConfig = require('js-git/lib/config-codec').encode;
-var carallel = require('carallel');
-var binary = require('bodec');
-var defer = require('js-git/lib/defer');
-var prefs = require('ui/prefs');
-
-// Hold references to the root configs.
-var configs = prefs.get("treeConfig", {});
-
+// Export public interface
 module.exports = {
 
-  // Garbage collection hooks
-  removeRoots: removeRoots,
-  renameRoots: renameRoots,
-  copyRoots: copyRoots,
-  trimRoots: trimRoots,
-  flushChanges: flushChanges,
+  // Initialize the system with a repo config.  This is
+  // the root repo that can't be seen or edited.  All projects are
+  // simply submodules of this master workspace.
+  // onChange is called whenever the root hash changes.
+  init: init,               // (config, current, onChange) =>
+  // Set the root commit hash.  This triggers an onChange call
+  setRoot: setRoot,         // (hash)
 
-  // onChange(callback(path, hash))
-  //  Register a listener to be notified when the commit hash for a commit node
-  //  changes.  This gets called for root nodes and submodules.
-  onChange: onChange,
+  // Slow Write Actions
+  // These will perform some I/O and then later perform their own batch write.
+  // Create a new git repo from config {url, ...}.  This will first create the
+  // repo instance and clone/mount it to find the head commit has.  It will
+  // then write the submodule entry
+  addRepo: addRepo,         // (path, config) => hash
+  setHead: setHead,         // (path, hash) => hash
+  setCurrent: setCurrent,   // (path, hash) => hash
 
-  // addRoot(name, config) -> newName
-  //  Add a new root to the filesystem.  Config can be a minimal config missing
-  //  important things like `current`.  To mount a github repo, only pass in
-  //  { githubName: "some/name" }.  To create an empty repo, pass in {}. To
-  //  clone a remote repo pass in { url: "git://url/here.git" }
-  //  Returned is the actual name after ensuring it's unique.
-  addRoot: addRoot,
+  // Read Functions (path) => entry, [repo, config, root]
+  // These function will queue if there is an active write.
+  // They are not exclusive to each other however.
+  // readEntry will output nothing if the target doesn't exist, but the others
+  // will error out if the target is not there and the desired type.
+  readEntry: readEntry,     // (path) => { mode, hash }
+  readCommit: readCommit,   // (path) => { mode, hash, commit }
+  readTree: readTree,       // (path) => { mode, hash, tree }
+  readBlob: readBlob,       // (path) => { mode, hash, blob }
+  readLink: readLink,       // (path) => { mode, hash, link }
+  // config is the metadata stored in .gitmodules
+  readConfig: readConfig,   // (path) => { url, ref, ...}
+  // get access to a raw repo instance
+  getRepo: getRepo,         // (path) => repo
 
-  // renameRoot(oldName, newName) -> newName
-  //  Rename a root by name to a new name.  The newName will be made unique and
-  //  returned.
-  renameRoot: renameRoot,
+  // Safe Writes
+  // These are safe write because they only write immutable hashes.
+  // They still need read access to know which repo to save to or read from.
+  saveAs: saveAs,           // (path, type, value) => hash
+  // Prepare an entry to be moved or copied.  If both paths are the same repo
+  // then this is a no-op that calls the callback immediately.  If they are
+  // different repos, then all containing hashes are copied over.
+  prepEntry: prepEntry,     // (path, target) => entry
 
-  // removeRoot(name) ->
-  //  Remove a root from the local fs tree.
-  removeRoot: removeRoot,
+  // Write Actions
+  // These actions are auto-batched and create a global lock when they start.
+  // The write starts at the end of the tick when these start.
+  // These will error out if the data they need to read is not cached already.
+  // Thus they gurantee to put their write action in the queue this tick.
+  // Their callback is called when the write actions are flushed and complete.
+  writeEntry: writeEntry,   // (path, entry) =>
+  copyEntry: copyEntry,     // (path, target) =>
+  moveEntry: moveEntry,     // (path, target) =>
+  deleteEntry: deleteEntry, // (path) =>
 
-
-  // readCommit(path) => commit, hashes
-  //  Given a path, load the commit and 4 hashes {current,currentTree,head,headTree}
-  //  The commit value is the one that current points to
-  readCommit: readCommit,
-
-  // readTree(path) => tree, hash, repo, config
-  //  Given a path, load the git tree with it's hash
-  readTree: readTree,
-
-  // readFile(path) => blob, hash
-  //  Read a filepath as a blob
-  readFile: readFile,
-
-  // readLink(path) => target, hash
-  //  Read a link target as text
-  readLink: readLink,
-
-  readEntry: readEntry,
-
-  // isDirty(path) -> isDirty
-  //  Tells you if there are unsaved changes at this path.
-  //  Currently it only works for commit nodes.
   isDirty: isDirty,
-
-  // isGithub(path) -> isGithub
-  //  Tells you if the path is inside a mounted github repo
-  //  This is false for cloned repos, even if they come from github
   isGithub: isGithub,
 
-  // (path, blob) => hash
-  writeFile: writeFile,
-  // (path, target) => hash
-  writeLink: writeLink,
 
-  // writeCommit(path, commit) => hash
-  //  write a commit to the branch at path. Also updates the commit entry in the
-  //  parent repo and updates the ref in the child repo.
-  writeCommit: writeCommit,
-
-  // writeSubmodule(path, url) => hash
-  //  lookup the master hash for repo at url (cloning if needed).
-  //  create a commit entry in the tree and insert an entry in the paren't .gitmodules file
-  //  caller is responsible to call flushChanges during write.
-  writeSubmodule: writeSubmodule,
-
-  // revertToHead(path)
-  //  Move a tree back to the head commit.
-  revertToHead: revertToHead,
-
-  // (path, entry) =>
-  writeEntry: writeEntry,
-
-  customImport: customImport,
-
-  // saveAs(path, type, value) => hash
-  //  Save a value in the git database.  Path is only used to lookup the repo
-  //  The entry at that path is not modified.  This does not require a write
-  //  lock and can be done in parallel with any reads.
-  saveAs: saveAs,
 };
 
+// Create local state
+{
+  // Data for repos is keyed by path. The root config is keyed by "".
+  // Live js-git instances by path
+  var repos = {};
+  // Config data by path
+  var configs = prefs.get("configs", {});
+  // Pre-parsed .gitmodules data by path { hash, meta }
+  // meta is in the form { submodule: { $path: { path, url, ref, ... } } }
+  var gitmodules = {};
+  // Store the hash to the current root node
+  var rootHash = prefs.get("rootHash");
+  // Remember the onChange hook
+  var change;
+}
+
+// Define public functions
 ////////////////////////////////////////////////////////////////////////////////
 
-var changeListeners = [];
+function init(onChange, callback) {
+  var config = configs[""] || {};
+
+  // Store the change handler
+  change = onChange;
+
+  livenConfig(config, rootHash, function (err, repo, current) {
+    if (err) return callback(err);
+    repos[""] = repo;
+    configs[""] = config;
+    rootHash = current;
+    prefs.set("rootHash", rootHash);
+    callback(null, rootHash);
+  });
+}
+
+function setRoot(hash) {
+  rootHash = hash;
+  prefs.set("rootHash", rootHash);
+  defer(function () { change(rootHash); });
+}
+
+function addRepo(path, config, callback) {
+  if (!callback) return addRepo.bind(null, path, config);
+  livenConfig(config, null, function (err, repo, hash) {
+    if (err) return callback(err);
+    repos[path] = repo;
+    configs[path] = config;
+    writeEntry(path, {
+      mode: modes.commit,
+      hash: hash
+    }, function (err) {
+      if (err) return callback(err);
+      callback(null, hash);
+    });
+  });
+}
+
+function setHead(path, hash, callback) {
+  if (!callback) return setHead.bind(null, path, hash);
+  if (!path) {
+    var repo = repos[""];
+    var config = configs[""];
+    config.head = hash;
+    prefs.save();
+    setRoot(hash);
+    return repo.updateRef(configs[""].ref, hash, callback);
+  }
+  readEntry(path, function (err, entry, repo, config) {
+    if (err) return callback(err);
+    config.head = hash;
+    prefs.save();
+    if (entry.hash === hash) return onWrite();
+    writeEntry(path, {
+      mode: modes.commit,
+      hash: hash
+    }, onWrite);
+  });
+
+  function onWrite(err) {
+    if (err) return callback(err);
+    getRepo(path, function (err, repo, config) {
+      if (err) return callback(err);
+      repo.updateRef(config.ref, hash, callback);
+    });
+  }
+}
+
+function setCurrent(path, hash, callback) {
+  if (!callback) return setCurrent.bind(null, path, hash);
+  callback("TODO: implement setCurrent");
+}
+
+function readEntry(path, callback) {
+  if (!callback) return readEntry.bind(null, path);
+  // If there is a write in progress, wait for it to finish before reading
+  if (writing) {
+    if (readQueues[path]) readQueues[path].push(callback);
+    else readQueues[path] = [callback];
+    return;
+  }
+  pathToEntry(path, callback);
+}
+
+function readCommit(path, callback) {
+  if (!callback) return readCommit.bind(null, path);
+  readEntry(path, function (err, entry, repo, config) {
+    if (!entry) return callback(err || new Error("Missing commit"));
+    if (entry.mode !== modes.commit) return callback("Not a commit");
+    // Make sure config.current matches the hash in the tree
+    config.current = entry.hash;
+    repo.loadAs("commit", entry.hash, onCurrent);
+
+    function onCurrent(err, commit) {
+      if (!commit) return callback(err || new Error("Problem loading current commit"));
+      entry.commit = commit;
+      entry.headHash = config.head;
+      if (!config.head) return callback(null, entry, repo, config);
+      repo.loadAs("commit", config.head, onHead);
+    }
+
+    function onHead(err, commit) {
+      if (!commit) return callback(err || new Error("Problem loading head commit"));
+      entry.head = commit;
+      callback(null, entry, repo, config);
+    }
+  });
+}
+
+function readTree(path, callback) {
+  if (!callback) return readTree.bind(null, path);
+  readEntry(path, function (err, entry, repo, config, root) {
+    if (!entry) return callback(err);
+    if (entry.mode === modes.commit) {
+      return repo.loadAs("commit", entry.hash, onCommit);
+    }
+    if (entry.mode === modes.tree) {
+      return repo.loadAs("tree", entry.hash, onTree);
+    }
+    return callback(new Error("Invalid mode 0" + entry.mode.toString(8)));
+
+    function onCommit(err, commit) {
+      if (!commit) return callback(err || new Error("Missing commit"));
+      return repo.loadAs("tree", commit.tree, onTree);
+    }
+
+    function onTree(err, tree, hash) {
+      if (!tree) return callback(err || new Error("Missing tree " + hash));
+      var entry = {
+        mode: modes.tree,
+        hash: hash,
+        tree: tree
+      };
+      callback(null, entry, repo, config, root);
+    }
+  });
+}
+
+function readBlob(path, callback) {
+  if (!callback) return readBlob.bind(null, path);
+  readEntry(path, function (err, entry, repo, config) {
+    if (!entry) return callback(err || new Error("Missing entry"));
+    if (!modes.isFile(entry.mode)) return callback("Not a file");
+    repo.loadAs("blob", entry.hash, function (err, blob) {
+      if (!blob) return callback(err || new Error("Problem loading blob"));
+      entry.blob = blob;
+      callback(null, entry, repo, config);
+    });
+  });
+}
+
+function readLink(path, callback) {
+  if (!callback) return readLink.bind(null, path);
+  readEntry(path, function (err, entry, repo, config) {
+    if (!entry) return callback(err || new Error("Missing entry"));
+    if (entry.mode !== modes.sym) return callback("Not a symlink");
+    repo.loadAs("blob", entry.hash, function (err, blob) {
+      if (err) return callback(err);
+      try { entry.link = binary.toUnicode(blob); }
+      catch (err) { return callback(err); }
+      callback(null, entry, repo, config);
+    });
+  });
+}
+
+function readConfig(path, callback) {
+  if (!callback) return readConfig.bind(null, path);
+  return callback("TODO: Implement readConfig");
+}
+
+function getRepo(path, callback) {
+  if (!callback) return getRepo.bind(null, path);
+  var dir = path.substring(0, path.lastIndexOf("/"));
+  readEntry(dir, function (err, entry, repo, config) {
+    if (!entry) return callback(err || new Error("Can't find repo"));
+    callback(null, repo, config);
+  });
+}
+
+function saveAs(path, type, value, callback) {
+  if (!callback) return saveAs.bind(null, path, type, value);
+  getRepo(path, function (err, repo) {
+    if (err) return callback(err);
+    repo.saveAs(type, value, callback);
+  });
+}
+
+function prepEntry(path, target, callback) {
+  if (!callback) return prepEntry.bind(null, path, target);
+  // TODO: do deep copy if repos don't match;
+  readEntry(target, function (err) {
+    if (err) return callback(err);
+    readEntry(path, callback);
+  });
+}
+
+function writeEntry(path, entry, callback) {
+  if (!callback) return writeEntry.bind(null, path, entry);
+  if (!pendingWrites) {
+    // Start recording writes to be written
+    pendingWrites = {};
+    writeCallbacks = [];
+    // Defer starting the write to collect more writes this tick.
+    defer(writeEntries);
+  }
+  pendingWrites[path] = entry;
+  if (callback) writeCallbacks.push(callback);
+}
+
+function copyEntry(path, target, callback) {
+  if (!callback) return copyEntry.bind(null, path, target);
+  // TODO: copy configs and local state
+  var entry = pathToEntry(path);
+  if (!entry.hash) return callback(new Error("Can't find source"));
+  writeEntry(target, {
+    mode: entry.mode,
+    hash: entry.hash
+  }, callback);
+}
+
+function moveEntry(path, target, callback) {
+  if (!callback) return moveEntry.bind(null, path, target);
+  // TODO: move configs and local state
+  var entry = pathToEntry(path);
+  if (!entry.hash) return callback(new Error("Can't find source"));
+  writeEntry(path, {});
+  writeEntry(target, {
+    mode: entry.mode,
+    hash: entry.hash
+  }, callback);
+}
+
+function deleteEntry(path, callback) {
+  if (!callback) return deleteEntry.bind(null, path);
+  writeEntry(path, {}, callback);
+}
+
+function isDirty(path) {
+  var config = configs[path];
+  if (!config) return;
+  return config.current !== config.head;
+}
+
+function isGithub(path) {
+  var config = configs[path] || configs[findParentPath(path)];
+  if (!config) throw new Error("Can't find config for");
+  return config.github;
+}
+
+
+// Define internal helper functions
+////////////////////////////////////////////////////////////////////////////////
+
+// Given a bare config with { [url], [ref], [github], [head] },
+// create a live repo and look up the head commit hash.
+// => repo, current
+function livenConfig(config, current, callback) {
+  var repo = {};
+  try {
+    if (config.github) {
+      if (!config.url) throw new Error("Missing url in github config");
+      var match = config.url.match(/github.com[:\/](.*?)(?:\.git)?$/);
+      if (!match) throw new Error("Url is not github repo: " + config.url);
+      var githubName = match[1];
+      var githubToken = prefs.get("githubToken", "");
+      if (!githubToken) throw new Error("Missing github access token");
+      require('js-git/mixins/github-db')(repo, githubName, githubToken);
+      // Github has this built-in, but it's currently very buggy
+      require('js-git/mixins/create-tree')(repo);
+      // Cache github objects locally in indexeddb
+      require('js-git/mixins/add-cache')(repo, require('js-git/mixins/indexed-db'));
+    }
+    else {
+      // Prefix so we can find our refs after a reload
+      if (!config.prefix) {
+        config.prefix = Date.now().toString(36) + "-" + (Math.random() * 0x100000000).toString(36);
+        prefs.save();
+      }
+      require('js-git/mixins/indexed-db')(repo, config.prefix);
+      require('js-git/mixins/create-tree')(repo);
+    }
+
+    // require('js-git/mixins/delay')(repo, 200);
+
+    // Cache everything except blobs over 100 bytes in memory.
+    require('js-git/mixins/mem-cache')(repo);
+
+    // Combine concurrent read requests for the same hash
+    require('js-git/mixins/read-combiner')(repo);
+
+    var ref = config.ref || (config.ref = "refs/heads/master");
+    if (config.head) onHead();
+    else repo.readRef(ref, onHead);
+  }
+  catch (err) { return callback(err); }
+
+  function onHead(err, hash) {
+    if (err) return callback(err);
+    if (hash) config.head = hash;
+    if (!current) {
+      if (config.head) current = config.head;
+      else if (config.url && !config.github) {
+        return callback(new Error("TODO: Implement clone"));
+      }
+      else return initEmpty(repo, null, onCurrent);
+    }
+    config.current = current;
+    callback(null, repo, current);
+  }
+
+  function onCurrent(err, hash) {
+    if (!hash) return callback(err || new Error("Invalid current hash"));
+    current = hash;
+    onHead();
+  }
+
+  return repo;
+}
+
+// When creating new empty repos, we still need an empty tree and a temporary commit.
+function initEmpty(repo, tree, callback) {
+  if (tree) return onTree(null, tree);
+  return repo.saveAs("tree", [], onTree);
+
+  function onTree(err, hash) {
+    if (err) return callback(err);
+    return repo.saveAs("commit", {
+      tree: hash,
+      author: {
+        name: "AutoInit",
+        email: "tedit@creationix.com"
+      },
+      message: "Initial Empty Commit"
+    }, callback);
+  }
+}
+
+// Given a path, find the parent state {repo, config}
+function findParentPath(path, roots) {
+  var longest = "";
+  roots = roots || Object.keys(configs);
+  roots.forEach(function (root) {
+    if (path.substring(0, root.length + 1) !== root + "/") return;
+    if (root.length > longest.length) {
+      longest = root;
+    }
+  });
+  return longest;
+}
 
 // Pending readEntry requests during a write
 // key is path, value is array of callbacks
@@ -140,62 +465,36 @@ var writeCallbacks = null;
 // Flag to know if an actual write is in progress
 var writing = false;
 
-function readEntry(path, callback) {
-  // If there is a write in progress, wait for it to finish before reading
-  if (writing) {
-    if (readQueues[path]) readQueues[path].push(callback);
-    else readQueues[path] = [callback];
-    return;
-  }
-  pathToEntry(path, callback);
-}
-
-// Add a write to the write queue
-function writeEntry(path, entry, callback) {
-  if (!callback) return writeEntry.bind(null, path, entry);
-  if (!pendingWrites) {
-    // Start recording writes to be written
-    pendingWrites = {};
-    writeCallbacks = [];
-    // defer so that other writes this tick get bundled
-    if (!writing) defer(writeEntries);
-  }
-  pendingWrites[path] = entry;
-  if (callback) writeCallbacks.push(callback);
-}
-
 function writeEntries() {
+  // Exclusive write lock
+  if (writing) return;
+  writing = true;
+
   // Import write data into this closure
-  // Other writes that happen while we're busy will get
+  // Other writes that happen while we're busy will get queued
   var writes = pendingWrites;
   pendingWrites = null;
   var callbacks = writeCallbacks;
   writeCallbacks = null;
   // Lock reads to wait till thie write is finished
   readQueues = {};
-  // New hashes to be written upon completion of transaction.
-  var currents = {};
-  writing = true;
 
   // Break up the writes into the separate repos they belong in.
   var groups = {};
   var roots = Object.keys(configs);
   Object.keys(writes).forEach(function (path) {
-    var root = longestMatch(path, roots);
+    var root = findParentPath(path, roots);
     var entry = writes[path];
-    if (!root) {
-      if (path.indexOf("/") < 0 && entry.mode === modes.commit) {
-        currents[path] = entry.hash;
-        return;
-      }
-      return onWriteDone(new Error("Can't find root"));
-    }
     var group = groups[root] || (groups[root] = {});
     var local = root ? path.substring(root.length + 1) : path;
     group[local] = entry;
   });
 
+
   var leaves = findLeaves();
+
+  // Store output hashes by path
+  var currents = {};
   if (!leaves.length) return onWriteDone();
   carallel(leaves.map(processLeaf), onProcessed);
 
@@ -204,9 +503,10 @@ function writeEntries() {
     var paths = Object.keys(groups);
     var parents = {};
     paths.forEach(function (path) {
-      var parent = longestMatch(path, paths);
-      parents[parent] = true;
+      // we use an if to filter out the root path.  It doesn't have a parent.
+      if (path) parents[findParentPath(path, paths)] = true;
     });
+
     return paths.filter(function (path) {
       return !parents[path];
     });
@@ -216,7 +516,7 @@ function writeEntries() {
   // When it comes back, create a temporary commit.
   function processLeaf(root) {
     var config = configs[root];
-    var repo = findRepo(config);
+    var repo = repos[root];
     var group = groups[root];
     delete groups[root];
     var actions = Object.keys(group).map(function (path) {
@@ -262,7 +562,7 @@ function writeEntries() {
     leaves.forEach(function (path, i) {
       var hash = hashes[i];
       currents[path] = hash;
-      var parent = longestMatch(path, roots);
+      var parent = findParentPath(path, roots);
       if (parent) {
         var parentGroup = groups[parent] || (groups[parent] = {});
         parentGroup[path.substring(parent.length + 1)] = {
@@ -285,22 +585,21 @@ function writeEntries() {
 
     // Process changed roots
     Object.keys(currents).forEach(function (root) {
-
       var hash = currents[root];
       // Update the config
       configs[root].current = hash;
-      // And notify and listeners for root paths
-      changeListeners.forEach(function (listener) {
-        listener(root, hash);
-      });
     });
 
     prefs.save();
+
+    // Update the tree root to point to the new version
+    setRoot(currents[""]);
 
     // Tell the callbacks we're done.
     callbacks.forEach(function (callback) {
       callback(err);
     });
+
 
     writing = false;
 
@@ -326,115 +625,98 @@ function flushReads() {
   });
 }
 
-////////////////////////////////////////////////////////////////////////////////
-
-// Allows code to listen for changes to repo root commit hashes.
-function onChange(callback) {
-  changeListeners.push(callback);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-// (name, config) -> newName
-function addRoot(name, config, callback) {
-  name = genName(name, configs);
-  configs[name] = config;
-  prefs.save();
-  if (callback) callback(null, name);
-  return name;
-}
-
-// (oldName, newName) -> newName
-function renameRoot(oldName, newName, callback) {
-  var config = configs[oldName];
-  if (!config) throw new Error("No such root " + oldName);
-  removeRoot(oldName);
-  return addRoot(newName, config, callback);
-}
-
-// (name) ->
-function removeRoot(name, callback) {
-  if (!(name in configs)) throw new Error("No such root " + name);
-  delete configs[name];
-  prefs.save();
-  if (callback) callback();
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 // The real work to convert a path to a git tree entry, repo, and config
 // This data is often cached and so non-callback style is used to keep stack small.
 function pathToEntry(path, callback) {
+  if (!path) {
+    var entry = {
+      mode: modes.commit,
+      hash: rootHash
+    };
+    console.log("ROOT ENTRY", entry);
+    if (callback) return callback(null, entry, repos[""], configs[""]);
+    entry.repo = repos[""];
+    entry.config = configs[""];
+    return entry;
+  }
   var parts = path.split("/").filter(Boolean);
-  var gitmodules;
-  var root = parts[0];
-  var index = 1;
-  var config = configs[root];
-  if (!config) return callback();
-  if (!config.current) return expandConfig(config, onExpanded);
-  var repo = findRepo(config);
-  if (!repo) return callback(new Error("Missing repo"));
-
+  var index = 0;
   var mode = modes.commit;
-  var hash = config.current;
+  var hash = rootHash;
+  var root = "";
+  var config = configs[root];
+  var subConfig;
+  var repo = repos[root];
   path = root;
 
   return walk();
-
-  function onExpanded(err) {
-    if (err) return callback(err);
-    if (!config.current) return callback(new Error("Unable to find current"));
-    prefs.save();
-    return pathToEntry(path, callback);
-  }
 
   // This function has an interesting structure.  It's optimized to not grow
   // the stack in the case of cached values.  When it encounters a value not
   // in the cache, it aborts the loop and picks up where it left off after
   // the value is loaded.
   function walk(err) {
-    if (err) return callback(err);
+    if (err) {
+      if (callback) return callback(err);
+      throw err;
+    }
     var cached;
     while (index < parts.length) {
       if (mode === modes.commit) {
         cached = cache[hash];
-        if (!cached) return repo.loadAs("commit", hash, onEntry);
+        if (!cached) {
+          if (callback) return repo.loadAs("commit", hash, onEntry);
+          throw new Error("Commit not cached");
+        }
         mode = modes.tree;
         hash = cached.tree;
       }
       if (mode === modes.tree) {
         cached = cache[hash];
-        if (!cached) return repo.loadAs("tree", hash, onEntry);
+        if (!cached) {
+          if (callback) return repo.loadAs("tree", hash, onEntry);
+          throw new Error("Tree not cached");
+        }
         if (path === root) {
-          // If it needs to load the file, we can wait.
-          if (!loadGitmodules(root, cached, walk)) return;
+          // Check if the gitmodules cache is up to date
+          if (!loadGitmodules(root, cached, callback && walk)) return;
         }
         var part = parts[index++];
         var entry = cached[part];
-        if (!entry) return callback(null, null, repo, config);
-        path += "/" + part;
+        if (!entry) {
+          if (callback) return callback(null, null, repo, config);
+          return { repo: repo, config: config };
+        }
+        path = path ? path + "/" + part : part;
         mode = entry.mode;
         hash = entry.hash;
         if (mode === modes.commit) {
           if (configs[path]) {
             root = path;
             config = configs[root];
-            repo = findRepo(config);
+            repo = repos[root];
           }
           else {
-            var gitmodule = getGitmodule(path);
-            if (!gitmodule) return callback(new Error("Missing .gitmodules entry"));
-            return expandConfig(configFromUrl(gitmodule.url, config), onSubConfig);
+            if (!callback) throw new Error("submodule not cached");
+            subConfig = getGitmodule(path) || {}; // TODO: fix this
+            if (!subConfig) return callback(new Error("Missing .gitmodules entry"));
+            if (config.github) subConfig.github = true;
+            return livenConfig(subConfig, entry.hash, onSubConfig);
           }
         }
         continue;
       }
-      return callback(null, null, repo, config);
+      if (callback) return callback(null, null, repo, config);
+      return { repo: repo, config: config };
     }
-    callback(null, {
+    var result = {
       mode: mode,
       hash: hash
-    }, repo, config, root);
+    };
+    if (callback) return callback(null, result, repo, config, root);
+    result.repo = repo;
+    result.config = config;
+    return result;
   }
 
   // This is a generic callback that resumes flow at the top of flow after
@@ -444,45 +726,74 @@ function pathToEntry(path, callback) {
     return walk();
   }
 
-  function onSubConfig(err, subConfig) {
+  function onSubConfig(err, subRepo, current) {
     if (err) return callback(err);
     root = path;
     config = configs[root] = subConfig;
+    repo = repos[root] = subRepo;
     prefs.save();
-    repo = findRepo(config);
     return walk();
   }
 
 }
 
-////////////////////////////////////////////////////////////////////////////////
 
-// (path) => tree, hash, repo, config
-function readTree(path, callback) {
-  if (!callback) return readTree.bind(null, path);
-  if (!path) return readRootTree(callback);
-  return readEntry(path, onEntry);
+// Returns true if the value is already in memory
+// Otherwise it returns false and calls the callback when ready
+// This need to be called whenever reading the root tree in a repo.
+function loadGitmodules(root, tree, callback) {
+  var entry = tree[".gitmodules"];
+  // If there is no file to load, we're done
+  if (!entry) return true;
+  var modules = gitmodules[root] || (gitmodules[root] = {meta:{}});
+  // If there is a file, but our cache is up-to-date, we're done
+  if (entry.hash === modules.hash) return true;
+  var repo = repos[root];
+  if (!callback) throw new Error(".gitmodules not cached");
+  repo.loadAs("blob", entry.hash, function (err, blob) {
+    if (!blob) return callback(err || new Error("Missing blob " + entry.hash));
+    try {
+      var text = binary.toUnicode(blob);
+      var meta = codec.parse(text);
+      modules.meta = meta;
+      modules.hash = entry.hash;
+    }
+    catch (err) { return callback(err); }
+    callback();
+  });
+}
 
-  function onEntry(err, entry, repo, config) {
-    if (!entry) return callback(err);
-    if (entry.mode === modes.commit) {
-      return repo.loadAs("commit", entry.hash, onCommit);
-    }
-    if (entry.mode === modes.tree) {
-      return repo.loadAs("tree", entry.hash, callback);
-    }
-    return callback(new Error("Invalid mode 0" + entry.mode.toString(8)));
-
-    function onCommit(err, commit) {
-      if (!commit) return callback(err || new Error("Missing commit"));
-      return repo.loadAs("tree", commit.tree, onTree);
-    }
-
-    function onTree(err, tree, hash) {
-      callback(err, tree, hash, repo, config);
-    }
+// Lookup the .gitmodules entry for submodule at path
+// (path) -> {path, url}
+function getGitmodule(path) {
+  var root = findParentPath(path);
+  var localPath = path.substring(root.length + 1);
+  var modules = gitmodules[root];
+  if (!modules) return;
+  var meta = modules.meta;
+  if (!meta) return;
+  var submodules = meta.submodule;
+  if (!submodules) return;
+  var name, submodule;
+  var names = Object.keys(submodules);
+  for (var i = 0, l = names.length; i < l; i++) {
+    name = names[i];
+    submodule = submodules[name];
+    if (submodule.path === localPath) return submodule;
   }
 }
+
+/*
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////
+
 
 // Create a virtual tree containing all the roots as if they were submodules.
 function readRootTree(callback) {
@@ -499,80 +810,10 @@ function readRootTree(callback) {
   callback(null, tree, hashAs("tree", tree));
 }
 
-// (path) => commit, hashes
-function readCommit(path, callback) {
-  if (!callback) return readCommit.bind(null, path);
-  var commit, hashes, repo, config;
-  readEntry(path, onEntry);
 
-  function onEntry(err, entry, _repo, _config) {
-    repo = _repo;
-    config = _config;
-    if (!entry) return callback(err);
-    if (entry.mode !== modes.commit) return callback("Not a commit");
-    // Sanity check.  These should always equal.
-    config.current = entry.hash;
-    hashes = { current: config.current };
-    repo.loadAs("commit", entry.hash, onCurrent);
-  }
 
-  function onCurrent(err, result) {
-    if (!result) return callback(err || new Error("Problem loading current commit"));
-    commit = result;
-    hashes.currentTree = commit.tree;
-    if (!config.head) return callback(null, commit, hashes);
-    repo.loadAs("commit", config.head, onHead);
-  }
 
-  function onHead(err, result) {
-    if (!result) return callback(err || new Error("Problem loading head commit"));
-    hashes.head = config.head;
-    hashes.headTree = result.tree;
-    callback(null, commit, hashes);
-  }
-}
 
-// (path) => blob, hash
-function readFile(path, callback) {
-  if (!callback) return readFile.bind(null, path);
-  readEntry(path, function (err, entry, repo) {
-    if (entry === undefined) return callback(err);
-    if (!modes.isFile(entry.mode)) return callback("Not a file");
-    repo.loadAs("blob", entry.hash, callback);
-  });
-}
-
-// (path) => target, hash
-function readLink(path, callback) {
-  if (!callback) return readLink.bind(null, path);
-  readEntry(path, onEntry);
-
-  function onEntry(err, entry, repo) {
-    if (entry === undefined) return callback(err);
-    if (entry.mode !== modes.sym) return callback("Not a symlink");
-    repo.loadAs("blob", entry.hash, onBlob);
-  }
-
-  function onBlob(err, blob, hash) {
-    if (err) return callback(err);
-    var text;
-    try { text = binary.toUnicode(blob); }
-    catch (err) { return callback(err); }
-    callback(null, text, hash);
-  }
-}
-
-function isDirty(path) {
-  var config = configs[path];
-  if (!config) return;
-  return config.current !== config.head;
-}
-
-function isGithub(path) {
-  var config = configs[path] || configs[longestMatch(path, configs)];
-  if (!config) throw new Error("Can't find config for");
-  return config.githubName;
-}
 
 // Given a path, return the repo that controls that segment
 // (path) => repo, config, root
@@ -592,58 +833,18 @@ function getRepo(path, callback) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Common logic between writeFile, writeLink, and writeCommit
-// This helps writes make it into write batches by pre-calculating the hash for
-// the entry.
-function writeAs(type, path, mode, repo, body, callback) {
-  var hash = hashAs(type, body);
-  carallel({
-    hash: function (callback) {
-      repo.saveAs(type, body, callback);
-    },
-    write: writeEntry(path, { mode: mode, hash: hash })
-  }, function (err, results) {
-    if (err) return callback(err);
-    if (results.hash !== hash) return callback(new Error("hash mismatch"));
-    callback(null, hash);
-  });
-  // Also return hash sync for writeCommit
-  return hash;
-}
-
-// (path, blob) => hash
+// (path, blob)
 function writeFile(path, blob, callback) {
   if (!callback) return writeFile.bind(null, path, blob);
   readEntry(path, function (err, entry, repo) {
     if (err) return callback(err);
     // Set mode to normal file unless file exists already and is executable
     var mode = (entry && entry.mode === modes.exec) ? entry.mode : modes.file;
-    writeAs("blob", path, mode, repo, blob, callback);
+    repo.saveAs("blob", blob, function (err, hash) {
+      if (err) return callback(err);
+      writeEntry(path, { mode: mode, hash: hash}, callback);
+    });
   });
-}
-
-// (path, target) => hash
-function writeLink(path, target, callback) {
-  if (!callback) return writeLink.bind(null, path, target);
-  getRepo(path, function (err, repo) {
-    if (err) return callback(err);
-    var blob = binary.fromUnicode(target);
-    writeAs("blob", path, modes.sym, repo, blob, callback);
-  });
-}
-
-function writeCommit(path, commit, callback) {
-  if (!callback) return writeCommit.bind(null, path, commit);
-  var config = configs[path];
-  if (!config) return callback(new Error("Not a commit node"));
-  var repo = findRepo(config);
-  var hash = writeAs("commit", path, modes.commit, repo, commit, onWrite);
-  config.current = config.head = hash;
-
-  function onWrite(err) {
-    if (err) return callback(err);
-    repo.updateRef("refs/heads/master", config.head, callback);
-  }
 }
 
 // (path, url) => hash
@@ -669,20 +870,48 @@ function writeSubmodule(path, url, callback) {
   });
 }
 
-function revertToHead(path, callback) {
-  if (!callback) return revertToHead.bind(null, path);
-  var config = configs[path];
-  if (!config) return callback(new Error("Missing config"));
-  if (!config.head) return callback(new Error("No head to revert to"));
-  config.current = config.head;
-  writeEntry(path, { mode: modes.commit, hash: config.head}, callback);
-}
-
 function saveAs(path, type, value, callback) {
   if (!callback) return saveAs.bind(null, path, type, value);
   getRepo(path, function (err, repo) {
     if (err) return callback(err);
     repo.saveAs(type, value, callback);
+  });
+}
+
+function copyEntry(oldPath, newPath, callback) {
+  getRepo(dirname(oldPath), function (err, parentRepo) {
+    if (err) return callback(err);
+    readEntry(oldPath, function (err, entry) {
+      if (!entry) return callback(err || new Error("Missing entry"));
+      getRepo(dirname(newPath), function (err, newRepo) {
+        if (err) return callback(err);
+        if (parentRepo === newRepo) return onReady();
+        deepCopy(parentRepo, newRepo, entry, onReady);
+      });
+      function onReady(err) {
+        if (err) return callback(err);
+        writeEntry(newPath, entry, callback);
+      }
+    });
+  });
+}
+
+function moveEntry(oldPath, newPath, callback) {
+  getRepo(dirname(oldPath), function (err, parentRepo) {
+    if (err) return callback(err);
+    readEntry(oldPath, function (err, entry) {
+      if (!entry) return callback(err || new Error("Missing entry"));
+      getRepo(dirname(newPath), function (err, newRepo) {
+        if (err) return callback(err);
+        if (parentRepo === newRepo) return onReady();
+        deepCopy(parentRepo, newRepo, entry, onReady);
+      });
+      function onReady(err) {
+        if (err) return callback(err);
+        writeEntry(oldPath, {});
+        writeEntry(newPath, entry, callback);
+      }
+    });
   });
 }
 
@@ -836,54 +1065,6 @@ function removeGitmodule(path) {
   return dirty;
 }
 
-// Lookup the .gitmodules entry for submodule at path
-// (path) -> {path, url}
-function getGitmodule(path) {
-  var root = longestMatch(path, Object.keys(configs));
-  if (!root) return;
-  var localPath = path.substring(root.length + 1);
-  var storage = findStorage(configs[root]);
-  var gitmodules = storage.gitmodules;
-  if (!gitmodules) return;
-  var meta = gitmodules.meta;
-  if (!meta) return;
-  var submodules = meta.submodule;
-  if (!submodules) return;
-  var name, submodule;
-  var names = Object.keys(submodules);
-  for (var i = 0, l = names.length; i < l; i++) {
-    name = names[i];
-    submodule = submodules[name];
-    if (submodule.path === localPath) return submodule;
-  }
-}
-
-// Returns true if the value is already in memory
-// Otherwise it returns false and calls the callback when ready
-// This need to be called whenever reading the root tree in a repo.
-function loadGitmodules(root, tree, callback) {
-  var entry = tree[".gitmodules"];
-  // If there is no file to load, we're done
-  if (!entry) return true;
-  var storage = findStorage(configs[root]);
-  var gitmodules = storage.gitmodules || (storage.gitmodules = {});
-  // If there is a file, but our cache is up-to-date, we're done
-  if (entry.hash === gitmodules.hash) return true;
-  var config = configs[root];
-  var repo = findRepo(config);
-  repo.loadAs("blob", entry.hash, function (err, blob) {
-    if (!blob) return callback(err || new Error("Missing blob " + entry.hash));
-    try {
-      var text = binary.toUnicode(blob);
-      var meta = parseConfig(text);
-      gitmodules.meta = meta;
-      gitmodules.hash = entry.hash;
-    }
-    catch (err) { return callback(err); }
-    callback();
-  });
-}
-
 function flushChanges(path, callback) {
   if (!callback) return flushChanges.bind(null, path);
   var changes = pendingChanges;
@@ -904,4 +1085,50 @@ function flushChanges(path, callback) {
       else writeEntry(gitmodulesPath, {}, callback);
     };
   }), callback);
+  if (pendingWrites && !writing) writeEntries();
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+function addExportHook(path, settings, callback) {
+  callback(new Error("TODO: addExportHook"));
+  var hook = live.addExportHook(row, settings, config);
+  var storage = findStorage(row);
+  storage.hook = hook;
+
+}
+
+    // storage.hookConfig = settings
+    //   settings: settings,
+    //   row: row
+    // };
+    // var findStorage = require('./storage');
+
+    // st
+    // hookConfig[settings.source] = settings;
+    // hookPaths[settings.source] = hook;
+    // prefs.save();
+
+
+function dirname(path) {
+  return path.substring(0, path.lastIndexOf("/"));
+}
+
+
+// Used to copy a tree of hashes from one repo to another.  Used in cross-repo
+// copies
+function deepCopy(source, dest, entry, callback) {
+  if (!callback) return deepCopy.bind(null, source, dest, entry);
+  var type = modes.toType(entry.mode);
+  source.loadAs(type, entry.hash, function (err, value) {
+    if (!value) return callback(err || new Error("Missing " + type + " " + entry.hash));
+    dest.saveAs(type, value, function (err) {
+      if (err) return callback(err);
+      if (type !== "tree") return callback();
+      carallel(Object.keys(value).map(function (name) {
+        return deepCopy(source, dest, value[name]);
+      }), callback);
+    }, entry.hash);
+  });
+}
+*/

@@ -187,7 +187,8 @@ function makeRow(path, mode, hash, parent) {
 
   function updatePath() {
     // Update the UI to show the short-name
-    $.span.textContent = path.substring(path.lastIndexOf("/") + 1);
+    var name = path.substring(path.lastIndexOf("/") + 1);
+    $.span.textContent = name || "Tedit WorkSpace";
     $.span.setAttribute("title", title || "");
   }
 
@@ -279,7 +280,7 @@ function makeRow(path, mode, hash, parent) {
     // Strip original callback from end if it's there.
     var cb = (typeof args[args.length - 1] === "function") && args.pop();
     // Prepend path at front of args
-    if (typeof fn === "string") {
+    if (typeof fn !== "function") {
       var newPath = fn;
       fn = args[0];
       args[0] = newPath;
@@ -287,6 +288,7 @@ function makeRow(path, mode, hash, parent) {
     else {
       args.unshift(path);
     }
+    // console.log(path, "+", arguments);
     // Append new callback at end
     args.push(callback);
     // Mark the row as busy and run the async action with error catching
@@ -296,6 +298,7 @@ function makeRow(path, mode, hash, parent) {
 
     function callback(err) {
       // Mark the async action as done
+      // console.log(path, "-", arguments);
       row.busy--;
       // If there was an async error, report it
       if (err) fail(err);

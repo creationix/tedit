@@ -17,7 +17,7 @@ document.body.appendChild(domBuilder([
         [".image$image"]
       ]
     ],
-    [".titlebar$titlebar", "welcome.jk"],
+    [".titlebar$titlebar"],
   ],
   [".closebox$closebox", {onclick: closeWindow}, "×"],
 ], $));
