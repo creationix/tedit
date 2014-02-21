@@ -190,81 +190,79 @@ function readEntry(path, callback) {
 
 function readCommit(path, callback) {
   if (!callback) return readCommit.bind(null, path);
-  readEntry(path, function (err, entry, repo, config) {
+  readEntry(path, function (err, entry) {
     if (!entry) return callback(err || new Error("Missing commit"));
     if (entry.mode !== modes.commit) return callback("Not a commit");
     // Make sure config.current matches the hash in the tree
-    config.current = entry.hash;
-    repo.loadAs("commit", entry.hash, onCurrent);
+    entry.config.current = entry.hash;
+
+    entry.repo.loadAs("commit", entry.hash, onCurrent);
 
     function onCurrent(err, commit) {
       if (!commit) return callback(err || new Error("Problem loading current commit"));
       entry.commit = commit;
-      entry.headHash = config.head;
-      if (!config.head) return callback(null, entry, repo, config);
-      repo.loadAs("commit", config.head, onHead);
+      if (!entry.config.head) return callback(null, entry);
+      entry.repo.loadAs("commit", entry.config.head, onHead);
     }
 
     function onHead(err, commit) {
       if (!commit) return callback(err || new Error("Problem loading head commit"));
       entry.head = commit;
-      callback(null, entry, repo, config);
+      callback(null, entry);
     }
   });
 }
 
 function readTree(path, callback) {
   if (!callback) return readTree.bind(null, path);
-  readEntry(path, function (err, entry, repo, config, root) {
+  readEntry(path, function (err, entry) {
     if (!entry) return callback(err);
     if (entry.mode === modes.commit) {
-      return repo.loadAs("commit", entry.hash, onCommit);
+      return entry.repo.loadAs("commit", entry.hash, onCommit);
     }
     if (entry.mode === modes.tree) {
-      return repo.loadAs("tree", entry.hash, onTree);
+      return entry.repo.loadAs("tree", entry.hash, onTree);
     }
     return callback(new Error("Invalid mode 0" + entry.mode.toString(8)));
 
     function onCommit(err, commit) {
       if (!commit) return callback(err || new Error("Missing commit"));
-      return repo.loadAs("tree", commit.tree, onTree);
+      return entry.repo.loadAs("tree", commit.tree, onTree);
     }
 
     function onTree(err, tree, hash) {
       if (!tree) return callback(err || new Error("Missing tree " + hash));
-      var entry = {
-        mode: modes.tree,
-        hash: hash,
-        tree: tree
-      };
-      callback(null, entry, repo, config, root);
+      entry.mode = modes.tree;
+      entry.hash = hash;
+      entry.tree = tree;
+      callback(null, entry);
     }
   });
 }
 
 function readBlob(path, callback) {
   if (!callback) return readBlob.bind(null, path);
-  readEntry(path, function (err, entry, repo, config) {
-    if (!entry) return callback(err || new Error("Missing entry"));
+  readEntry(path, function (err, entry) {
+    if (!entry.hash) return callback(err || new Error("Missing entry"));
     if (!modes.isFile(entry.mode)) return callback("Not a file");
-    repo.loadAs("blob", entry.hash, function (err, blob) {
+    entry.repo.loadAs("blob", entry.hash, function (err, blob) {
       if (!blob) return callback(err || new Error("Problem loading blob"));
       entry.blob = blob;
-      callback(null, entry, repo, config);
+      callback(null, entry);
     });
   });
 }
 
 function readLink(path, callback) {
   if (!callback) return readLink.bind(null, path);
-  readEntry(path, function (err, entry, repo, config) {
-    if (!entry) return callback(err || new Error("Missing entry"));
+  readEntry(path, function (err, entry) {
+    if (!entry.hash) return callback(err || new Error("Missing entry"));
     if (entry.mode !== modes.sym) return callback("Not a symlink");
-    repo.loadAs("blob", entry.hash, function (err, blob) {
+    entry.repo.loadAs("blob", entry.hash, function (err, blob) {
       if (err) return callback(err);
       try { entry.link = binary.toUnicode(blob); }
       catch (err) { return callback(err); }
-      callback(null, entry, repo, config);
+      callback(null, entry);
     });
   });
 }
@@ -277,9 +275,9 @@ function readConfig(path, callback) {
 function getRepo(path, callback) {
   if (!callback) return getRepo.bind(null, path);
   var dir = path.substring(0, path.lastIndexOf("/"));
-  readEntry(dir, function (err, entry, repo, config) {
+  readEntry(dir, function (err, entry) {
     if (!entry) return callback(err || new Error("Can't find repo"));
-    callback(null, repo, config);
+    callback(null, entry.repo, entry.config);
   });
 }
 
@@ -627,27 +625,31 @@ function flushReads() {
 
 // The real work to convert a path to a git tree entry, repo, and config
 // This data is often cached and so non-callback style is used to keep stack small.
+// If called without a callback, this is in sync mode and returns the value
+// If a node is not cached, sync mode will throw.  Async mode will wait for it
+// to load.
 function pathToEntry(path, callback) {
+
+  // Initialize state with the root entry
+  var entry = {
+    mode: modes.commit,
+    hash: rootHash,
+    repo: repos[""],
+    config: configs[""],
+    root: ""
+  };
+
+  // Empty path is just the root node.
   if (!path) {
-    var entry = {
-      mode: modes.commit,
-      hash: rootHash
-    };
-    console.log("ROOT ENTRY", entry);
-    if (callback) return callback(null, entry, repos[""], configs[""]);
-    entry.repo = repos[""];
-    entry.config = configs[""];
+    if (callback) return callback(null, entry);
     return entry;
   }
+
+  // Get ready to walk the path
   var parts = path.split("/").filter(Boolean);
   var index = 0;
-  var mode = modes.commit;
-  var hash = rootHash;
-  var root = "";
-  var config = configs[root];
   var subConfig;
-  var repo = repos[root];
-  path = root;
+  var partial = "";
 
   return walk();
 
@@ -655,68 +657,72 @@ function pathToEntry(path, callback) {
   // the stack in the case of cached values.  When it encounters a value not
   // in the cache, it aborts the loop and picks up where it left off after
   // the value is loaded.
-  function walk(err) {
-    if (err) {
-      if (callback) return callback(err);
-      throw err;
-    }
+  function walk() {
     var cached;
     while (index < parts.length) {
-      if (mode === modes.commit) {
-        cached = cache[hash];
+      // When traversing through a commit node, load the associated tree first.
+      if (entry.mode === modes.commit) {
+        // Try to load the commit object from cache
+        cached = cache[entry.hash];
         if (!cached) {
-          if (callback) return repo.loadAs("commit", hash, onEntry);
+          // If it's not there wait or throw depending on mode.
+          if (callback) return entry.repo.loadAs("commit", entry.hash, onEntry);
           throw new Error("Commit not cached");
         }
-        mode = modes.tree;
-        hash = cached.tree;
+        // Move the entry to the tree object and fall-through to tree case
+        entry.mode = modes.tree;
+        entry.hash = cached.tree;
       }
-      if (mode === modes.tree) {
-        cached = cache[hash];
+      // Load the contents of a tree to find the next segment.
+      if (entry.mode === modes.tree) {
+        cached = cache[entry.hash];
+        // Try to load the tree from cache.  Same as before.
         if (!cached) {
-          if (callback) return repo.loadAs("tree", hash, onEntry);
+          if (callback) return entry.repo.loadAs("tree", entry.hash, onEntry);
           throw new Error("Tree not cached");
         }
-        if (path === root) {
+        // Whenever we load the tree object for the root of a repo, we load and
+        // cache the .gitmodules file too.
+        if (partial === entry.root) {
           // Check if the gitmodules cache is up to date
-          if (!loadGitmodules(root, cached, callback && walk)) return;
+          if (!loadGitmodules(entry.root, cached)) return;
         }
+
+        // Move the path up one segment
         var part = parts[index++];
-        var entry = cached[part];
-        if (!entry) {
-          if (callback) return callback(null, null, repo, config);
-          return { repo: repo, config: config };
+        partial = partial ? partial + "/" + part : part;
+        cached = cached[part];
+        entry.mode = cached && cached.mode;
+        entry.hash = cached && cached.hash;
+
+        // If the path doesn't exist, send an empty entry
+        if (!cached) {
+          if (callback) return callback(null, entry);
+          return entry;
         }
-        path = path ? path + "/" + part : part;
-        mode = entry.mode;
-        hash = entry.hash;
-        if (mode === modes.commit) {
-          if (configs[path]) {
-            root = path;
-            config = configs[root];
-            repo = repos[root];
-          }
-          else {
-            if (!callback) throw new Error("submodule not cached");
-            subConfig = getGitmodule(path) || {}; // TODO: fix this
-            if (!subConfig) return callback(new Error("Missing .gitmodules entry"));
-            if (config.github) subConfig.github = true;
-            return livenConfig(subConfig, entry.hash, onSubConfig);
-          }
+
+        // Non-commit entries can just continue with the next loop
+        if (entry.mode !== modes.commit) continue;
+        // If the new node is a commit, we need to switch repos to the submodule
+        // If it's already configured, load and continue the loop.
+        if (configs[partial]) {
+          entry.root = partial;
+          entry.config = configs[partial];
+          entry.repo = repos[partial];
+          continue;
         }
-        continue;
+        // If we don't have the config already, then wait or throw depending.
+        if (callback) return loadSubModule();
+        throw new Error("Submodule not cached: " + partial);
       }
-      if (callback) return callback(null, null, repo, config);
-      return { repo: repo, config: config };
+      // We reached a non-walkable path, so the target doesn't exist.
+      entry.mode = undefined;
+      entry.hash = undefined;
+      if (callback) return callback(null, entry);
+      return entry;
     }
-    var result = {
-      mode: mode,
-      hash: hash
-    };
-    if (callback) return callback(null, result, repo, config, root);
-    result.repo = repo;
-    result.config = config;
-    return result;
+    if (callback) return callback(null, entry);
+    return entry;
   }
 
   // This is a generic callback that resumes flow at the top of flow after
@@ -726,42 +732,51 @@ function pathToEntry(path, callback) {
     return walk();
   }
 
-  function onSubConfig(err, subRepo, current) {
-    if (err) return callback(err);
-    root = path;
-    config = configs[root] = subConfig;
-    repo = repos[root] = subRepo;
-    prefs.save();
-    return walk();
+  // Returns true if the value is already in memory
+  // Otherwise it returns false and calls the callback when ready
+  // This need to be called whenever reading the root tree in a repo.
+  function loadGitmodules(root, tree) {
+    var entry = tree[".gitmodules"];
+    // If there is no file to load, we're done
+    if (!entry) return true;
+    var modules = gitmodules[root] || (gitmodules[root] = {meta:{}});
+    // If there is a file, but our cache is up-to-date, we're done
+    if (entry.hash === modules.hash) return true;
+    var repo = repos[root];
+    if (!callback) throw new Error(".gitmodules not cached");
+    repo.loadAs("blob", entry.hash, function (err, blob) {
+      if (!blob) return callback(err || new Error("Missing blob " + entry.hash));
+      try {
+        var text = binary.toUnicode(blob);
+        var meta = codec.parse(text);
+        modules.meta = meta;
+        modules.hash = entry.hash;
+      }
+      catch (err) { return callback(err); }
+      walk();
+    });
+  }
+
+  function loadSubModule() {
+    var config = getGitmodule(partial) || {}; // TODO: fix this
+    if (!config) return callback(new Error("Missing .gitmodules entry"));
+    if (entry.config.github) config.github = true;
+    return livenConfig(subConfig, entry.hash, function (err, repo, current) {
+      if (err) return callback(err);
+      if (entry.hash !== current) {
+        return callback(new Error("current mismatch"));
+      }
+      entry.root = partial;
+      entry.config = configs[partial] = config;
+      entry.repo = repos[partial] = repo;
+      prefs.save();
+      walk();
+    });
   }
 
 }
 
 
-// Returns true if the value is already in memory
-// Otherwise it returns false and calls the callback when ready
-// This need to be called whenever reading the root tree in a repo.
-function loadGitmodules(root, tree, callback) {
-  var entry = tree[".gitmodules"];
-  // If there is no file to load, we're done
-  if (!entry) return true;
-  var modules = gitmodules[root] || (gitmodules[root] = {meta:{}});
-  // If there is a file, but our cache is up-to-date, we're done
-  if (entry.hash === modules.hash) return true;
-  var repo = repos[root];
-  if (!callback) throw new Error(".gitmodules not cached");
-  repo.loadAs("blob", entry.hash, function (err, blob) {
-    if (!blob) return callback(err || new Error("Missing blob " + entry.hash));
-    try {
-      var text = binary.toUnicode(blob);
-      var meta = codec.parse(text);
-      modules.meta = meta;
-      modules.hash = entry.hash;
-    }
-    catch (err) { return callback(err); }
-    callback();
-  });
-}
 
 // Lookup the .gitmodules entry for submodule at path
 // (path) -> {path, url}
