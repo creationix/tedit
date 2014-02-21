@@ -12,7 +12,7 @@ ace.require("ace/ext/language_tools"); // Trigger the extension.
 var whitespace = ace.require('ace/ext/whitespace');
 var themes = ace.require('ace/ext/themelist').themesByName;
 var themeNames = Object.keys(ace.require('ace/ext/themelist').themesByName);
-var themeIndex = prefs.get("themeIndex", themeNames.indexOf("clouds_midnight"));
+var themeIndex = prefs.get("themeIndex", themeNames.indexOf("cobalt"));
 
 // Put sample content and liven the editor
 

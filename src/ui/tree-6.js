@@ -47,7 +47,11 @@ function renderChild(path, mode, hash) {
     row.mode = mode;
     row.errorMessage = "";
     // Skip nodes that haven't changed
-    if (row.hash === hash) return row;
+    if (row.hash === hash) {
+      console.log("SKIP", row.path);
+      return row;
+    }
+    console.log("UPDATE", row.path);
     row.hash = hash;
   }
   else {
@@ -128,8 +132,9 @@ function onGlobalClick(evt) {
 }
 
 function onGlobalContextMenu(evt) {
-  nullify(evt);
   var row = findRow(evt.target);
+  if (!row) return;
+  nullify(evt);
   var menu = makeMenu(row);
   contextMenu(evt, row, menu);
 }
@@ -203,7 +208,7 @@ function commitChanges(row) {
           name: result.name,
           email: result.email
         },
-        parent: entry.headHash,
+        parent: entry.config.head,
         message: result.message
       };
       row.call(fs.saveAs, "commit", commit, function (hash) {
@@ -333,10 +338,12 @@ function createSymLink(row) {
 }
 
 function importFolder(row) {
+  console.log("window", window);
+  console.log("chrome", chrome);
   chrome.fileSystem.chooseEntry({ type: "openDirectory"}, function (dir) {
     if (!dir) return;
-    row.call(fs.getRepo, function (repo) {
-      row.call(repo, importEntry, dir, function (hash) {
+    row.call(fs.readEntry, function (entry) {
+      row.call(entry.repo, importEntry, dir, function (hash) {
         addChild(row, dir.name, modes.tree, hash);
       });
     });
@@ -346,6 +353,7 @@ function importFolder(row) {
 function addSubmodule(row) {
   dialog.multiEntry("Add a submodule", [
     {name: "url", placeholder: "git@hostname:path/to/repo.git", required: true},
+    {name: "ref", placeholder: "refs/heads/master"},
     {name: "name", placeholder: "localname"}
   ], function (result) {
     if (!result) return;
@@ -355,8 +363,34 @@ function addSubmodule(row) {
       url = "git@github.com:" + url + ".git";
     }
     var name = result.name || result.url.substring(result.url.lastIndexOf("/") + 1);
+    var ref = result.ref || "refs/heads/master";
     makeUnique(row, name, modes.commit, function (path) {
-      row.call(path, fs.writeSubmodule, url);
+      row.call(path, fs.addRepo, { url: url, ref: ref });
+    });
+  });
+}
+
+function addGithubMount(row) {
+  var githubToken = prefs.get("githubToken", "");
+  dialog.multiEntry("Mount Github Repo", [
+    {name: "path", placeholder: "user/name", required:true},
+    {name: "ref", placeholder: "refs/heads/master"},
+    {name: "name", placeholder: "localname"},
+    {name: "token", placeholder: "Enter github auth token", required:true, value: githubToken}
+  ], function (result) {
+    if (!result) return;
+    if (result.token !== githubToken) {
+      prefs.set("githubToken", result.token);
+    }
+    var url = result.path;
+    // Assume github if user/name combo is given
+    if (/^[^\/:@]+\/[^\/:@]+$/.test(url)) {
+      url = "git@github.com:" + url + ".git";
+    }
+    var name = result.name || result.path;
+    var ref = result.ref || "refs/heads/master";
+    makeUnique(row, name, modes.commit, function (path) {
+      row.call(path, fs.addRepo, { url: url, ref: ref, github: true });
     });
   });
 }
@@ -421,43 +455,6 @@ function liveExport(row) {
   });
 }
 
-
-function createClone() {
-  dialog.multiEntry("Clone Remote Repo", [
-    {name: "url", placeholder: "git@hostname:path/to/repo.git", required : true},
-    {name: "name", placeholder: "localname"}
-  ], function (result) {
-    if (!result) return;
-    var name = result.name || result.url;
-    makeUnique(rootRow, name, modes.commit, function (path) {
-      rootRow.call(path, fs.addRepo, { url: result.url });
-    });
-  });
-}
-
-function createGithubMount() {
-  var githubToken = prefs.get("githubToken", "");
-  dialog.multiEntry("Mount Github Repo", [
-    {name: "path", placeholder: "user/name", required:true},
-    {name: "name", placeholder: "localname"},
-    {name: "token", placeholder: "Enter github auth token", required:true, value: githubToken}
-  ], function (result) {
-    if (!result) return;
-    if (result.token !== githubToken) {
-      prefs.set("githubToken", result.token);
-    }
-    var url = result.path;
-    // Assume github if user/name combo is given
-    if (/^[^\/:@]+\/[^\/:@]+$/.test(url)) {
-      url = "git@github.com:" + url + ".git";
-    }
-    var name = result.name || result.path;
-    makeUnique(rootRow, name, modes.commit, function (path) {
-      rootRow.call(path, fs.addRepo, { url: url, github: true });
-    });
-  });
-}
-
 function removeAll() {
   dialog.confirm("Are you sure you want to reset app to factory settings?", function (confirm) {
     if (!confirm) return;
@@ -488,8 +485,8 @@ function makeMenu(row) {
       }
       else {
         actions.push(
-          {icon:"fork", label: "Clone Remote Repo", action: createClone},
-          {icon:"github", label: "Live Mount Github Repo", action: createGithubMount},
+          {icon:"fork", label: "Clone Remote Repo", action: addSubmodule},
+          {icon:"github", label: "Live Mount Github Repo", action: addGithubMount},
           {icon:"ccw", label: "Remove All", action: removeAll}
         );
       }

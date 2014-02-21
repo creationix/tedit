@@ -56,8 +56,6 @@ module.exports = {
   readLink: readLink,       // (path) => { mode, hash, link }
   // config is the metadata stored in .gitmodules
   readConfig: readConfig,   // (path) => { url, ref, ...}
-  // get access to a raw repo instance
-  getRepo: getRepo,         // (path) => repo
 
   // Safe Writes
   // These are safe write because they only write immutable hashes.
@@ -121,6 +119,7 @@ function init(onChange, callback) {
 }
 
 function setRoot(hash) {
+  if (!hash) throw new Error("Missing root hash");
   rootHash = hash;
   prefs.set("rootHash", rootHash);
   defer(function () { change(rootHash); });
@@ -144,43 +143,48 @@ function addRepo(path, config, callback) {
 
 function setHead(path, hash, callback) {
   if (!callback) return setHead.bind(null, path, hash);
-  if (!path) {
-    var repo = repos[""];
-    var config = configs[""];
-    config.head = hash;
-    prefs.save();
-    setRoot(hash);
-    return repo.updateRef(configs[""].ref, hash, callback);
-  }
-  readEntry(path, function (err, entry, repo, config) {
+  // Load the old commit for path
+  readEntry(path, function (err, entry) {
     if (err) return callback(err);
-    config.head = hash;
+
+    // Set head on the config
+    entry.config.head = hash;
     prefs.save();
+
+    // If the entry is not the right hash, update it.
     if (entry.hash === hash) return onWrite();
     writeEntry(path, {
       mode: modes.commit,
       hash: hash
     }, onWrite);
-  });
 
-  function onWrite(err) {
-    if (err) return callback(err);
-    getRepo(path, function (err, repo, config) {
+    function onWrite(err) {
       if (err) return callback(err);
-      repo.updateRef(config.ref, hash, callback);
-    });
-  }
+      // Once we know the tree has the right entry, update the ref bookmark
+      entry.repo.updateRef(entry.config.ref, hash, callback);
+    }
+  });
 }
 
 function setCurrent(path, hash, callback) {
   if (!callback) return setCurrent.bind(null, path, hash);
-  callback("TODO: implement setCurrent");
+  readEntry(path, function (err, entry) {
+    if (err) return callback(err);
+    hash = hash || entry.config.head;
+    if (!hash) {
+      return callback(new Error("Nothing to revert to"));
+    }
+    writeEntry(path, {
+      mode: modes.commit,
+      hash: hash
+    }, callback);
+  });
 }
 
 function readEntry(path, callback) {
   if (!callback) return readEntry.bind(null, path);
-  // If there is a write in progress, wait for it to finish before reading
-  if (writing) {
+  // If there are any pending writes, wait for them to flush before reading.
+  if (pendingWrites) {
     if (readQueues[path]) readQueues[path].push(callback);
     else readQueues[path] = [callback];
     return;
@@ -191,8 +195,8 @@ function readEntry(path, callback) {
 function readCommit(path, callback) {
   if (!callback) return readCommit.bind(null, path);
   readEntry(path, function (err, entry) {
-    if (!entry) return callback(err || new Error("Missing commit"));
-    if (entry.mode !== modes.commit) return callback("Not a commit");
+    if (!entry.hash) return callback(err || new Error("Missing commit: " + JSON.stringify(path)));
+    if (entry.mode !== modes.commit) return callback(new Error("Not a commit:" + JSON.stringify(path)));
     // Make sure config.current matches the hash in the tree
     entry.config.current = entry.hash;
 
@@ -216,7 +220,7 @@ function readCommit(path, callback) {
 function readTree(path, callback) {
   if (!callback) return readTree.bind(null, path);
   readEntry(path, function (err, entry) {
-    if (!entry) return callback(err);
+    if (!entry.hash) return callback(err || new Error("Missing entry"));
     if (entry.mode === modes.commit) {
       return entry.repo.loadAs("commit", entry.hash, onCommit);
     }
@@ -272,31 +276,55 @@ function readConfig(path, callback) {
   return callback("TODO: Implement readConfig");
 }
 
-function getRepo(path, callback) {
-  if (!callback) return getRepo.bind(null, path);
-  var dir = path.substring(0, path.lastIndexOf("/"));
-  readEntry(dir, function (err, entry) {
-    if (!entry) return callback(err || new Error("Can't find repo"));
-    callback(null, entry.repo, entry.config);
-  });
-}
-
 function saveAs(path, type, value, callback) {
   if (!callback) return saveAs.bind(null, path, type, value);
-  getRepo(path, function (err, repo) {
+  // Look up the right repo to save the value into.
+  readEntry(path, function (err, entry) {
     if (err) return callback(err);
-    repo.saveAs(type, value, callback);
+    entry.repo.saveAs(type, value, callback);
   });
 }
 
 function prepEntry(path, target, callback) {
   if (!callback) return prepEntry.bind(null, path, target);
-  // TODO: do deep copy if repos don't match;
-  readEntry(target, function (err) {
+  readEntry(target, function (err, targetEntry) {
     if (err) return callback(err);
-    readEntry(path, callback);
+    readEntry(path, function (err, entry) {
+      if (err) return callback(err);
+      // If the repos match or the entry is not a tree, we're done.
+      if (entry.mode !== modes.tree || targetEntry.repo === entry.repo) {
+        return callback(null, entry);
+      }
+      targetEntry.repo.hasHash("tree", entry.hash, function (err, has) {
+        if (err) return callback(err);
+        // If the destination already has the tree hash, we're done.
+        if (has) return callback(null, entry);
+        deepCopy(entry.repo, targetEntry.repo, entry, function (err) {
+          if (err) return callback(err);
+          callback(null, entry);
+        });
+      });
+    });
   });
 }
+
+// Used to copy a tree of hashes from one repo to another.  Used in cross-repo
+// copies
+function deepCopy(source, dest, entry, callback) {
+  if (!callback) return deepCopy.bind(null, source, dest, entry);
+  var type = modes.toType(entry.mode);
+  source.loadAs(type, entry.hash, function (err, value) {
+    if (!value) return callback(err || new Error("Missing " + type + " " + entry.hash));
+    dest.saveAs(type, value, function (err) {
+      if (err) return callback(err);
+      if (type !== "tree") return callback();
+      carallel(Object.keys(value).map(function (name) {
+        return deepCopy(source, dest, value[name]);
+      }), callback);
+    }, entry.hash);
+  });
+}
+
 
 function writeEntry(path, entry, callback) {
   if (!callback) return writeEntry.bind(null, path, entry);
@@ -306,6 +334,14 @@ function writeEntry(path, entry, callback) {
     writeCallbacks = [];
     // Defer starting the write to collect more writes this tick.
     defer(writeEntries);
+  }
+  if (!path) {
+    if (!entry.hash) {
+      return callback(new Error("Root cannot be deleted"));
+    }
+    if (entry.mode !== modes.commit) {
+      return callback(new Error("Only commits can be written to root"));
+    }
   }
   pendingWrites[path] = entry;
   if (callback) writeCallbacks.push(callback);
@@ -348,50 +384,71 @@ function isDirty(path) {
 function isGithub(path) {
   var config = configs[path] || configs[findParentPath(path)];
   if (!config) throw new Error("Can't find config for");
-  return config.github;
+  return config.github && getGithubName(config.url);
 }
 
 
 // Define internal helper functions
 ////////////////////////////////////////////////////////////////////////////////
 
+
+function findRepo(path) {
+  var repo = repos[path];
+  if (repo) return repo;
+  var config = configs[path];
+  if (!config) throw new Error("No repo at " + JSON.srtingify(path));
+  repo = repos[path] = createRepo(config);
+  return repo;
+}
+
+function getGithubName(url) {
+  var match = url.match(/github.com[:\/](.*?)(?:\.git)?$/);
+  if (!match) throw new Error("Url is not github repo: " + url);
+  return match[1];
+}
+
+// Create a repo instance from a config
+function createRepo(config) {
+  var repo = {};
+  if (config.github) {
+    if (!config.url) throw new Error("Missing url in github config");
+    var githubName = getGithubName(config.url);
+    var githubToken = prefs.get("githubToken", "");
+    if (!githubToken) throw new Error("Missing github access token");
+    require('js-git/mixins/github-db')(repo, githubName, githubToken);
+    // Github has this built-in, but it's currently very buggy
+    require('js-git/mixins/create-tree')(repo);
+    // Cache github objects locally in indexeddb
+    require('js-git/mixins/add-cache')(repo, require('js-git/mixins/indexed-db'));
+  }
+  else {
+    // Prefix so we can find our refs after a reload
+    if (!config.prefix) {
+      config.prefix = Date.now().toString(36) + "-" + (Math.random() * 0x100000000).toString(36);
+      prefs.save();
+    }
+    require('js-git/mixins/indexed-db')(repo, config.prefix);
+    require('js-git/mixins/create-tree')(repo);
+  }
+
+  // require('js-git/mixins/delay')(repo, 200);
+
+  // Cache everything except blobs over 100 bytes in memory.
+  require('js-git/mixins/mem-cache')(repo);
+
+  // // Combine concurrent read requests for the same hash
+  require('js-git/mixins/read-combiner')(repo);
+
+  return repo;
+}
+
 // Given a bare config with { [url], [ref], [github], [head] },
 // create a live repo and look up the head commit hash.
 // => repo, current
 function livenConfig(config, current, callback) {
-  var repo = {};
+  var repo;
   try {
-    if (config.github) {
-      if (!config.url) throw new Error("Missing url in github config");
-      var match = config.url.match(/github.com[:\/](.*?)(?:\.git)?$/);
-      if (!match) throw new Error("Url is not github repo: " + config.url);
-      var githubName = match[1];
-      var githubToken = prefs.get("githubToken", "");
-      if (!githubToken) throw new Error("Missing github access token");
-      require('js-git/mixins/github-db')(repo, githubName, githubToken);
-      // Github has this built-in, but it's currently very buggy
-      require('js-git/mixins/create-tree')(repo);
-      // Cache github objects locally in indexeddb
-      require('js-git/mixins/add-cache')(repo, require('js-git/mixins/indexed-db'));
-    }
-    else {
-      // Prefix so we can find our refs after a reload
-      if (!config.prefix) {
-        config.prefix = Date.now().toString(36) + "-" + (Math.random() * 0x100000000).toString(36);
-        prefs.save();
-      }
-      require('js-git/mixins/indexed-db')(repo, config.prefix);
-      require('js-git/mixins/create-tree')(repo);
-    }
-
-    // require('js-git/mixins/delay')(repo, 200);
-
-    // Cache everything except blobs over 100 bytes in memory.
-    require('js-git/mixins/mem-cache')(repo);
-
-    // Combine concurrent read requests for the same hash
-    require('js-git/mixins/read-combiner')(repo);
-
+    repo = createRepo(config);
     var ref = config.ref || (config.ref = "refs/heads/master");
     if (config.head) onHead();
     else repo.readRef(ref, onHead);
@@ -444,7 +501,7 @@ function findParentPath(path, roots) {
   var longest = "";
   roots = roots || Object.keys(configs);
   roots.forEach(function (root) {
-    if (path.substring(0, root.length + 1) !== root + "/") return;
+    if (!isunder(path, root)) return;
     if (root.length > longest.length) {
       longest = root;
     }
@@ -477,26 +534,33 @@ function writeEntries() {
   // Lock reads to wait till thie write is finished
   readQueues = {};
 
+  // Store output hashes by path
+  var currents = {};
+
   // Break up the writes into the separate repos they belong in.
   var groups = {};
   var roots = Object.keys(configs);
-  Object.keys(writes).forEach(function (path) {
-    var root = findParentPath(path, roots);
+  var paths = Object.keys(writes);
+  for (var i = 0, l = paths.length; i < l; i++) {
+    var path = paths[i];
     var entry = writes[path];
+    if (!path) {
+      currents[""] = entry.hash;
+      return onWriteDone();
+    }
+    var root = findParentPath(path, roots);
     var group = groups[root] || (groups[root] = {});
-    var local = root ? path.substring(root.length + 1) : path;
+    var local = localbase(path, root);
     group[local] = entry;
-  });
+  }
 
 
   var leaves = findLeaves();
 
-  // Store output hashes by path
-  var currents = {};
   if (!leaves.length) return onWriteDone();
   carallel(leaves.map(processLeaf), onProcessed);
 
-  // Find reop groups that have no dependencies and process them in parallel
+  // Find repo groups that have no dependencies and process them in parallel
   function findLeaves() {
     var paths = Object.keys(groups);
     var parents = {};
@@ -514,7 +578,7 @@ function writeEntries() {
   // When it comes back, create a temporary commit.
   function processLeaf(root) {
     var config = configs[root];
-    var repo = repos[root];
+    var repo = findRepo(root);
     var group = groups[root];
     delete groups[root];
     var actions = Object.keys(group).map(function (path) {
@@ -557,18 +621,19 @@ function writeEntries() {
 
   function onProcessed(err, hashes) {
     if (err) return onWriteDone(err);
-    leaves.forEach(function (path, i) {
+    for (var i = 0, l = leaves.length; i < l; i++) {
+      var path = leaves[i];
       var hash = hashes[i];
       currents[path] = hash;
+      if (!path) return onWriteDone();
       var parent = findParentPath(path, roots);
-      if (parent) {
-        var parentGroup = groups[parent] || (groups[parent] = {});
-        parentGroup[path.substring(parent.length + 1)] = {
-          mode: modes.commit,
-          hash: hash
-        };
-      }
-    });
+      var parentGroup = groups[parent] || (groups[parent] = {});
+      var localPath = localbase(path, parent);
+      parentGroup[localPath] = {
+        mode: modes.commit,
+        hash: hash
+      };
+    }
     leaves = findLeaves();
     if (!leaves.length) return onWriteDone();
     carallel(leaves.map(processLeaf), onProcessed);
@@ -580,24 +645,22 @@ function writeEntries() {
         callback(err);
       });
     }
+    console.log("onWrite", writes, currents)
 
-    // Process changed roots
+    // Update the configs
     Object.keys(currents).forEach(function (root) {
       var hash = currents[root];
-      // Update the config
       configs[root].current = hash;
     });
-
     prefs.save();
-
-    // Update the tree root to point to the new version
-    setRoot(currents[""]);
 
     // Tell the callbacks we're done.
     callbacks.forEach(function (callback) {
       callback(err);
     });
 
+    // Update the tree root to point to the new version
+    setRoot(currents[""]);
 
     writing = false;
 
@@ -648,7 +711,6 @@ function pathToEntry(path, callback) {
   // Get ready to walk the path
   var parts = path.split("/").filter(Boolean);
   var index = 0;
-  var subConfig;
   var partial = "";
 
   return walk();
@@ -708,7 +770,7 @@ function pathToEntry(path, callback) {
         if (configs[partial]) {
           entry.root = partial;
           entry.config = configs[partial];
-          entry.repo = repos[partial];
+          entry.repo = findRepo(partial);
           continue;
         }
         // If we don't have the config already, then wait or throw depending.
@@ -742,7 +804,7 @@ function pathToEntry(path, callback) {
     var modules = gitmodules[root] || (gitmodules[root] = {meta:{}});
     // If there is a file, but our cache is up-to-date, we're done
     if (entry.hash === modules.hash) return true;
-    var repo = repos[root];
+    var repo = findRepo(root);
     if (!callback) throw new Error(".gitmodules not cached");
     repo.loadAs("blob", entry.hash, function (err, blob) {
       if (!blob) return callback(err || new Error("Missing blob " + entry.hash));
@@ -761,7 +823,7 @@ function pathToEntry(path, callback) {
     var config = getGitmodule(partial) || {}; // TODO: fix this
     if (!config) return callback(new Error("Missing .gitmodules entry"));
     if (entry.config.github) config.github = true;
-    return livenConfig(subConfig, entry.hash, function (err, repo, current) {
+    return livenConfig(config, entry.hash, function (err, repo, current) {
       if (err) return callback(err);
       if (entry.hash !== current) {
         return callback(new Error("current mismatch"));
@@ -776,13 +838,11 @@ function pathToEntry(path, callback) {
 
 }
 
-
-
 // Lookup the .gitmodules entry for submodule at path
 // (path) -> {path, url}
 function getGitmodule(path) {
   var root = findParentPath(path);
-  var localPath = path.substring(root.length + 1);
+  var localPath = localbase(path, root);
   var modules = gitmodules[root];
   if (!modules) return;
   var meta = modules.meta;
@@ -798,240 +858,23 @@ function getGitmodule(path) {
   }
 }
 
+function dirname(path) {
+  if (!path) throw new Error("No parent for root");
+  var index = path.lastIndexOf("/");
+  return index < 0 ? "" : path.substring(0, index);
+}
+
+function localbase(path, root) {
+  return root ? path.substring(root.length + 1) : path;
+}
+
+function isunder(path, root) {
+  if (!root) return true;
+  return path.substring(0, root.length + 1) === root + "/";
+}
+
 /*
 
-
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-
-// Create a virtual tree containing all the roots as if they were submodules.
-function readRootTree(callback) {
-  var names = Object.keys(configs).sort();
-  var tree = {};
-  names.forEach(function (name) {
-    // Only include root repos.
-    if (name.indexOf("/") >= 0) return;
-    tree[name] = {
-      mode: modes.commit,
-      hash: configs[name].current || ""
-    };
-  });
-  callback(null, tree, hashAs("tree", tree));
-}
-
-
-
-
-
-
-// Given a path, return the repo that controls that segment
-// (path) => repo, config, root
-function getRepo(path, callback) {
-  if (!callback) return getRepo.bind(null, path);
-  var config = configs[path];
-  if (config) {
-    var repo = findRepo(config);
-    return callback(null, repo, config, path);
-  }
-  var dir = path.substring(0, path.lastIndexOf("/"));
-  readEntry(dir, function (err, entry, repo, config, root) {
-    if (!repo) return callback(err || new Error("Missing repo"));
-    callback(null, repo, config, root);
-  });
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-// (path, blob)
-function writeFile(path, blob, callback) {
-  if (!callback) return writeFile.bind(null, path, blob);
-  readEntry(path, function (err, entry, repo) {
-    if (err) return callback(err);
-    // Set mode to normal file unless file exists already and is executable
-    var mode = (entry && entry.mode === modes.exec) ? entry.mode : modes.file;
-    repo.saveAs("blob", blob, function (err, hash) {
-      if (err) return callback(err);
-      writeEntry(path, { mode: mode, hash: hash}, callback);
-    });
-  });
-}
-
-// (path, url) => hash
-// has side effect of storing .gitmodules change in pendingChanges
-function writeSubmodule(path, url, callback) {
-  getRepo(path, function (err, repo, config) {
-    if (err) return callback(err);
-    expandConfig(configFromUrl(url, config), function (err, childConfig) {
-      if (err) return callback(err);
-      configs[path] = childConfig;
-      addGitmodule(path, url);
-      carallel([
-        writeEntry(path, {
-          mode: modes.commit,
-          hash: childConfig.current
-        }),
-        flushChanges(path)
-      ], function (err) {
-        if (err) return callback(err);
-        callback(null, childConfig.hash);
-      });
-    });
-  });
-}
-
-function saveAs(path, type, value, callback) {
-  if (!callback) return saveAs.bind(null, path, type, value);
-  getRepo(path, function (err, repo) {
-    if (err) return callback(err);
-    repo.saveAs(type, value, callback);
-  });
-}
-
-function copyEntry(oldPath, newPath, callback) {
-  getRepo(dirname(oldPath), function (err, parentRepo) {
-    if (err) return callback(err);
-    readEntry(oldPath, function (err, entry) {
-      if (!entry) return callback(err || new Error("Missing entry"));
-      getRepo(dirname(newPath), function (err, newRepo) {
-        if (err) return callback(err);
-        if (parentRepo === newRepo) return onReady();
-        deepCopy(parentRepo, newRepo, entry, onReady);
-      });
-      function onReady(err) {
-        if (err) return callback(err);
-        writeEntry(newPath, entry, callback);
-      }
-    });
-  });
-}
-
-function moveEntry(oldPath, newPath, callback) {
-  getRepo(dirname(oldPath), function (err, parentRepo) {
-    if (err) return callback(err);
-    readEntry(oldPath, function (err, entry) {
-      if (!entry) return callback(err || new Error("Missing entry"));
-      getRepo(dirname(newPath), function (err, newRepo) {
-        if (err) return callback(err);
-        if (parentRepo === newRepo) return onReady();
-        deepCopy(parentRepo, newRepo, entry, onReady);
-      });
-      function onReady(err) {
-        if (err) return callback(err);
-        writeEntry(oldPath, {});
-        writeEntry(newPath, entry, callback);
-      }
-    });
-  });
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-// Generates a good unique root name from an almost arbitrary string.
-function genName(string, obj) {
-  var base = string.substring(string.lastIndexOf("/") + 1).replace(/\.git$/, "").replace(/[@#%\^&\\|=[\]~`,<>?:;"\/]+/gi, " ").trim() || "unnamed";
-  var name = base;
-  var i = 1;
-  while (name in obj) {
-    name = base + "-" + (++i);
-  }
-  return name;
-}
-
-// Given an array of paths and a path, find the longest substring.
-// This is good for finding the nearest ancestor for tree paths.
-function longestMatch(path, roots) {
-  var longest = "";
-  for (var i = 0, l = roots.length; i < l; i++) {
-    var root = roots[i];
-    if (root.length < longest.length) continue;
-    if (path.substring(0, root.length + 1) === root + "/") {
-      longest = root;
-    }
-  }
-  return longest;
-}
-
-function findRepo(config) {
-  var storage = findStorage(config);
-  return storage.repo || (storage.repo = createRepo(config));
-}
-
-function removeRoots(regexp, callback) {
-  var dirty = false;
-  var names = Object.keys(configs);
-  names.forEach(function (name) {
-    if (regexp.test(name)) {
-      removeGitmodule(name);
-      delete configs[name];
-      dirty = true;
-    }
-  });
-  if (dirty) prefs.save();
-  if (callback) callback();
-}
-
-function renameRoots(regexp, path, callback) {
-  var dirty = false;
-  Object.keys(configs).forEach(function (name) {
-    if (regexp.test(name)) {
-      var newName = name.replace(regexp, path);
-      configs[newName] = configs[name];
-      var gitmodule = getGitmodule(name);
-      if (gitmodule) {
-        removeGitmodule(name);
-        addGitmodule(newName, gitmodule.url);
-      }
-      delete configs[name];
-      dirty = true;
-    }
-  });
-  if (dirty) prefs.save();
-  if (callback) callback();
-}
-
-function copyRoots(regexp, path, callback) {
-  var dirty = false;
-  Object.keys(configs).forEach(function (name) {
-    if (regexp.test(name)) {
-      var newName = name.replace(regexp, path);
-      configs[newName] = JSON.parse(JSON.stringify(configs[name]));
-      var gitmodule = getGitmodule(name);
-      if (gitmodule) {
-        addGitmodule(newName, gitmodule.url);
-      }
-      dirty = true;
-    }
-  });
-  if (dirty) prefs.save();
-  if (callback) callback();
-}
-
-function trimRoots(regexp, tree, callback) {
-  var paths = Object.keys(configs);
-  for (var i = 0, l = paths.length; i < l; i++) {
-    var path = paths[i];
-    var match = path.match(regexp);
-    if (match && !tree[match[1]]) {
-      delete configs[path];
-    }
-  }
-  if (callback) callback();
-}
-
-function customImport(path, importer, callback) {
-  getRepo(path, onRepo);
-
-  function onRepo(err, repo) {
-    if (err) return callback(err);
-    importer(repo, callback);
-  }
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1130,20 +973,4 @@ function dirname(path) {
 }
 
 
-// Used to copy a tree of hashes from one repo to another.  Used in cross-repo
-// copies
-function deepCopy(source, dest, entry, callback) {
-  if (!callback) return deepCopy.bind(null, source, dest, entry);
-  var type = modes.toType(entry.mode);
-  source.loadAs(type, entry.hash, function (err, value) {
-    if (!value) return callback(err || new Error("Missing " + type + " " + entry.hash));
-    dest.saveAs(type, value, function (err) {
-      if (err) return callback(err);
-      if (type !== "tree") return callback();
-      carallel(Object.keys(value).map(function (name) {
-        return deepCopy(source, dest, value[name]);
-      }), callback);
-    }, entry.hash);
-  });
-}
 */
