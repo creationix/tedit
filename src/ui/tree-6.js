@@ -48,10 +48,8 @@ function renderChild(path, mode, hash) {
     row.errorMessage = "";
     // Skip nodes that haven't changed
     if (row.hash === hash) {
-      console.log("SKIP", row.path);
       return row;
     }
-    console.log("UPDATE", row.path);
     row.hash = hash;
   }
   else {
@@ -338,8 +336,6 @@ function createSymLink(row) {
 }
 
 function importFolder(row) {
-  console.log("window", window);
-  console.log("chrome", chrome);
   chrome.fileSystem.chooseEntry({ type: "openDirectory"}, function (dir) {
     if (!dir) return;
     row.call(fs.readEntry, function (entry) {

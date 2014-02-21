@@ -21,6 +21,7 @@
   var codec    = require('js-git/lib/config-codec');
   var cache    = require('js-git/mixins/mem-cache').cache;
 
+  var rescape  = require('./rescape');
   var prefs = require('ui/prefs');
 }
 
@@ -54,8 +55,6 @@ module.exports = {
   readTree: readTree,       // (path) => { mode, hash, tree }
   readBlob: readBlob,       // (path) => { mode, hash, blob }
   readLink: readLink,       // (path) => { mode, hash, link }
-  // config is the metadata stored in .gitmodules
-  readConfig: readConfig,   // (path) => { url, ref, ...}
 
   // Safe Writes
   // These are safe write because they only write immutable hashes.
@@ -271,11 +270,6 @@ function readLink(path, callback) {
   });
 }
 
-function readConfig(path, callback) {
-  if (!callback) return readConfig.bind(null, path);
-  return callback("TODO: Implement readConfig");
-}
-
 function saveAs(path, type, value, callback) {
   if (!callback) return saveAs.bind(null, path, type, value);
   // Look up the right repo to save the value into.
@@ -349,30 +343,37 @@ function writeEntry(path, entry, callback) {
 
 function copyEntry(path, target, callback) {
   if (!callback) return copyEntry.bind(null, path, target);
-  // TODO: copy configs and local state
+  // Copy path related data between trees
   var entry = pathToEntry(path);
   if (!entry.hash) return callback(new Error("Can't find source"));
+  copyConfig(path, target);
   writeEntry(target, {
     mode: entry.mode,
     hash: entry.hash
   }, callback);
+  prefs.save();
 }
 
 function moveEntry(path, target, callback) {
   if (!callback) return moveEntry.bind(null, path, target);
-  // TODO: move configs and local state
   var entry = pathToEntry(path);
   if (!entry.hash) return callback(new Error("Can't find source"));
-  writeEntry(path, {});
-  writeEntry(target, {
-    mode: entry.mode,
-    hash: entry.hash
-  }, callback);
+  moveConfig(path, target);
+  carallel([
+    writeEntry(path, {}),
+    writeEntry(target, {
+      mode: entry.mode,
+      hash: entry.hash
+    })
+  ], callback);
+  prefs.save();
 }
 
 function deleteEntry(path, callback) {
   if (!callback) return deleteEntry.bind(null, path);
+  deleteConfig(path);
   writeEntry(path, {}, callback);
+  prefs.save();
 }
 
 function isDirty(path) {
@@ -524,6 +525,7 @@ function writeEntries() {
   // Exclusive write lock
   if (writing) return;
   writing = true;
+  console.log("writeEntries", pendingWrites)
 
   // Import write data into this closure
   // Other writes that happen while we're busy will get queued
@@ -820,7 +822,7 @@ function pathToEntry(path, callback) {
   }
 
   function loadSubModule() {
-    var config = getGitmodule(partial) || {}; // TODO: fix this
+    var config = getGitmodule(partial);
     if (!config) return callback(new Error("Missing .gitmodules entry"));
     if (entry.config.github) config.github = true;
     return livenConfig(config, entry.hash, function (err, repo, current) {
@@ -858,18 +860,63 @@ function getGitmodule(path) {
   }
 }
 
+function copyConfig(from, to) {
+  var regexp = new RegExp("^" + rescape(from) + "(?=/|$)");
+  Object.keys(configs).forEach(function (path) {
+    if (!regexp.test(path)) return;
+    var newPath = path.replace(regexp, to);
+    configs[newPath] = JSON.parse(JSON.stringify(configs[path]));
+  });
+}
+
+function moveConfig(from, to) {
+  var regexp = new RegExp("^" + rescape(from) + "(?=/|$)");
+  Object.keys(configs).forEach(function (path) {
+    if (!regexp.test(path)) return;
+    var newPath = path.replace(regexp, to);
+    configs[newPath] = configs[path];
+    delete configs[path];
+    var repo = repos[path];
+    if (repo) {
+      repos[newPath] = repo;
+      delete repos[path];
+    }
+  });
+}
+
+function deleteConfig(from) {
+  var regexp = new RegExp("^" + rescape(from) + "(?=/|$)");
+  Object.keys(configs).forEach(function (path) {
+    if (!regexp.test(path)) return;
+    delete configs[path];
+    if (repos[path]) delete repos[path];
+  });
+}
+
+// Calculates the parent directory of a path.
+//  Path "foo/bar" becomes "foo".
+//  Path "foo" becomes "".
+//  Path "" throw an error.
 function dirname(path) {
   if (!path) throw new Error("No parent for root");
   var index = path.lastIndexOf("/");
   return index < 0 ? "" : path.substring(0, index);
 }
 
+// Calculates a local path relative to some root.
+//  Path "foo/bar" with root "" is "foo/bar".
+//  Path "foo/bar" with root "foo" is "bar".
 function localbase(path, root) {
   return root ? path.substring(root.length + 1) : path;
 }
 
+// Decides true if path is a subpath of root
+//  Root "" with any path except "" is true.
+//  Root "foo" with path "foo" is false.
+//  Root "foo" with path "foobar" is false.
+//  Root "foo" with path "foo/bar" is true.
 function isunder(path, root) {
-  if (!root) return true;
+  if (!root) return !!path;
   return path.substring(0, root.length + 1) === root + "/";
 }
 
@@ -968,9 +1015,6 @@ function addExportHook(path, settings, callback) {
     // prefs.save();
 
 
-function dirname(path) {
-  return path.substring(0, path.lastIndexOf("/"));
-}
 
 
 */
