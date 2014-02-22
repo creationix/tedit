@@ -219,6 +219,7 @@ function commitChanges(row) {
 function revertChanges(row) {
   dialog.confirm("Are you sure you want to lose all uncommitted changes?", function (confirm) {
     if (!confirm) return;
+    setDoc();
     row.call(fs.setCurrent, null);
   });
 }
@@ -408,8 +409,8 @@ function moveEntry(row) {
       row.call(fs.prepEntry, newPath, function () {
         if (modes.isFile(row.mode)) activePath = path;
         var oldPath = row.path;
-        row.call(rename, path);
         row.call(oldPath, fs.moveEntry, path);
+        row.call(rename, path);
       });
     });
   });

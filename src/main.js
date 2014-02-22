@@ -1,6 +1,5 @@
 "use strict";
 
-// require('clear');
 require('carallel')([
   // Initialize the subsystems in parallel for fast boot
   require('ui/prefs').init,

@@ -45,7 +45,3 @@
 [submodule "filters"]
 	path = filters
 	url = git@github.com:creationix/my-filters.git
-
-[submodule "lib/WeakMap"]
-	path = lib/WeakMap
-	url = git@github.com:Benvie/WeakMap.git

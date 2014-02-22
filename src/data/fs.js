@@ -171,7 +171,7 @@ function setCurrent(path, hash, callback) {
     if (!hash) {
       return callback(new Error("Nothing to revert to"));
     }
-    // Wipe all config state when manually
+    // Wipe all config state when manually reverting.  It will re-initialize.
     trimConfig(path);
     writeEntry(path, {
       mode: modes.commit,
@@ -358,7 +358,8 @@ function moveEntry(path, target, callback) {
   if (!callback) return moveEntry.bind(null, path, target);
   var entry = pathToEntry(path);
   if (!entry.hash) return callback(new Error("Can't find source"));
-  moveConfig(path, target);
+
+  copyConfig(path, target);
   carallel([
     writeEntry(path, {}),
     writeEntry(target, {
@@ -366,6 +367,7 @@ function moveEntry(path, target, callback) {
       hash: entry.hash
     })
   ], callback);
+  deleteConfig(path);
   prefs.save();
 }
 
@@ -664,7 +666,7 @@ function writeEntries() {
         callback(err);
       });
     }
-    console.log("onWrite", writes, currents)
+    // console.log("onWrite", writes, currents)
 
     // Update the configs
     Object.keys(currents).forEach(function (root) {
@@ -880,7 +882,7 @@ function getGitmodule(path) {
 
 // Add a .gitmodules entry for submodule at path with url
 function addGitmodule(path, config) {
-  var root = pathToEntry(dirname(path)).root;
+  var root = findParentPath(path);
   var localPath = localbase(path, root);
   var modules = gitmodules[root] || (gitmodules[root] = {});
   var meta = modules.meta || (modules.meta = {});
@@ -896,7 +898,7 @@ function addGitmodule(path, config) {
 // Remove .gitmodules entry for submodule at path
 // Returns true if changes were made that need changing.
 function removeGitmodule(path) {
-  var root = pathToEntry(dirname(path)).root;
+  var root = findParentPath(path);
   var localPath = localbase(path, root);
   var modules = gitmodules[root];
   if (!modules) return false;
@@ -949,9 +951,9 @@ function deleteConfig(from) {
   var regexp = new RegExp("^" + rescape(from) + "(?=/|$)");
   Object.keys(configs).forEach(function (path) {
     if (!regexp.test(path)) return;
+    removeGitmodule(path);
     delete configs[path];
     if (repos[path]) delete repos[path];
-    removeGitmodule(path);
   });
 }
 
@@ -991,36 +993,3 @@ function isunder(path, root) {
   if (!root) return !!path;
   return path.substring(0, root.length + 1) === root + "/";
 }
-
-/*
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-function addExportHook(path, settings, callback) {
-  callback(new Error("TODO: addExportHook"));
-  var hook = live.addExportHook(row, settings, config);
-  var storage = findStorage(row);
-  storage.hook = hook;
-
-}
-
-    // storage.hookConfig = settings
-    //   settings: settings,
-    //   row: row
-    // };
-    // var findStorage = require('./storage');
-
-    // st
-    // hookConfig[settings.source] = settings;
-    // hookPaths[settings.source] = hook;
-    // prefs.save();
-
-
-
-
-*/

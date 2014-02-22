@@ -3,7 +3,6 @@
 
 var modelist = ace.require('ace/ext/modelist');
 var whitespace = ace.require('ace/ext/whitespace');
-var findStorage = require('data/storage');
 
 var editor = require('ui/editor');
 var binary = require('bodec');
@@ -40,8 +39,7 @@ setDoc.reset = reset;
 
 function setDoc(row, body) {
   if (!row) return editor.setDoc();
-  var storage = findStorage(row);
-  var doc = storage.doc || (storage.doc = { save: save });
+  var doc = row.doc || (row.doc = { save: save });
 
   var ext = row.path.match(/[^.]*$/)[0].toLowerCase();
   var imageType = imageTypes[ext];
