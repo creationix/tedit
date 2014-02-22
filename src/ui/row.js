@@ -130,6 +130,7 @@ function makeRow(path, mode, hash, parent) {
     before: before,
     // Boilerplate helper to automate fs calls for a row
     call: call,
+    fail: fail,
   };
   $.el.js = row;
   updateAll();

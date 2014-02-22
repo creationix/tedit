@@ -12,6 +12,8 @@ var contextMenu = require('./context-menu');
 var importEntry = require('data/importfs');
 var rescape = require('data/rescape');
 
+var addExportHook = require('data/push-export').addExportHook;
+
 setDoc.updateDoc = updateDoc;
 setDoc.setActive = setActive;
 
@@ -21,6 +23,10 @@ var openPaths = prefs.get("openPaths", {});
 // Rows indexed by path
 var rows = {};
 var rootRow;
+
+// Hooks by path
+var hookConfigs = prefs.get("hookConfigs", {});
+var hooks = {};
 
 var active;
 // Remember the path to the active document.
@@ -35,6 +41,10 @@ fs.init(onChange, function (err, hash) {
 
 function onChange(hash) {
   renderChild("", modes.commit, hash);
+  // Run any hooks
+  Object.keys(hooks).forEach(function (root) {
+    hooks[root](hash);
+  });
 }
 
 rootEl.addEventListener("click", onGlobalClick, false);
@@ -441,18 +451,20 @@ function removeEntry(row) {
   });
 }
 
-function liveExport(row) {
-  var index = row.path.indexOf("/");
-  var root = index > 0 ? row.path.substring(0, index) : row.path;
-  dialog.exportConfig({
-    entry: prefs.get("defaultExportEntry"),
-    source: row.path,
-    filters: root + "/filters",
-    name: row.path.substring(row.path.indexOf("/") + 1)
-  }, function (settings) {
-    if (!settings) return;
-    prefs.set("defaultExportEntry", settings.entry);
-    row.call(fs.addExportHook, settings);
+function pushExport(row) {
+  row.call(fs.readEntry, function (entry) {
+    var config = hookConfigs[row.path] || {
+      entry: prefs.get("defaultExportEntry"),
+      source: row.path,
+      filters: entry.root + "/filters",
+      name: row.path.substring(row.path.lastIndexOf("/") + 1)
+    };
+    dialog.exportConfig(config, function (settings) {
+      if (!settings) return;
+      hookConfigs[row.path] = settings;
+      prefs.set("defaultExportEntry", settings.entry);
+      hooks[row.path] = addExportHook(row, settings);
+    });
   });
 }
 
@@ -519,7 +531,7 @@ function makeMenu(row) {
   actions.push(
     {sep:true},
     {icon:"globe", label:"Serve Over HTTP"},
-    {icon:"hdd", label:"Live Export to Disk", action: liveExport}
+    {icon:"hdd", label:"Live Export to Disk", action: pushExport}
   );
 
   // If there was a leading separator, remove it.

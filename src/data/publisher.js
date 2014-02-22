@@ -1,13 +1,14 @@
 "use strict";
 
+var binary = require('bodec');
 var pathJoin = require('pathjoin');
 var rescape = require('data/rescape');
 var loadModule = require('./load-module');
 var modes = require('js-git/lib/modes');
 
-// pathToEntry accepts a path and returns {mode,hash,{tree|link}} in callback
+// readEntry accepts a path and returns {mode,hash} in callback
 // req contains(...TODO: document...)
-module.exports = function (pathToEntry, settings) {
+module.exports = function (readEntry, settings) {
 
   var codeHashes = {};
   var filters = {};
@@ -17,18 +18,44 @@ module.exports = function (pathToEntry, settings) {
   function servePath(path, etag, callback) {
     if (!callback) return servePath.bind(null, path, etag);
     // console.log("servePath", path);
-    return pathToEntry(path, onEntry);
+    return readEntry(path, onEntry);
 
-    function onEntry(err, entry, repo, config) {
+    function onEntry(err, entry) {
       if (!entry) return callback(err);
+      var repo = entry.repo;
+      var config = entry.config;
+
+      // Symlinks preload their contents
+      if (entry.mode === modes.sym && entry.link === undefined) {
+        return repo.loadAs("blob", entry.hash, function (err, blob) {
+          if (err) return callback(err);
+          entry.link = binary.toUnicode(blob);
+          onEntry(null, entry);
+        });
+      }
+
+      // Commits just redirect to their tree
+      if (entry.mode === modes.commit) {
+        return repo.loadAs("commit", entry.hash, function (err, commit) {
+          if (err) return callback(err);
+          repo.loadAs("tree", commit.tree, onTree);
+        });
+      }
 
       // Trees go straight through, but expand wildcard symlinks first
-      if (entry.tree) {
-        return expandTree(repo, path, entry.tree, function (err, tree) {
+      if (entry.mode === modes.tree) {
+        return repo.loadAs("tree", entry.hash, onTree);
+      }
+
+      function onTree(err, tree) {
+        if (err) return callback(err);
+        return expandTree(repo, path, tree, function (err, tree) {
           if (err) return callback(err);
           callback(null, {tree: tree});
         });
       }
+
+      console.log("onEntry", path, entry)
 
       // If the request etag matches what's still there, we're done!
       if (etag && etag === entry.hash) {
@@ -93,12 +120,15 @@ module.exports = function (pathToEntry, settings) {
       var entry = toResolve[name];
       var parts, targetRepo;
       left++;
-      repo.loadAs("text", entry.hash, onTarget);
+      repo.loadAs("blob", entry.hash, onBlob);
 
-      function onTarget(err, link) {
+      function onBlob(err, blob) {
         if (err) return callback(err);
+        var link;
+        try { link = binary.toUnicode(blob); }
+        catch (err) { return callback(err); }
         parts = compile(path, name, link);
-        pathToEntry(parts.dir, onEntry);
+        readEntry(parts.dir, onEntry);
       }
 
       function onEntry(err, entry, result) {
@@ -139,7 +169,7 @@ module.exports = function (pathToEntry, settings) {
   function handleCommand(req, callback) {
     var codeHash;
     var codePath = pathJoin(settings.filters, req.name + ".js");
-    pathToEntry(codePath, onCodeEntry);
+    readEntry(codePath, onCodeEntry);
 
     function onCodeEntry(err, entry, repo) {
       if (!entry) return (err || new Error("Missing filter " + req.name));
@@ -148,11 +178,14 @@ module.exports = function (pathToEntry, settings) {
       if (codeHashes[req.name] === codeHash) {
         return filters[req.name](servePath, req, onHandle);
       }
-      return repo.loadAs("text", entry.hash, onCode);
+      return repo.loadAs("blob", entry.hash, onCode);
     }
 
-    function onCode(err, code) {
+    function onCode(err, blob) {
       if (err) return callback(err);
+      var code;
+      try { code = binary.toUnicode(blob); }
+      catch (err) { return callback(err); }
       console.log("Compiling filter " + req.name);
       var module = loadModule(code);
       if (typeof module !== "function") {

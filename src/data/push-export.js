@@ -1,8 +1,7 @@
 /*global chrome*/
 
 var fileSystem = chrome.fileSystem;
-var fail = require('ui/fail');
-var pathToEntry = require('./repos').pathToEntry;
+var readEntry = require('./fs').readEntry;
 var publisher = require('data/publisher');
 var notify = require('ui/notify');
 
@@ -12,32 +11,31 @@ module.exports = {
   addExportHook: addExportHook
 };
 
-function addExportHook(node, settings) {
+function addExportHook(row, settings) {
   var rootEntry;
-  var servePath = publisher(pathToEntry, settings);
+  var servePath = publisher(readEntry, settings);
   var dirty = null;
-  node.pulse = true;
+  row.pulse = true;
   fileSystem.restoreEntry(settings.entry, function (entry) {
-    if (!entry) fail(node, new Error("Failed to restore entry"));
+    if (!entry) row.fail(new Error("Failed to restore entry"));
     rootEntry = entry;
-    node.pulse = false;
-    hook(node);
+    row.pulse = false;
+    hook(row);
   });
 
   return hook;
 
-  function hook(newNode) {
-    node = newNode;
+  function hook(rootHash) {
     if (!rootEntry) return;
-    // If it's busy doing an export, put the node in the dirty queue
+    // If it's busy doing an export, put the row in the dirty queue
     if (queue) {
-      dirty = node;
+      dirty = row;
       return;
     }
-    node.exportPath = rootEntry.fullPath + "/" + settings.name;
+    row.exportPath = rootEntry.fullPath + "/" + settings.name;
 
     // Mark the process as busy
-    node.pulse = true;
+    row.pulse = true;
     queue = [];
 
     pending = 0;
@@ -68,21 +66,21 @@ function addExportHook(node, settings) {
   }
 
   function onDone() {
-    node.pulse = false;
+    row.pulse = false;
     queue = null;
     notify("Finished Export to " + rootEntry.fullPath + "/" + settings.name);
     // If there was a pending request, run it now.
     if (dirty) {
-      var newNode = dirty;
+      var newrow = dirty;
       dirty = null;
-      hook(newNode);
+      hook(newrow);
     }
   }
 
   function onError(err) {
-    node.pulse = false;
+    row.pulse = false;
     notify("Export Failed");
-    fail(node, err);
+    row.fail(err);
   }
 
   function exportPath(path, name, dir) {
