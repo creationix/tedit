@@ -291,18 +291,19 @@ function makeRow(path, mode, hash, parent) {
     // console.log(path, "+", arguments);
     // Append new callback at end
     args.push(callback);
-    // Mark the row as busy and run the async action with error catching
-    row.busy++;
+    // Callbacks may be called sync, we need to detect that.
+    var sync = null;
     try { fn.apply(null, args); }
-    catch (err) {
-      row.busy--;
-      fail(err);
+    catch (err) { fail(err); }
+    if (sync === null) {
+      sync = false;
+      // If we make it this far, we're waiting for an async action to complete.
+      row.busy++;
     }
 
     function callback(err) {
-      // Mark the async action as done
-      // console.log(path, "-", arguments);
-      row.busy--;
+      if (sync === null) sync = true;
+      else row.busy--;
       // If there was an async error, report it
       if (err) fail(err);
       if (!cb) return;
