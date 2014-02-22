@@ -128,15 +128,13 @@ function addRepo(path, config, callback) {
   if (!callback) return addRepo.bind(null, path, config);
   livenConfig(config, null, function (err, repo, hash) {
     if (err) return callback(err);
+    addGitmodule(path, config);
     repos[path] = repo;
     configs[path] = config;
     writeEntry(path, {
       mode: modes.commit,
       hash: hash
-    }, function (err) {
-      if (err) return callback(err);
-      callback(null, hash);
-    });
+    }, callback);
   });
 }
 
@@ -173,6 +171,8 @@ function setCurrent(path, hash, callback) {
     if (!hash) {
       return callback(new Error("Nothing to revert to"));
     }
+    // Wipe all config state when manually
+    trimConfig(path);
     writeEntry(path, {
       mode: modes.commit,
       hash: hash
@@ -521,11 +521,13 @@ var writeCallbacks = null;
 // Flag to know if an actual write is in progress
 var writing = false;
 
+// Pending .gitmodules changes
+var pendingChanges = {};
+
 function writeEntries() {
   // Exclusive write lock
   if (writing) return;
   writing = true;
-  console.log("writeEntries", pendingWrites)
 
   // Import write data into this closure
   // Other writes that happen while we're busy will get queued
@@ -533,6 +535,21 @@ function writeEntries() {
   pendingWrites = null;
   var callbacks = writeCallbacks;
   writeCallbacks = null;
+
+
+  var changeNames = Object.keys(pendingChanges);
+  if (changeNames.length) {
+    changeNames.forEach(function (root) {
+      var modules = pendingChanges[root];
+      var path = (root ? root + "/" : "") + ".gitmodules";
+      writes[path] = {
+        mode: modes.file,
+        content: codec.encode(modules.meta)
+      };
+    });
+    pendingChanges = {};
+  }
+
   // Lock reads to wait till thie write is finished
   readQueues = {};
 
@@ -860,12 +877,54 @@ function getGitmodule(path) {
   }
 }
 
+
+// Add a .gitmodules entry for submodule at path with url
+function addGitmodule(path, config) {
+  var root = pathToEntry(dirname(path)).root;
+  var localPath = localbase(path, root);
+  var modules = gitmodules[root] || (gitmodules[root] = {});
+  var meta = modules.meta || (modules.meta = {});
+  var submodules = meta.submodule || (meta.submodule = {});
+  submodules[localPath] = {
+    path: localPath,
+    url: config.url,
+    ref: config.ref
+  };
+  pendingChanges[root] = modules;
+}
+
+// Remove .gitmodules entry for submodule at path
+// Returns true if changes were made that need changing.
+function removeGitmodule(path) {
+  var root = pathToEntry(dirname(path)).root;
+  var localPath = localbase(path, root);
+  var modules = gitmodules[root];
+  if (!modules) return false;
+  var meta = modules.meta;
+  if (!meta) return false;
+  var submodules = meta.submodule;
+  if (!submodules) return false;
+  var dirty = false;
+  Object.keys(submodules).forEach(function (name) {
+    var entry = submodules[name];
+    if (entry.path === localPath) {
+      delete submodules[name];
+      dirty = true;
+    }
+  });
+  if (dirty) {
+    pendingChanges[root] = modules;
+  }
+  return dirty;
+}
+
 function copyConfig(from, to) {
   var regexp = new RegExp("^" + rescape(from) + "(?=/|$)");
   Object.keys(configs).forEach(function (path) {
     if (!regexp.test(path)) return;
     var newPath = path.replace(regexp, to);
-    configs[newPath] = JSON.parse(JSON.stringify(configs[path]));
+    var config = configs[newPath] = JSON.parse(JSON.stringify(configs[path]));
+    addGitmodule(newPath, config);
   });
 }
 
@@ -874,18 +933,31 @@ function moveConfig(from, to) {
   Object.keys(configs).forEach(function (path) {
     if (!regexp.test(path)) return;
     var newPath = path.replace(regexp, to);
-    configs[newPath] = configs[path];
+    var config = configs[newPath] = configs[path];
     delete configs[path];
     var repo = repos[path];
     if (repo) {
       repos[newPath] = repo;
       delete repos[path];
     }
+    removeGitmodule(path);
+    addGitmodule(newPath, config);
   });
 }
 
 function deleteConfig(from) {
   var regexp = new RegExp("^" + rescape(from) + "(?=/|$)");
+  Object.keys(configs).forEach(function (path) {
+    if (!regexp.test(path)) return;
+    delete configs[path];
+    if (repos[path]) delete repos[path];
+    removeGitmodule(path);
+  });
+}
+
+function trimConfig(from) {
+  var regexp = from ? new RegExp("^" + rescape(from) + "(?=/)") :
+                      new RegExp("^.");
   Object.keys(configs).forEach(function (path) {
     if (!regexp.test(path)) return;
     delete configs[path];
@@ -925,73 +997,7 @@ function isunder(path, root) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-var pendingChanges = {};
 
-// Add a .gitmodules entry for submodule at path with url
-function addGitmodule(path, url) {
-  var root = longestMatch(path, Object.keys(configs));
-  var localPath = path.substring(root.length + 1);
-  var storage = findStorage(configs[root]);
-  var gitmodules = storage.gitmodules || (storage.gitmodules = {});
-  var meta = gitmodules.meta || (gitmodules.meta = {});
-  var submodules = meta.submodule || (meta.submodule = {});
-  submodules[localPath] = {
-    path: localPath,
-    url: url
-  };
-  pendingChanges[root] = gitmodules;
-  return true;
-}
-
-// Remove .gitmodules entry for submodule at path
-// Returns true if changes were made that need changing.
-function removeGitmodule(path) {
-  var root = longestMatch(path, Object.keys(configs));
-  if (!root) return false;
-  var localPath = path.substring(root.length + 1);
-  var storage = findStorage(configs[root]);
-  var gitmodules = storage.gitmodules;
-  if (!gitmodules) return false;
-  var meta = gitmodules.meta;
-  if (!meta) return false;
-  var submodules = meta.submodule;
-  if (!submodules) return false;
-  var dirty = false;
-  Object.keys(submodules).forEach(function (name) {
-    var entry = submodules[name];
-    if (entry.path === localPath) {
-      delete submodules[name];
-      dirty = true;
-    }
-  });
-  if (dirty) {
-    pendingChanges[root] = gitmodules;
-  }
-  return dirty;
-}
-
-function flushChanges(path, callback) {
-  if (!callback) return flushChanges.bind(null, path);
-  var changes = pendingChanges;
-  var paths = Object.keys(changes);
-  if (!paths.length) return callback();
-  pendingChanges = {};
-  carallel(paths.map(function (root) {
-    var gitmodules = changes[root];
-    return function (callback) {
-      var blob;
-      try {
-        var text = encodeConfig(gitmodules.meta);
-        blob = text.trim() && binary.fromUnicode(text);
-      }
-      catch (err) { callback(err); }
-      var gitmodulesPath = root + "/.gitmodules";
-      if (blob) writeFile(gitmodulesPath, blob, callback);
-      else writeEntry(gitmodulesPath, {}, callback);
-    };
-  }), callback);
-  if (pendingWrites && !writing) writeEntries();
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 
