@@ -471,30 +471,26 @@ function makeMenu(row) {
              row.path.indexOf("/") < 0 ? "Repo" : "Submodule";
   if (row.mode === modes.tree || row.mode === modes.commit) {
     if (openPaths[row.path]) {
-      actions.push({icon:"doc", label:"Create File", action: createFile});
-      actions.push({icon:"folder", label:"Create Folder", action: createFolder});
-      actions.push({icon:"link", label:"Create SymLink", action: createSymLink});
-
-      actions.push({sep:true});
-      actions.push({icon:"folder", label:"Import Folder", action: importFolder});
-      if (row.path) {
-        actions.push({icon:"fork", label: "Add Submodule", action: addSubmodule});
-      }
-      else {
-        actions.push(
-          {icon:"fork", label: "Clone Remote Repo", action: addSubmodule},
-          {icon:"github", label: "Live Mount Github Repo", action: addGithubMount},
-          {icon:"ccw", label: "Remove All", action: removeAll}
-        );
+      actions.push(
+        {icon:"doc", label:"Create File", action: createFile},
+        {icon:"folder", label:"Create Folder", action: createFolder},
+        {icon:"link", label:"Create SymLink", action: createSymLink},
+        {sep:true},
+        {icon:"folder", label:"Import Folder", action: importFolder},
+        {icon:"fork", label: "Clone Remote Repo", action: addSubmodule},
+        {icon:"github", label: "Live Mount Github Repo", action: addGithubMount}
+      );
+      if (!row.path) {
+        actions.push({icon:"ccw", label: "Remove All", action: removeAll});
       }
     }
   }
   if (row.mode === modes.commit) {
-    if (fs.isDirty(row.path)) {
-      actions.push({sep:true});
-      actions.push({icon:"floppy", label:"Commit Changes", action: commitChanges});
-      actions.push({icon:"ccw", label:"Revert all Changes", action: revertChanges});
-    }
+    if (fs.isDirty(row.path)) actions.push(
+      {sep:true},
+      {icon:"floppy", label:"Commit Changes", action: commitChanges},
+      {icon:"ccw", label:"Revert all Changes", action: revertChanges}
+    );
     // if (!config.githubName) {
     //   actions.push({sep:true});
     //   actions.push({icon:"download-cloud", label:"Pull from Remote"});
@@ -502,21 +498,27 @@ function makeMenu(row) {
     // }
   }
   else if (modes.isFile(row.mode)) {
-    actions.push({sep:true});
     var label = (row.mode === modes.exec) ?
       "Make not Executable" :
       "Make Executable";
-    actions.push({icon:"asterisk", label: label, action: toggleExec});
+    actions.push(
+      {sep:true},
+      {icon:"asterisk", label: label, action: toggleExec}
+    );
   }
-  if (row.path) {
-    actions.push({sep:true});
-    actions.push({icon:"pencil", label:"Move " + type, action: moveEntry});
-    actions.push({icon:"docs", label:"Copy " + type, action: copyEntry});
-    actions.push({icon:"trash", label:"Delete " + type, action: removeEntry});
-  }
-  actions.push({sep:true});
-  actions.push({icon:"globe", label:"Serve Over HTTP"});
-  actions.push({icon:"hdd", label:"Live Export to Disk", action: liveExport});
+  if (row.path) actions.push(
+    {sep:true},
+    {icon:"pencil", label:"Move " + type, action: moveEntry},
+    {icon:"docs", label:"Copy " + type, action: copyEntry},
+    {icon:"trash", label:"Delete " + type, action: removeEntry}
+  );
+  actions.push(
+    {sep:true},
+    {icon:"globe", label:"Serve Over HTTP"},
+    {icon:"hdd", label:"Live Export to Disk", action: liveExport}
+  );
+
+  // If there was a leading separator, remove it.
   if (actions[0].sep) actions.shift();
 
   return actions;

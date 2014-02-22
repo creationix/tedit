@@ -172,11 +172,11 @@ function setCurrent(path, hash, callback) {
       return callback(new Error("Nothing to revert to"));
     }
     // Wipe all config state when manually reverting.  It will re-initialize.
-    trimConfig(path);
     writeEntry(path, {
       mode: modes.commit,
       hash: hash
     }, callback);
+    trimConfig(path);
   });
 }
 
@@ -539,6 +539,7 @@ function writeEntries() {
   writeCallbacks = null;
 
 
+  // If there are any changed .gitmodules we need to write those out as well.
   var changeNames = Object.keys(pendingChanges);
   if (changeNames.length) {
     changeNames.forEach(function (root) {
@@ -875,7 +876,10 @@ function getGitmodule(path) {
   for (var i = 0, l = names.length; i < l; i++) {
     name = names[i];
     submodule = submodules[name];
-    if (submodule.path === localPath) return submodule;
+    if (submodule.path === localPath) {
+      // Clone the object so that we don't mutate the original.
+      return JSON.parse(JSON.stringify(submodule));
+    }
   }
 }
 
@@ -926,23 +930,6 @@ function copyConfig(from, to) {
     if (!regexp.test(path)) return;
     var newPath = path.replace(regexp, to);
     var config = configs[newPath] = JSON.parse(JSON.stringify(configs[path]));
-    addGitmodule(newPath, config);
-  });
-}
-
-function moveConfig(from, to) {
-  var regexp = new RegExp("^" + rescape(from) + "(?=/|$)");
-  Object.keys(configs).forEach(function (path) {
-    if (!regexp.test(path)) return;
-    var newPath = path.replace(regexp, to);
-    var config = configs[newPath] = configs[path];
-    delete configs[path];
-    var repo = repos[path];
-    if (repo) {
-      repos[newPath] = repo;
-      delete repos[path];
-    }
-    removeGitmodule(path);
     addGitmodule(newPath, config);
   });
 }
