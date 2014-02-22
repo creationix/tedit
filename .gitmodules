@@ -1,43 +1,33 @@
-[submodule "ace-builds"]
-	path = ace-builds
-	url = git@github.com:ajaxorg/ace-builds.git
-
 [submodule "lib/git-sha1"]
 	path = lib/git-sha1
 	url = git@github.com:creationix/git-sha1.git
-
 [submodule "lib/js-git"]
 	path = lib/js-git
 	url = git@github.com:creationix/js-git.git
-
 [submodule "lib/mine"]
 	path = lib/mine
 	url = git@github.com:creationix/mine.git
-
 [submodule "lib/dombuilder"]
 	path = lib/dombuilder
 	url = git@github.com:creationix/dombuilder.git
-
 [submodule "lib/pathjoin"]
 	path = lib/pathjoin
 	url = git@github.com:creationix/pathjoin.git
-
 [submodule "lib/bodec"]
 	path = lib/bodec
 	url = git@github.com:creationix/bodec.git
-
 [submodule "lib/carallel"]
 	path = lib/carallel
 	url = git@github.com:creationix/carallel.git
-
 [submodule "lib/simple-mime"]
 	path = lib/simple-mime
 	url = git@github.com:creationix/simple-mime.git
-
 [submodule "lib/css-parse"]
 	path = lib/css-parse
 	url = git@github.com:reworkcss/css-parse.git
-
-[submodule "filters"]
-	path = filters
+[submodule "lib/ace-builds"]
+	path = lib/ace-builds
+	url = git@github.com:ajaxorg/ace-builds.git
+[submodule "lib/filters"]
+	path = lib/filters
 	url = git@github.com:creationix/my-filters.git
