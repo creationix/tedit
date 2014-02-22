@@ -1,1 +1,1 @@
-../../ace-builds/src-min-noconflict/{name}.js
+../../lib/ace-builds/src-min-noconflict/{name}.js
