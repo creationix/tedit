@@ -194,6 +194,7 @@ function readEntry(path, callback) {
 function readCommit(path, callback) {
   if (!callback) return readCommit.bind(null, path);
   readEntry(path, function (err, entry) {
+    if (err) return callback(err);
     if (!entry.hash) return callback(err || new Error("Missing commit: " + JSON.stringify(path)));
     if (entry.mode !== modes.commit) return callback(new Error("Not a commit:" + JSON.stringify(path)));
     // Make sure config.current matches the hash in the tree
@@ -219,6 +220,7 @@ function readCommit(path, callback) {
 function readTree(path, callback) {
   if (!callback) return readTree.bind(null, path);
   readEntry(path, function (err, entry) {
+    if (err) return callback(err);
     if (!entry.hash) return callback(err || new Error("Missing entry"));
     if (entry.mode === modes.commit) {
       return entry.repo.loadAs("commit", entry.hash, onCommit);
@@ -246,6 +248,7 @@ function readTree(path, callback) {
 function readBlob(path, callback) {
   if (!callback) return readBlob.bind(null, path);
   readEntry(path, function (err, entry) {
+    if (err) return callback(err);
     if (!entry.hash) return callback(err || new Error("Missing entry"));
     if (!modes.isFile(entry.mode)) return callback("Not a file");
     entry.repo.loadAs("blob", entry.hash, function (err, blob) {
@@ -259,6 +262,7 @@ function readBlob(path, callback) {
 function readLink(path, callback) {
   if (!callback) return readLink.bind(null, path);
   readEntry(path, function (err, entry) {
+    if (err) return callback(err);
     if (!entry.hash) return callback(err || new Error("Missing entry"));
     if (entry.mode !== modes.sym) return callback("Not a symlink");
     entry.repo.loadAs("blob", entry.hash, function (err, blob) {

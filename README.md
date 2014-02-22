@@ -4,7 +4,7 @@ tedit-app
 Tedit is a git based development environment.  When I say git based I mean you
 don't edit files on disk.  You edit git databases directly.  Visually it looks
 much like a traditional editor complete with file tree and editor pane.  Under
-the hood, you are browsing the git database graph and creating new nodes and 
+the hood, you are browsing the git database graph and creating new nodes and
 updating the root reference whenever you make a change.
 
 The purpose of Tedit is to create a development platform that makes programming
@@ -32,6 +32,3 @@ Visual walkthrough: <https://cloudup.com/cCMNHjdCw6q>
  - Watch the save icon spin while it exports the files to disk.
  - When done, open Chrome to <chrome://extensions>, enable developer mode, and add the exported folder as an unpacked extension.
  - Launch the generated version of tedit.  I recommend changing the color of this second version using `Control+B` to tell them apart.
-
-
-

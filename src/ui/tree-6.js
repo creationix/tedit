@@ -4,6 +4,7 @@ var fs = require('data/fs');
 
 var makeRow = require('./row');
 var modes = require('js-git/lib/modes');
+var defer = require('js-git/lib/defer');
 var prefs = require('./prefs');
 var setDoc = require('data/document');
 var dialog = require('./dialog');
@@ -55,11 +56,12 @@ function renderChild(path, mode, hash) {
   else {
     row = rows[path] = makeRow(path, mode, hash);
   }
-  if (mode === modes.commit) {
-    row.call(fs.readCommit, onCommit);
-  }
-  if ((mode === modes.tree) && openPaths[path]) openTree(row);
-  if (activePath && activePath === path) activateDoc(row);
+
+  // Defer further loading so the row can render before it hits any problems.
+  defer(function () {
+    if (mode === modes.commit) row.call(fs.readCommit, onCommit);
+    else init();
+  });
 
   return row;
 
@@ -71,7 +73,12 @@ function renderChild(path, mode, hash) {
     row.treeHash = commit.tree;
     row.staged = commit.tree !== head.tree;
     row.title = commit.author.date.toString() + "\n" + commit.author.name + " <" + commit.author.email + ">\n\n" + commit.message.trim();
-    if (openPaths[path]) openTree(row);
+    init();
+  }
+
+  function init() {
+    if ((mode === modes.tree || mode === modes.commit) && openPaths[path]) openTree(row);
+    if (activePath && activePath === path) activateDoc(row);
   }
 
 }
@@ -91,8 +98,7 @@ function renderChildren(row, tree) {
     var name = names[i];
     var entry = tree[name];
     var childPath = path ? path + "/" + name : name;
-    var child = renderChild(childPath, entry.mode, entry.hash);
-    row.addChild(child);
+    row.addChild(renderChild(childPath, entry.mode, entry.hash));
   }
 
   row.call(trim, tree);
@@ -141,7 +147,7 @@ function openTree(row) {
   var path = row.path;
   row.open = true;
   row.call(fs.readTree, function (entry) {
-    if (!entry) throw new Error("Missing tree");
+    if (!entry.tree) throw new Error("Missing tree");
     openPaths[path] = true;
     prefs.save();
     renderChildren(row, entry.tree);
