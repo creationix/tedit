@@ -294,7 +294,10 @@ function makeRow(path, mode, hash, parent) {
     // Mark the row as busy and run the async action with error catching
     row.busy++;
     try { fn.apply(null, args); }
-    catch (err) { fail(err); }
+    catch (err) {
+      row.busy--;
+      fail(err);
+    }
 
     function callback(err) {
       // Mark the async action as done

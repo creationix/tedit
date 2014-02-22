@@ -6,10 +6,6 @@
 	path = lib/git-sha1
 	url = git@github.com:creationix/git-sha1.git
 
-[submodule "lib/parallel-continuable"]
-	path = lib/parallel-continuable
-	url = git@github.com:creationix/parallel-continuable.git
-
 [submodule "lib/js-git"]
 	path = lib/js-git
 	url = git@github.com:creationix/js-git.git

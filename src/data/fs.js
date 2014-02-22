@@ -543,13 +543,22 @@ function writeEntries() {
   var changeNames = Object.keys(pendingChanges);
   if (changeNames.length) {
     changeNames.forEach(function (root) {
-      var modules = pendingChanges[root];
+      var meta = pendingChanges[root].meta;
       var path = (root ? root + "/" : "") + ".gitmodules";
-      writes[path] = {
-        mode: modes.file,
-        content: codec.encode(modules.meta)
-      };
+
+      var encoded = codec.encode(meta);
+      if (!encoded.trim()) {
+        // Delete the file if it's now empty
+        writes[path] = {};
+      }
+      else {
+        writes[path] = {
+          mode: modes.file,
+          content: encoded
+        };
+      }
     });
+    console.log("WRITES", writes);
     pendingChanges = {};
   }
 
@@ -877,8 +886,7 @@ function getGitmodule(path) {
     name = names[i];
     submodule = submodules[name];
     if (submodule.path === localPath) {
-      // Clone the object so that we don't mutate the original.
-      return JSON.parse(JSON.stringify(submodule));
+      return submodule;
     }
   }
 }
