@@ -28,14 +28,12 @@ var activePath = prefs.get("activePath", "");
 
 fs.init(onChange, function (err, hash) {
   if (err) throw err;
-  console.log("INIT", hash);
   openPaths[""] = true;
   rootRow = renderChild("", modes.commit, hash);
   rootEl.appendChild(rootRow.el);
 });
 
 function onChange(hash) {
-  console.log("CHANGE", hash);
   renderChild("", modes.commit, hash);
 }
 

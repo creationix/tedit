@@ -569,7 +569,6 @@ function writeEntries() {
         };
       }
     });
-    console.log("WRITES", writes);
     pendingChanges = {};
   }
 
@@ -687,7 +686,6 @@ function writeEntries() {
         callback(err);
       });
     }
-    // console.log("onWrite", writes, currents)
 
     // Update the configs
     Object.keys(currents).forEach(function (root) {
@@ -851,7 +849,6 @@ function pathToEntry(path, callback) {
     repo.loadAs("blob", entry.hash, function (err, blob) {
       if (!blob) return callback(err || new Error("Missing blob " + entry.hash));
       if (entry.hash === modules.hash) return walk();
-      console.log("LOADING UPDATED " + root + "/.gitmodules");
       try {
         var text = binary.toUnicode(blob);
         var meta = codec.decode(text);
@@ -905,7 +902,6 @@ function addGitmodule(path, config) {
   var meta = modules.meta || (modules.meta = {});
   var submodules = meta.submodule || (meta.submodule = {});
   config.path = localPath;
-  console.log("ADD", join(path, ".gitmodules"), config);
   submodules[localPath] = config;
   pendingChanges[root] = modules;
 }
@@ -973,7 +969,6 @@ function deleteConfig(from) {
     Object.keys(submodules).forEach(function (name) {
       var config = submodules[name];
       if (!subregexp.test(config.path)) return;
-      console.log("DELETING", join(root, ".gitmodules"), config);
       delete submodules[name];
       pendingChanges[root] = modules;
     });
