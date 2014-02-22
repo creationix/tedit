@@ -21,7 +21,7 @@ module.exports = function (readEntry, settings) {
     return readEntry(path, onEntry);
 
     function onEntry(err, entry) {
-      if (!entry) return callback(err);
+      if (!(entry && entry.hash)) return callback(err);
       var repo = entry.repo;
       var config = entry.config;
 
@@ -75,6 +75,12 @@ module.exports = function (readEntry, settings) {
 
       // Symbolic links can have optional filters or wildcard matches.
       var index = entry.link.indexOf("|");
+
+      // Normal symlinks just redirect
+      if (index < 0) {
+        return servePath(pathJoin(path, "..", entry.link), etag, callback);
+      }
+
       var target = entry.link.substr(0, index);
       var args = entry.link.substr(index + 1).split(" ");
       var name = args.shift();
