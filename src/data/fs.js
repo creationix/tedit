@@ -1,3 +1,4 @@
+/*global -name*/
 /*
  * This is a mutable filesystem abstraction on top a tree of repositories.
  * This has a global read/write lock.  Reads are allowed to happen without
@@ -128,7 +129,12 @@ function addRepo(path, config, callback) {
   if (!callback) return addRepo.bind(null, path, config);
   livenConfig(config, null, function (err, repo, hash) {
     if (err) return callback(err);
-    addGitmodule(path, config);
+    var newConfig = {};
+    for (var key in config) {
+      if (key === "github" || key === "head" || key === "current") continue;
+      newConfig[key] = config[key];
+    }
+    addGitmodule(path, newConfig);
     repos[path] = repo;
     configs[path] = config;
     writeEntry(path, {
@@ -310,6 +316,7 @@ function prepEntry(path, target, callback) {
 // copies
 function deepCopy(source, dest, entry, callback) {
   if (!callback) return deepCopy.bind(null, source, dest, entry);
+  if (entry.mode === modes.commit) return callback();
   var type = modes.toType(entry.mode);
   source.loadAs(type, entry.hash, function (err, value) {
     if (!value) return callback(err || new Error("Missing " + type + " " + entry.hash));
@@ -548,7 +555,7 @@ function writeEntries() {
   if (changeNames.length) {
     changeNames.forEach(function (root) {
       var meta = pendingChanges[root].meta;
-      var path = (root ? root + "/" : "") + ".gitmodules";
+      var path = join(root, ".gitmodules");
 
       var encoded = codec.encode(meta);
       if (!encoded.trim()) {
@@ -787,7 +794,7 @@ function pathToEntry(path, callback) {
 
         // Move the path up one segment
         var part = parts[index++];
-        partial = partial ? partial + "/" + part : part;
+        partial = join(partial, part);
         cached = cached[part];
         entry.mode = cached && cached.mode;
         entry.hash = cached && cached.hash;
@@ -843,9 +850,11 @@ function pathToEntry(path, callback) {
     if (!callback) throw new Error(".gitmodules not cached");
     repo.loadAs("blob", entry.hash, function (err, blob) {
       if (!blob) return callback(err || new Error("Missing blob " + entry.hash));
+      if (entry.hash === modules.hash) return walk();
+      console.log("LOADING UPDATED " + root + "/.gitmodules");
       try {
         var text = binary.toUnicode(blob);
-        var meta = codec.parse(text);
+        var meta = codec.decode(text);
         modules.meta = meta;
         modules.hash = entry.hash;
       }
@@ -884,15 +893,7 @@ function getGitmodule(path) {
   if (!meta) return;
   var submodules = meta.submodule;
   if (!submodules) return;
-  var name, submodule;
-  var names = Object.keys(submodules);
-  for (var i = 0, l = names.length; i < l; i++) {
-    name = names[i];
-    submodule = submodules[name];
-    if (submodule.path === localPath) {
-      return submodule;
-    }
-  }
+  return cloneObject(submodules[localPath]);
 }
 
 
@@ -903,57 +904,81 @@ function addGitmodule(path, config) {
   var modules = gitmodules[root] || (gitmodules[root] = {});
   var meta = modules.meta || (modules.meta = {});
   var submodules = meta.submodule || (meta.submodule = {});
-  submodules[localPath] = {
-    path: localPath,
-    url: config.url,
-    ref: config.ref
-  };
+  config.path = localPath;
+  console.log("ADD", join(path, ".gitmodules"), config);
+  submodules[localPath] = config;
   pendingChanges[root] = modules;
 }
 
-// Remove .gitmodules entry for submodule at path
-// Returns true if changes were made that need changing.
-function removeGitmodule(path) {
-  var root = findParentPath(path);
-  var localPath = localbase(path, root);
-  var modules = gitmodules[root];
-  if (!modules) return false;
-  var meta = modules.meta;
-  if (!meta) return false;
-  var submodules = meta.submodule;
-  if (!submodules) return false;
-  var dirty = false;
-  Object.keys(submodules).forEach(function (name) {
-    var entry = submodules[name];
-    if (entry.path === localPath) {
-      delete submodules[name];
-      dirty = true;
+// Quick deep-clone of an object.
+function cloneObject(obj) {
+  var newObj = {};
+  Object.keys(obj).forEach(function (key) {
+    var value = obj[key];
+    if (value && typeof value === "object") {
+      if (Array.isArray(value)) value = value.slice();
+      else value = cloneObject(value);
     }
+    newObj[key] = value;
   });
-  if (dirty) {
-    pendingChanges[root] = modules;
-  }
-  return dirty;
+  return newObj;
 }
 
 function copyConfig(from, to) {
+
+  // Copy any configs at or under `from` to `to`.
   var regexp = new RegExp("^" + rescape(from) + "(?=/|$)");
   Object.keys(configs).forEach(function (path) {
     if (!regexp.test(path)) return;
     var newPath = path.replace(regexp, to);
-    var config = configs[newPath] = JSON.parse(JSON.stringify(configs[path]));
-    addGitmodule(newPath, config);
+    configs[newPath] = cloneObject(configs[path]);
   });
+
+  // Copy any submodule configs at or under `from` to `to`.
+  // But to find the config, we need to look up to the roots of `from` and `to`.
+  var root = findParentPath(from);
+  var modules = gitmodules[root];
+  var meta = modules && modules.meta;
+  var submodules = meta && meta.submodule;
+  if (submodules) {
+    var localPath = submodules && localbase(from, root);
+    var subregexp = new RegExp("^" + rescape(localPath) + "(?=/|$)");
+    Object.keys(submodules).forEach(function (path) {
+      var config = submodules[path];
+      if (!subregexp.test(path)) return;
+      var oldPath = join(root, path);
+      var newPath = oldPath.replace(regexp, to);
+      addGitmodule(newPath, cloneObject(config));
+    });
+  }
 }
 
 function deleteConfig(from) {
   var regexp = new RegExp("^" + rescape(from) + "(?=/|$)");
   Object.keys(configs).forEach(function (path) {
     if (!regexp.test(path)) return;
-    removeGitmodule(path);
     delete configs[path];
+    delete gitmodules[path];
     if (repos[path]) delete repos[path];
   });
+
+  // Look for entries in the parent .gitmodules to remove
+  var root = findParentPath(from);
+  var modules = gitmodules[root];
+  var meta = modules && modules.meta;
+  var submodules = meta && meta.submodule;
+  if (submodules) {
+    var localPath = submodules && localbase(from, root);
+    var subregexp = new RegExp("^" + rescape(localPath) + "(?=/|$)");
+    Object.keys(submodules).forEach(function (name) {
+      var config = submodules[name];
+      if (!subregexp.test(config.path)) return;
+      console.log("DELETING", join(root, ".gitmodules"), config);
+      delete submodules[name];
+      pendingChanges[root] = modules;
+    });
+  }
+
 }
 
 function trimConfig(from) {
@@ -964,6 +989,10 @@ function trimConfig(from) {
     delete configs[path];
     if (repos[path]) delete repos[path];
   });
+}
+
+function join(base, path) {
+  return base ? base + "/" + path : path;
 }
 
 // Calculates the parent directory of a path.

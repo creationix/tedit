@@ -2,6 +2,7 @@
 /*global ace*/
 
 var modelist = ace.require('ace/ext/modelist');
+
 var whitespace = ace.require('ace/ext/whitespace');
 
 var editor = require('ui/editor');
@@ -66,8 +67,10 @@ function setDoc(row, body) {
       whitespace.detectIndentation(doc.session);
     }
     if (doc.mode !== row.mode) {
-      var aceMode = row.mode === modes.sym ?
-        "ace/mode/text" : modelist.getModeForPath(row.path).mode;
+      var aceMode =
+        /\.gitmodules/.test(row.path) ? "ace/mode/ini" :
+        row.mode === modes.sym ? "ace/mode/text" :
+        modelist.getModeForPath(row.path).mode;
       doc.session.setMode(aceMode, function () {
         if (aceMode !== "ace/mode/javascript") return;
         doc.session.$worker.call("setOptions", hintOptions);

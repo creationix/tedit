@@ -4,6 +4,7 @@
 
 var domBuilder = require('dombuilder');
 var modes = require('js-git/lib/modes');
+var defer = require('js-git/lib/defer');
 
 module.exports = makeRow;
 
@@ -294,7 +295,9 @@ function makeRow(path, mode, hash, parent) {
     // Callbacks may be called sync, we need to detect that.
     var sync = null;
     try { fn.apply(null, args); }
-    catch (err) { fail(err); }
+    catch (err) {
+      defer(function () { fail(err); });
+    }
     if (sync === null) {
       sync = false;
       // If we make it this far, we're waiting for an async action to complete.
