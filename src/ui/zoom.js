@@ -1,7 +1,7 @@
 "use strict";
 
 var notify = require('./notify');
-var prefs = require('./prefs');
+var prefs = require('data/prefs');
 var zooms = [
   25, 33, 50, 67, 75, 90, 100, 110, 120, 125, 150, 175, 200, 250, 300, 400, 500
 ];

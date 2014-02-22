@@ -23,7 +23,7 @@
   var cache    = require('js-git/mixins/mem-cache').cache;
 
   var rescape  = require('./rescape');
-  var prefs = require('ui/prefs');
+  var prefs = require('./prefs');
 }
 
 // Export public interface
