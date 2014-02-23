@@ -795,9 +795,10 @@ function updatePaths() {
   var skip = null;
   return Object.keys(rows).sort().filter(function (path) {
     var row = rows[path];
-    var show;
+    var show, display = "block";
     if (filterX) {
       show = !filterX || filterX.test(path.substring(path.lastIndexOf("/") + 1));
+      if (!show) display = "none";
     }
     else if (skip && skip.test(path) || (skip = false)) {
       show = false;
@@ -809,7 +810,7 @@ function updatePaths() {
       }
       show = true;
     }
-    row.rowEl.style.display = show ? "block" : "none";
+    row.rowEl.style.display = display;
     return show;
   });
 }
