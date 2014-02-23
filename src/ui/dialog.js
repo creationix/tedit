@@ -31,6 +31,7 @@ function dialog(title, contents, onCancel) {
     ]
   ], $));
   $.cancel = cancel;
+  dialog.close = closeDialog;
   return $;
 
   function cancel(evt) {
@@ -39,6 +40,7 @@ function dialog(title, contents, onCancel) {
   }
 
   function closeDialog() {
+    delete dialog.close;
     document.body.removeChild($.shield);
     document.body.removeChild($.dialog);
   }

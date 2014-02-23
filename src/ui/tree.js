@@ -11,6 +11,7 @@ var dialog = require('./dialog');
 var contextMenu = require('./context-menu');
 var importEntry = require('data/importfs');
 var rescape = require('data/rescape');
+var editor = require('./editor');
 
 var addExportHook = require('data/push-export').addExportHook;
 
@@ -128,12 +129,16 @@ function onGlobalClick(evt) {
   var row = findRow(evt.target);
   if (!row) return;
   nullify(evt);
+  activateRow(row, true);
+}
+
+function activateRow(row, hard) {
   if (row.mode === modes.tree || row.mode === modes.commit) {
     if (openPaths[row.path]) closeTree(row);
     else openTree(row);
   }
   else if (modes.isFile(row.mode)) {
-    activateDoc(row);
+    activateDoc(row, hard);
   }
   else if (row.mode === modes.sym) {
     editSymLink(row);
@@ -179,12 +184,13 @@ function setActive(path) {
   if (active) active.active = true;
 }
 
-function activateDoc(row) {
+function activateDoc(row, hard) {
   var path = row.path;
   setActive(path);
   if (!active) return setDoc();
   row.call(fs.readBlob, function (entry) {
     setDoc(row, entry.blob);
+    if (hard) editor.focus();
   });
 }
 
@@ -593,8 +599,8 @@ function trim(path, tree, callback) {
   // Trim rows that are not in the tree anymore.  I welcome a more effecient way
   // to do this than scan over the entire list looking for patterns.
   var regExp = new RegExp("^" + rescape(path) + "\/([^\/]+)(?=\/|$)");
-  var paths = Object.keys(rows);
   var match;
+  var paths = Object.keys(rows);
   for (var i = 0, l = paths.length; i < l; i++) {
     var childPath = paths[i];
     match = childPath.match(regExp);
@@ -630,4 +636,115 @@ function splitPath(path) {
   return path.split("/").map(function (part) {
     return part.replace(/[^a-z0-9#.+!*'()_\- ]*/g, "").trim();
   }).filter(Boolean);
+}
+
+var selected;
+var selectedPath;
+
+editor.on("blur", function () {
+  if (dialog.close) return;
+  if (active) selectedPath = active.path;
+  if (!selectedPath) selectedPath = "";
+  var paths = updatePaths();
+  select(paths, paths.indexOf(selectedPath));
+});
+
+editor.on("focus", function () {
+  if (selected) {
+    selected.selected = false;
+    selected = null;
+  }
+});
+
+function select(paths, index) {
+  if (selected) selected.selected = false;
+  if (index < 0) index = 0;
+  if (index > paths.length - 1) index = paths.length - 1;
+  selectedPath = paths[index];
+  selected = rows[selectedPath];
+  if (selected) {
+    selected.selected = true;
+    scrollToSelected();
+  }
+}
+
+function scrollToSelected() {
+  var max = selected.el.offsetTop;
+  var min = max + selected.rowEl.offsetHeight - rootEl.offsetHeight + 16;
+  var top = rootEl.scrollTop;
+  if (top < min) rootEl.scrollTop = min;
+  else if (top > max) rootEl.scrollTop = max;
+}
+
+exports.pageUp = function () {
+  var paths = updatePaths();
+  select(paths, paths.indexOf(selected.path) - 10);
+};
+
+exports.pageDown = function () {
+  var paths = updatePaths();
+  select(paths, paths.indexOf(selected.path) + 10);
+};
+
+exports.end = function () {
+  var paths = updatePaths();
+  select(paths, paths.length - 1);
+};
+
+exports.home = function () {
+  var paths = updatePaths();
+  select(paths, 0);
+};
+
+exports.left = function () {
+  if (selected.open) closeTree(selected);
+  else {
+    var paths = updatePaths();
+    var parentPath = selected.path.substring(0, selected.path.lastIndexOf("/"));
+    select(paths, paths.indexOf(parentPath));
+  }
+};
+
+exports.up = function () {
+  var paths = updatePaths();
+  select(paths, paths.indexOf(selected.path) - 1);
+};
+
+exports.right = function () {
+  if (selected.mode !== modes.tree && selected.mode !== modes.commit) return;
+  if (!selected.open) openTree(selected);
+  else if(selected.hasChildren) {
+    var paths = updatePaths();
+    select(paths, paths.indexOf(selected.path) + 1);
+  }
+};
+
+exports.down = function () {
+  var paths = updatePaths();
+  select(paths, paths.indexOf(selected.path) + 1);
+};
+
+exports.activate = function () {
+  activateRow(selected, true);
+};
+
+exports.preview = function () {
+  activateRow(selected, false);
+};
+
+function updatePaths() {
+  var skip = null;
+  return Object.keys(rows).sort().filter(function (path) {
+    if (skip) {
+      if (skip.test(path)) return false;
+      skip = null;
+    }
+    var row = rows[path];
+    // Closed folders skip all children
+    if ((row.mode === modes.tree || row.mode === modes.commit) && !row.open) {
+      skip = new RegExp('^' + rescape(path) + (path ? "/" : ""));
+      return true;
+    }
+    return true;
+  });
 }

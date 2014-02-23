@@ -3,6 +3,8 @@
 
 var zoom = require('./zoom');
 var editor = require('./editor');
+var tree = require('./tree');
+var dialog = require('./dialog');
 var doc = require('data/document');
 var pending;
 
@@ -17,18 +19,43 @@ function onDown(evt) {
   else if (evt.ctrlKey && !evt.shiftKey && evt.keyCode === 189) zoom.smaller();
   // Ctrl-Shift-R
   else if (evt.ctrlKey && evt.shiftKey && evt.keyCode === 82) chrome.runtime.reload();
-  // Ctrl-E
-  else if (evt.ctrlKey && evt.keyCode === 69) {
-    pending = true;
-    doc.next();
-  }
   else if (evt.ctrlKey && evt.keyCode === 66) {
     // Ctrl-Shift-B
     if (evt.shiftKey) editor.prevTheme();
     // Ctrl-B
     else editor.nextTheme();
   }
-  else return;
+  else if (dialog.close) {
+    // Esc closes a dialog
+    if (evt.keyCode === 27) dialog.close();
+    else return;
+  }
+  // Ctrl-E switches between documents
+  else if (evt.ctrlKey && evt.keyCode === 69) {
+    pending = true;
+    doc.next();
+  }
+  else if (evt.altKey && evt.keyCode === 84) {
+    editor.toggle();
+  }
+  else if (editor.focused) return; // No more when ace is active
+  else {
+    if      (evt.keyCode === 33) tree.pageUp();
+    else if (evt.keyCode === 34) tree.pageDown();
+    else if (evt.keyCode === 35) tree.end();
+    else if (evt.keyCode === 36) tree.home();
+    else if (evt.keyCode === 37) tree.left();
+    else if (evt.keyCode === 38) tree.up();
+    else if (evt.keyCode === 39) tree.right();
+    else if (evt.keyCode === 40) tree.down();
+    else if (evt.keyCode === 13) { // Enter
+      tree.activate();
+    }
+    else if (evt.keyCode === 32) { // Space
+      tree.preview();
+    }
+    else return;
+  }
   evt.preventDefault();
   evt.stopPropagation();
 }

@@ -85,7 +85,6 @@ function setDoc(row, body) {
   current = doc;
   reset();
   editor.setDoc(doc);
-  editor.focus();
 
   function save(text) {
     if (text === doc.code) return;

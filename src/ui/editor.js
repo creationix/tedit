@@ -17,13 +17,14 @@ var themeIndex = prefs.get("themeIndex", themeNames.indexOf("cobalt"));
 // Put sample content and liven the editor
 
 var code = jack.toString().substr(20);
-code = code.substr(0, code.length - 5);
+code = code.substr(0, code.length - 4);
 code = code.split("\n").map(function (line) { return line.substr(2); }).join("\n");
 
 var editor = ace.edit($.editor);
 editor.setTheme = setTheme;
 editor.prevTheme = prevTheme;
 editor.nextTheme = nextTheme;
+editor.focused = false;
 
 // Turn on autocompletion
 editor.setOptions({
@@ -46,6 +47,10 @@ function shouldComplete(editor) {
   var line = doc.getLine(pos.row);
   return ace.require("ace/autocomplete/util").retrievePrecedingIdentifier(line, pos.column);
 }
+editor.toggle = function () {
+  if (editor.focused) editor.blur();
+  else editor.focus();
+};
 editor.commands.addCommand({
   name: "completeOrIndent",
   bindKey: "Tab",
@@ -65,7 +70,11 @@ editor.updatePath = function (doc) {
 
 setTheme(themeNames[themeIndex], true);
 editor.on("blur", function () {
+  editor.focused = false;
   if (currentDoc && currentDoc.save) save();
+});
+editor.on("focus", function () {
+  editor.focused = true;
 });
 editor.on("change", function () {
   if (currentDoc && currentDoc.onChange) currentDoc.onChange(currentDoc.session.getValue());
@@ -177,41 +186,40 @@ function jack() {/*
     Control-Minus: "Decrease font size"
     Control-B: "Apply next Theme"
     Control-Shift-B: "Apply previous Theme"
+    Control-E: "Toggle recent documents"
+    Alt-T: "Toggle focus between editor and file tree"
+    -- If you manually close the tree by dragging, toggle remembers this.
   }
 
-  -- Keyboard tree navigation is currently disabled, it will come back
-  -- in a future update.
+  File-Tree-Controls = {
+    Up: "Move the selection up"
+    Down: "Move the selection down"
+    Left: "Close the current folder or move to parent folder"
+    Down: "Open the current folder or move to first child"
+    Home: "Jump to top of list"
+    End: "Jump to end of list"
+    Page-Up: "Go up 10 times"
+    Page-Down: "Go dowm 10 times"
+    When-on-folder: {
+      Space-or-Enter: "Toggle folder open and close"
+    }
+    When-on-file: {
+      Enter: "Open file and move focus to editor"
+      Space: "Open file, but keep focus"
+    }
+  }
+
+  Mouse-and-Touch-Controls = {
+    Drag-Titlebar: "Move the window"
+    Drag-Gutter: "Resize Panes"
+    Click-Directory: "Toggle open/close on directory"
+    Click-File: "Select file"
+    Click-Selected-File: "Open file and focus on Editor"
+    Click-Activated-File: "Deactivate file"
+  }
 
 */}
 
-  //   Alt-T: "Toggle focus between editor and file tree"
-    // -- If you manually close the tree by dragging, toggle remembers this.
-  // File-Tree-Controls = {
-  //   Up: "Move the selection up"
-  //   Down: "Move the selection down"
-  //   Left: "Close the current folder or move to parent folder"
-  //   Down: "Open the current folder or move to first child"
-  //   Home: "Jump to top of list"
-  //   End: "Jump to end of list"
-  //   Page-Up: "Go up 10 times"
-  //   Page-Down: "Go dowm 10 times"
-  //   When-on-folder: {
-  //     Space-or-Enter: "Toggle folder open and close"
-  //   }
-  //   When-on-file: {
-  //     Enter: "Open file and move focus to editor"
-  //     Space: "Open file, but keep focus"
-  //   }
-  // }
-
-  // Mouse-and-Touch-Controls = {
-  //   Drag-Titlebar: "Move the window"
-  //   Drag-Gutter: "Resize Panes"
-  //   Click-Directory: "Toggle open/close on directory"
-  //   Click-File: "Select file"
-  //   Click-Selected-File: "Open file and focus on Editor"
-  //   Click-Activated-File: "Deactivate file"
-  // }
 
 function setTheme(name, quiet) {
   var theme = themes[name];

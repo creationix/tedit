@@ -10,7 +10,7 @@ module.exports = makeRow;
 
 // This represents trees, commits, files, and symlinks.
 // Any of it's properties can be read or written and auto-updates the UI
-function makeRow(path, mode, hash, parent) {
+function makeRow(path, mode, hash) {
   if (typeof path !== "string") throw new TypeError("path must be a string");
   if (typeof mode !== "number") throw new TypeError("mode must be a number");
   var errorMessage = "",
@@ -105,33 +105,17 @@ function makeRow(path, mode, hash, parent) {
       errorMessage = value;
       updateIcon();
     },
+    get hasChildren() {
+      return open && children.length;
+    },
     addChild: addChild,
     removeChild: removeChild,
     removeChildren: removeChildren,
-    // return next row in list
-    get next() {
-      return parent && parent.before(row);
-    },
-    // return previous row in list
-    get prev() {
-      return parent && parent.after(row);
-    },
-    // return last child
-    get last() {
-      return children && children.length && children[children.length - 1];
-    },
-    // return first child
-    get first() {
-      return children && children.length && children[0];
-    },
-    // Get row after specefied child
-    after: after,
-    // Get row before specefied child
-    before: before,
     // Boilerplate helper to automate fs calls for a row
     call: call,
     fail: fail,
   };
+  row.rowEl = $.row;
   $.el.js = row;
   updateAll();
   return row;
