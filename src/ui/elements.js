@@ -9,7 +9,7 @@ require('./zoom')(onZoom);
 var $ = {};
 document.body.appendChild(domBuilder([
   [".wrap",
-    ["ul.tree$tree"],
+    ["ul.tree.blur$tree"],
     [".main$main",
       [".editor$editor"],
       [".preview$preview", {css: {display:"none"}},

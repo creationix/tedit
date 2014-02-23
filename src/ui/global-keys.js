@@ -36,7 +36,7 @@ function onDown(evt) {
     doc.next();
   }
   else if (evt.altKey && evt.keyCode === 84) {
-    editor.toggle();
+    tree.toggle();
   }
   else if (editor.focused) return; // No more when ace is active
   else {

@@ -40,21 +40,44 @@ ul.tree {
 .tree .tight {
   margin: 0 -2px 0 -4px;
 }
-.theme-light .tree .row:hover {
+.theme-light .tree.blur .row:hover {
   box-shadow: inset 0 0 0.3em rgba(0,0,0,0.5);
 }
-.theme-dark .tree .row:hover {
+.theme-dark .tree.blur .row:hover {
   box-shadow: inset 0 0 0.3em rgba(255,255,255,0.5);
 }
+@-webkit-keyframes pulse-dark {
+  0% {
+    box-shadow: inset 0 0 0.2em rgba(255,255,255,0.5);
+  }
+  100% {
+    box-shadow: inset 0 0 0.4em rgba(255,255,255,0.5);
+  }
+}
+@-webkit-keyframes pulse-light {
+  0% {
+    box-shadow: inset 0 0 0.2em rgba(0,0,0,0.5);
+  }
+  100% {
+    box-shadow: inset 0 0 0.4em rgba(0,0,0,0.5);
+  }
+}
+
 .theme-light .tree .row.selected {
   box-shadow: inset 0 0 0.3em rgba(0,0,0,0.5);
+  -webkit-animation: pulse-light 0.5s infinite alternate;
   background-color: rgba(0,0,0,0.05);
 }
 .theme-dark .tree .row.selected {
   box-shadow: inset 0 0 0.3em rgba(255,255,255,0.5);
+  -webkit-animation: pulse-dark 0.5s infinite alternate;
   background-color: rgba(255,255,255,0.05);
 }
+
+
+
 .theme-light .tree .row.active {
+
   background-color: rgba(0,0,0,0.1);
 }
 .theme-dark .tree .row.active {

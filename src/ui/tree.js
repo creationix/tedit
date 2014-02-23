@@ -12,6 +12,7 @@ var contextMenu = require('./context-menu');
 var importEntry = require('data/importfs');
 var rescape = require('data/rescape');
 var editor = require('./editor');
+var slider = require('./slider');
 
 var addExportHook = require('data/push-export').addExportHook;
 
@@ -129,7 +130,15 @@ function onGlobalClick(evt) {
   var row = findRow(evt.target);
   if (!row) return;
   nullify(evt);
+  var paths = updatePaths();
+  var wasSelected = !!selected;
+  if (wasSelected) {
+    select(paths, paths.indexOf(row.path));
+  }
   activateRow(row, true);
+  if (row.mode === modes.tree || row.mode === modes.commit) {
+    if (!wasSelected) editor.focus();
+  }
 }
 
 function activateRow(row, hard) {
@@ -638,22 +647,43 @@ function splitPath(path) {
   }).filter(Boolean);
 }
 
-var selected;
-var selectedPath;
+var selected = null;
+var selectedPath = null;
+var hideMode = false;
+var memory = 200;
+
+exports.toggle = function () {
+  if (editor.focused) {
+    editor.blur();
+    if (dialog.close) return;
+    selectedPath = active ? active.path : "";
+    var paths = updatePaths();
+    select(paths, paths.indexOf(selectedPath));
+    hideMode = slider.size < 100;
+    if (hideMode) {
+      slider.size = memory || 200;
+    }
+  }
+  else {
+    editor.focus();
+  }
+};
+
 
 editor.on("blur", function () {
-  if (dialog.close) return;
-  if (active) selectedPath = active.path;
-  if (!selectedPath) selectedPath = "";
-  var paths = updatePaths();
-  select(paths, paths.indexOf(selectedPath));
 });
 
 editor.on("focus", function () {
   if (selected) {
     selected.selected = false;
     selected = null;
+    selectedPath = null;
+    if (hideMode) {
+      memory = slider.size;
+      slider.size = 0;
+    }
   }
+  rootEl.classList.add("blur");
 });
 
 function select(paths, index) {
@@ -663,6 +693,7 @@ function select(paths, index) {
   selectedPath = paths[index];
   selected = rows[selectedPath];
   if (selected) {
+    rootEl.classList.remove("blur");
     selected.selected = true;
     scrollToSelected();
   }
@@ -678,12 +709,12 @@ function scrollToSelected() {
 
 exports.pageUp = function () {
   var paths = updatePaths();
-  select(paths, paths.indexOf(selected.path) - 10);
+  select(paths, paths.indexOf(selectedPath) - 10);
 };
 
 exports.pageDown = function () {
   var paths = updatePaths();
-  select(paths, paths.indexOf(selected.path) + 10);
+  select(paths, paths.indexOf(selectedPath) + 10);
 };
 
 exports.end = function () {
@@ -700,14 +731,14 @@ exports.left = function () {
   if (selected.open) closeTree(selected);
   else {
     var paths = updatePaths();
-    var parentPath = selected.path.substring(0, selected.path.lastIndexOf("/"));
+    var parentPath = selectedPath.substring(0, selectedPath.lastIndexOf("/"));
     select(paths, paths.indexOf(parentPath));
   }
 };
 
 exports.up = function () {
   var paths = updatePaths();
-  select(paths, paths.indexOf(selected.path) - 1);
+  select(paths, paths.indexOf(selectedPath) - 1);
 };
 
 exports.right = function () {
@@ -715,13 +746,13 @@ exports.right = function () {
   if (!selected.open) openTree(selected);
   else if(selected.hasChildren) {
     var paths = updatePaths();
-    select(paths, paths.indexOf(selected.path) + 1);
+    select(paths, paths.indexOf(selectedPath) + 1);
   }
 };
 
 exports.down = function () {
   var paths = updatePaths();
-  select(paths, paths.indexOf(selected.path) + 1);
+  select(paths, paths.indexOf(selectedPath) + 1);
 };
 
 exports.activate = function () {
@@ -733,6 +764,7 @@ exports.preview = function () {
 };
 
 function updatePaths() {
+  if (selectedPath === null) selectedPath = active ? active.path : "";
   var skip = null;
   return Object.keys(rows).sort().filter(function (path) {
     if (skip) {

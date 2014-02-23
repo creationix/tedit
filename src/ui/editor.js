@@ -47,10 +47,6 @@ function shouldComplete(editor) {
   var line = doc.getLine(pos.row);
   return ace.require("ace/autocomplete/util").retrievePrecedingIdentifier(line, pos.column);
 }
-editor.toggle = function () {
-  if (editor.focused) editor.blur();
-  else editor.focus();
-};
 editor.commands.addCommand({
   name: "completeOrIndent",
   bindKey: "Tab",
