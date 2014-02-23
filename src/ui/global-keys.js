@@ -39,7 +39,7 @@ function onDown(evt) {
   else if (evt.altKey && evt.keyCode === 84) {
     tree.toggle();
   }
-  else if (editor.focused) return; // No more when ace is active
+  else if (!tree.isFocused()) return;
   else if (evt.keyCode === 33) tree.pageUp();
   else if (evt.keyCode === 34) tree.pageDown();
   else if (evt.keyCode === 35) tree.end();
@@ -53,16 +53,12 @@ function onDown(evt) {
   else if (evt.keyCode === 13) { // Enter
     tree.activate();
   }
-  // else if (!evt.ctrlKey && !evt.altKey && evt.keyCode !== 91) {
-  //   // Other non-modified keys go to onKey
-  //   tree.onKey(evt);
-  // }
   else return;
   evt.preventDefault();
   evt.stopPropagation();
 }
 function onPress(evt) {
-  if (editor.focused || dialog.close) return;
+  if (dialog.close || !tree.isFocused()) return;
   evt.preventDefault();
   evt.stopPropagation();
   tree.onChar(evt.charCode);

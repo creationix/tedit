@@ -670,9 +670,9 @@ exports.toggle = function () {
   }
 };
 
-
-editor.on("blur", function () {
-});
+exports.isFocused = function () {
+  return !!selected;
+};
 
 editor.on("focus", function () {
   cancelFilter();
