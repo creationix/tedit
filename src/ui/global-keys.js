@@ -10,6 +10,7 @@ var pending;
 
 window.addEventListener("keydown", onDown, true);
 window.addEventListener("keyup", onUp, true);
+window.addEventListener("keypress", onPress, true);
 function onDown(evt) {
   // Ctrl-0
   if (evt.ctrlKey && !evt.shiftKey && evt.keyCode === 48) zoom.reset();
@@ -39,25 +40,32 @@ function onDown(evt) {
     tree.toggle();
   }
   else if (editor.focused) return; // No more when ace is active
-  else {
-    if      (evt.keyCode === 33) tree.pageUp();
-    else if (evt.keyCode === 34) tree.pageDown();
-    else if (evt.keyCode === 35) tree.end();
-    else if (evt.keyCode === 36) tree.home();
-    else if (evt.keyCode === 37) tree.left();
-    else if (evt.keyCode === 38) tree.up();
-    else if (evt.keyCode === 39) tree.right();
-    else if (evt.keyCode === 40) tree.down();
-    else if (evt.keyCode === 13) { // Enter
-      tree.activate();
-    }
-    else if (evt.keyCode === 32) { // Space
-      tree.preview();
-    }
-    else return;
+  else if (evt.keyCode === 33) tree.pageUp();
+  else if (evt.keyCode === 34) tree.pageDown();
+  else if (evt.keyCode === 35) tree.end();
+  else if (evt.keyCode === 36) tree.home();
+  else if (evt.keyCode === 37) tree.left();
+  else if (evt.keyCode === 38) tree.up();
+  else if (evt.keyCode === 39) tree.right();
+  else if (evt.keyCode === 40) tree.down();
+  else if (evt.keyCode === 27) tree.cancel();
+  else if (evt.keyCode ===  8) tree.backspace();
+  else if (evt.keyCode === 13) { // Enter
+    tree.activate();
   }
+  // else if (!evt.ctrlKey && !evt.altKey && evt.keyCode !== 91) {
+  //   // Other non-modified keys go to onKey
+  //   tree.onKey(evt);
+  // }
+  else return;
   evt.preventDefault();
   evt.stopPropagation();
+}
+function onPress(evt) {
+  if (editor.focused || dialog.close) return;
+  evt.preventDefault();
+  evt.stopPropagation();
+  tree.onChar(evt.charCode);
 }
 function onUp(evt) {
   if (evt.keyCode === 0x11) {

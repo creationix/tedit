@@ -13,6 +13,7 @@ var importEntry = require('data/importfs');
 var rescape = require('data/rescape');
 var editor = require('./editor');
 var slider = require('./slider');
+var notify = require('./notify');
 
 var addExportHook = require('data/push-export').addExportHook;
 
@@ -674,6 +675,7 @@ editor.on("blur", function () {
 });
 
 editor.on("focus", function () {
+  cancelFilter();
   if (selected) {
     selected.selected = false;
     selected = null;
@@ -742,9 +744,10 @@ exports.up = function () {
 };
 
 exports.right = function () {
+  if (modes.isFile(selected.mode)) return activateRow(selected);
   if (selected.mode !== modes.tree && selected.mode !== modes.commit) return;
-  if (!selected.open) openTree(selected);
-  else if(selected.hasChildren) {
+  if (!selected.open) return openTree(selected);
+  if(selected.hasChildren) {
     var paths = updatePaths();
     select(paths, paths.indexOf(selectedPath) + 1);
   }
@@ -763,20 +766,57 @@ exports.preview = function () {
   activateRow(selected, false);
 };
 
+
+var filter = "";
+var filterX;
+exports.onChar = function (charCode) {
+  filter += String.fromCharCode(charCode);
+  updateFilter();
+};
+
+exports.backspace = function () {
+  filter = filter.substring(0, filter.length - 1);
+  updateFilter();
+};
+
+exports.cancel = cancelFilter;
+
+function cancelFilter() {
+  if (!filter) return;
+  filter = "";
+  updateFilter();
+}
+
 function updatePaths() {
   if (selectedPath === null) selectedPath = active ? active.path : "";
   var skip = null;
   return Object.keys(rows).sort().filter(function (path) {
-    if (skip) {
-      if (skip.test(path)) return false;
-      skip = null;
-    }
     var row = rows[path];
-    // Closed folders skip all children
-    if ((row.mode === modes.tree || row.mode === modes.commit) && !row.open) {
-      skip = new RegExp('^' + rescape(path) + (path ? "/" : ""));
-      return true;
+    var show;
+    if (filterX) {
+      show = !filterX || filterX.test(path.substring(path.lastIndexOf("/") + 1));
     }
-    return true;
+    else if (skip && (skip = skip.test(path))) {
+      show = false;
+    }
+    // Closed folders skip all children
+    else {
+      if ((row.mode === modes.tree || row.mode === modes.commit) && !row.open) {
+        skip = new RegExp('^' + rescape(path) + (path ? "/" : ""));
+      }
+      show = true;
+    }
+    row.rowEl.style.display = show ? "block" : "none";
+    return show;
   });
+}
+
+function updateFilter() {
+  var valid = true;
+  try { filterX = filter && new RegExp(filter, "i"); }
+  catch (err) { valid = false; }
+  if (filter) notify((valid ? "Filter" : "Invalid") + ": " + filter);
+  else notify("Filter cleared");
+  var paths = updatePaths();
+  if (paths.indexOf(selectedPath) < 0) select(paths, 0);
 }
