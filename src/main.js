@@ -6,8 +6,7 @@ require('carallel')([
   require('js-git/mixins/indexed-db').init
 ], function () {
   // Load the main GUI components
-  require('ui/tree-6');
-  // require('ui/tree');
+  require('ui/tree');
   require('ui/editor');
   require('ui/slider');
   require('ui/global-keys');
