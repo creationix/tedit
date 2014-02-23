@@ -782,7 +782,9 @@ exports.backspace = function () {
   updateFilter();
 };
 
-exports.cancel = cancelFilter;
+exports.cancel = function () {
+  editor.focus();
+};
 
 function cancelFilter() {
   if (!filter) return;

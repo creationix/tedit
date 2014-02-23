@@ -182,8 +182,8 @@ function jack() {/*
     Control-Minus: "Decrease font size"
     Control-B: "Apply next Theme"
     Control-Shift-B: "Apply previous Theme"
-    Control-E: "Toggle recent documents"
-    Alt-T: "Toggle focus between editor and file tree"
+    Control-E: "Toggle focus between editor and file tree"
+    Alt-Tilde: "Switch between recently opened files"
     -- If you manually close the tree by dragging, toggle remembers this.
   }
 

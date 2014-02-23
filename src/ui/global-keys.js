@@ -31,12 +31,13 @@ function onDown(evt) {
     if (evt.keyCode === 27) dialog.close();
     else return;
   }
-  // Ctrl-E switches between documents
-  else if (evt.ctrlKey && evt.keyCode === 69) {
+  // Alt+` switches between documents
+  else if (evt.altKey && evt.keyCode === 192) {
     pending = true;
     doc.next();
   }
-  else if (evt.altKey && evt.keyCode === 84) {
+  // Control-E Toggles Tree
+  else if (evt.ctrlKey && evt.keyCode === 69) {
     tree.toggle();
   }
   else if (!tree.isFocused()) return;
@@ -64,7 +65,7 @@ function onPress(evt) {
   tree.onChar(evt.charCode);
 }
 function onUp(evt) {
-  if (evt.keyCode === 0x11) {
+  if (evt.keyCode === 18) {
     if (pending) {
       pending = false;
       doc.reset();
