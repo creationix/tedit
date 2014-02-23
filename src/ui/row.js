@@ -175,7 +175,7 @@ function makeRow(path, mode, hash) {
     // Update the UI to show the short-name
     var name = path.substring(path.lastIndexOf("/") + 1);
     $.span.textContent = name || "Tedit WorkSpace";
-    $.span.setAttribute("title", title || "");
+    $.span.setAttribute("title", title || path);
   }
 
   function updateRow() {

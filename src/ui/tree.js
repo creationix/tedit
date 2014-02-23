@@ -746,7 +746,10 @@ exports.up = function () {
 exports.right = function () {
   if (modes.isFile(selected.mode)) return activateRow(selected);
   if (selected.mode !== modes.tree && selected.mode !== modes.commit) return;
-  if (!selected.open) return openTree(selected);
+  if (!selected.open) {
+    cancelFilter();
+    return openTree(selected);
+  }
   if(selected.hasChildren) {
     var paths = updatePaths();
     select(paths, paths.indexOf(selectedPath) + 1);
@@ -796,7 +799,7 @@ function updatePaths() {
     if (filterX) {
       show = !filterX || filterX.test(path.substring(path.lastIndexOf("/") + 1));
     }
-    else if (skip && (skip = skip.test(path))) {
+    else if (skip && skip.test(path) || (skip = false)) {
       show = false;
     }
     // Closed folders skip all children
@@ -818,5 +821,7 @@ function updateFilter() {
   if (filter) notify((valid ? "Filter" : "Invalid") + ": " + filter);
   else notify("Filter cleared");
   var paths = updatePaths();
-  if (paths.indexOf(selectedPath) < 0) select(paths, 0);
+  if (paths.indexOf(selectedPath) < 0 && paths.length) select(paths, 0);
 }
+
+editor.focus();
