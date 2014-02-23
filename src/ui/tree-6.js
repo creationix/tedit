@@ -548,10 +548,10 @@ function remove(oldPath, callback) {
     if (!regExp.test(path)) continue;
     delete rows[path];
     if (openPaths[path]) delete openPaths[path];
+    if (hookConfigs[path]) delete hookConfigs[path];
+    if (hooks[path]) delete hooks[path];
   }
-  // TODO: fix this
   callback();
-  // fs.removeRoots(regExp, callback);
   prefs.save();
 }
 
@@ -564,9 +564,7 @@ function copy(oldPath, newPath, callback) {
     var replacedPath = path.replace(regExp, newPath);
     if (openPaths[path]) openPaths[replacedPath] = true;
   }
-  // TODO: fix this
   callback();
-  // fs.copyRoots(regExp, newPath, callback);
   prefs.save();
 }
 
@@ -584,10 +582,10 @@ function rename(oldPath, newPath, callback) {
       openPaths[replacedPath] = true;
       delete openPaths[path];
     }
+    if (hookConfigs[path]) delete hookConfigs[path];
+    if (hooks[path]) delete hooks[path];
   }
-  // TODO: fix this
   callback();
-  // fs.renameRoots(regExp, newPath, callback);
   prefs.save();
 }
 
@@ -603,6 +601,8 @@ function trim(path, tree, callback) {
     if (match && !tree[match[1]]) {
       delete rows[childPath];
       if (openPaths[childPath]) delete openPaths[childPath];
+      if (hookConfigs[path]) delete hookConfigs[path];
+      if (hooks[path]) delete hooks[path];
     }
   }
 
@@ -613,9 +613,7 @@ function trim(path, tree, callback) {
     setDoc();
   }
 
-  // TODO: fix this
   callback();
-  // fs.trimRoots(regExp, tree, callback);
 }
 
 // Make a path unique
