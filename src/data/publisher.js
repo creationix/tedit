@@ -34,6 +34,7 @@ module.exports = function (readEntry, settings) {
         });
       }
 
+
       // Commits just redirect to their tree
       if (entry.mode === modes.commit) {
         return repo.loadAs("commit", entry.hash, function (err, commit) {
@@ -55,7 +56,6 @@ module.exports = function (readEntry, settings) {
         });
       }
 
-      console.log("onEntry", path, entry)
 
       // If the request etag matches what's still there, we're done!
       if (etag && etag === entry.hash) {
@@ -78,7 +78,8 @@ module.exports = function (readEntry, settings) {
 
       // Normal symlinks just redirect
       if (index < 0) {
-        return servePath(pathJoin(path, "..", entry.link), etag, callback);
+        var newPath = pathJoin(path, "..", entry.link);
+        return servePath(newPath, etag, callback);
       }
 
       var target = entry.link.substr(0, index);
@@ -137,9 +138,9 @@ module.exports = function (readEntry, settings) {
         readEntry(parts.dir, onEntry);
       }
 
-      function onEntry(err, entry, result) {
+      function onEntry(err, entry) {
         if (!entry || entry.mode !== modes.tree) return callback(err || new Error("Missing tree " + parts.dir));
-        targetRepo = result;
+        targetRepo = entry.repo;
         repo.loadAs("tree", entry.hash, onTree);
       }
 
@@ -177,14 +178,14 @@ module.exports = function (readEntry, settings) {
     var codePath = pathJoin(settings.filters, req.name + ".js");
     readEntry(codePath, onCodeEntry);
 
-    function onCodeEntry(err, entry, repo) {
-      if (!entry) return (err || new Error("Missing filter " + req.name));
+    function onCodeEntry(err, entry) {
+      if (!(entry && entry.hash)) return callback(err || new Error("Missing filter " + req.name));
       codeHash = entry.hash;
       // If the code hasn't changed, reuse the existing compiled worker.
       if (codeHashes[req.name] === codeHash) {
         return filters[req.name](servePath, req, onHandle);
       }
-      return repo.loadAs("blob", entry.hash, onCode);
+      return entry.repo.loadAs("blob", entry.hash, onCode);
     }
 
     function onCode(err, blob) {

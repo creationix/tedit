@@ -793,14 +793,35 @@ function pathToEntry(path, callback) {
         // Move the path up one segment
         var part = parts[index++];
         partial = join(partial, part);
-        cached = cached[part];
-        entry.mode = cached && cached.mode;
-        entry.hash = cached && cached.hash;
+        var child = cached[part];
+        entry.mode = child && child.mode;
+        entry.hash = child && child.hash;
 
-        // If the path doesn't exist, send an empty entry
-        if (!cached) {
-          if (callback) return callback(null, entry);
-          return entry;
+        if (!child) {
+          // Sync mode doesn't go past this
+          if (!callback) return entry;
+          // If the path doesn't exist, check for a wildcard rule.
+          var match = findMatch(cached, part);
+          if (!match) {
+            // If the path still doesn't exist, send an empty entry
+            return callback(null, entry);
+          }
+          if (match) {
+            child = cached[match.key];
+            return entry.repo.loadAs("blob", child.hash, function (err, blob) {
+              if (err) return callback(err);
+              try {
+                var link = binary.toUnicode(blob);
+                entry.link = link.replace(match.variable, match.value);
+                entry.mode = modes.sym;
+                entry.hash = child.hash + "-" + match.value;
+              }
+              catch (err) { return callback(err); }
+              return walk();
+            });
+          }
+
+
         }
 
         // Non-commit entries can just continue with the next loop
@@ -816,6 +837,22 @@ function pathToEntry(path, callback) {
         // If we don't have the config already, then wait or throw depending.
         if (callback) return loadSubModule();
         throw new Error("Submodule not cached: " + partial);
+      }
+
+      if (entry.mode === modes.sym) {
+        cached = cache[entry.hash];
+        if (!cached) {
+          if (callback) return entry.repo.loadAs("blob", entry.hash, onEntry);
+          throw new Error("Symlink not cached");
+        }
+        var link;
+        try { link = binary.toUnicode(cached); }
+        catch (err) { return callback(err); }
+        console.log({
+          partial: partial,
+          link: link
+        })
+        throw up;
       }
       // We reached a non-walkable path, so the target doesn't exist.
       entry.mode = undefined;
@@ -878,6 +915,25 @@ function pathToEntry(path, callback) {
   }
 
 }
+
+function findMatch(tree, name) {
+  for (var key in tree) {
+    if (tree[key].mode !== modes.sym) continue;
+    var match = key.match("^(.*)({[a-z]+})(.*)$");
+    if (!match) continue;
+    var variable = match[2];
+    var pattern = new RegExp("^" + rescape(match[1]) + "(.+)" + rescape(match[3]) + "$");
+    match = name.match(pattern);
+    if (!match) continue;
+    return {
+      pattern: pattern,
+      key: key,
+      variable: variable,
+      value: match[1]
+    };
+  }
+}
+
 
 // Lookup the .gitmodules entry for submodule at path
 // (path) -> {path, url}
