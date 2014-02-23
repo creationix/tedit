@@ -1,7 +1,7 @@
 /*global chrome*/
 
 var fileSystem = chrome.fileSystem;
-var readEntry = require('./fs').readEntry;
+var readPath = require('./fs').readPath;
 var publisher = require('data/publisher');
 var notify = require('ui/notify');
 
@@ -13,7 +13,7 @@ module.exports = {
 
 function addExportHook(row, settings) {
   var rootEntry;
-  var servePath = publisher(readEntry, settings);
+  var servePath = publisher(readPath, settings);
   var dirty = null;
   row.pulse = true;
   fileSystem.restoreEntry(settings.entry, function (entry) {

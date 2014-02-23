@@ -52,6 +52,9 @@ module.exports = {
   // readEntry will output nothing if the target doesn't exist, but the others
   // will error out if the target is not there and the desired type.
   readEntry: readEntry,     // (path) => { mode, hash }
+  // readPath is like readEntry, except it resolves symlinks and commits
+  // Also it preloads tree and link contents and matches wildcard symlinks.
+  readPath: readPath,       // (path) => { mode, hash, tree|link }
   readCommit: readCommit,   // (path) => { mode, hash, commit }
   readTree: readTree,       // (path) => { mode, hash, tree }
   readBlob: readBlob,       // (path) => { mode, hash, blob }
@@ -197,6 +200,60 @@ function readEntry(path, callback) {
   pathToEntry(path, callback);
 }
 
+function readPath(path, callback) {
+  if (!callback) return readPath.bind(null, path);
+  readEntry(path, onEntry);
+
+  function onEntry(err, entry) {
+    if (err) return callback(err);
+    if (!entry.hash) {
+      // Try to resolve wildcards if there is no match.
+      return readPath(dirname(path), function (err, parentEntry) {
+        if (err) return callback(err);
+        var tree = parentEntry.tree;
+        if (!tree) return callback(null, entry);
+        var match = findMatch(tree, basename(path));
+        if (!match) return callback(null, entry);
+        parentEntry.repo.loadAs("blob", tree[match.key].hash, function (err, blob) {
+          if (!blob) return callback(err || new Error("Missing blob"));
+          var link;
+          try { link = binary.toUnicode(blob); }
+          catch (err) { return callback(err); }
+          entry.mode = modes.sym;
+          entry.hash = tree[match.key].hash + "-" + match.value;
+          entry.link = link.replace(match.variable, match.value);
+          callback(null, entry);
+        });
+      });
+    }
+    if (entry.mode === modes.commit) {
+      return commitToTree(path, entry, onEntry);
+    }
+    if (entry.mode === modes.tree) {
+      return entry.repo.loadAs("tree", entry.hash, onTree);
+    }
+    if (entry.mode === modes.sym) {
+      return entry.repo.loadAs("blob", entry.hash, onLink);
+    }
+    callback(null, entry);
+
+    function onTree(err, tree, hash) {
+      if (!tree) return callback(err || new Error("Missing tree"));
+      entry.mode = modes.tree;
+      entry.hash = hash;
+      entry.tree = tree;
+      callback(null, entry);
+    }
+
+    function onLink(err, blob) {
+      if (!blob) return callback(err || new Error("Missing blob"));
+      try { entry.link = binary.toUnicode(blob); }
+      catch (err) { return callback(err); }
+      callback(null, entry);
+    }
+  }
+}
+
 function readCommit(path, callback) {
   if (!callback) return readCommit.bind(null, path);
   readEntry(path, function (err, entry) {
@@ -225,21 +282,18 @@ function readCommit(path, callback) {
 
 function readTree(path, callback) {
   if (!callback) return readTree.bind(null, path);
-  readEntry(path, function (err, entry) {
+  readEntry(path, onEntry);
+
+  function onEntry(err, entry) {
     if (err) return callback(err);
     if (!entry.hash) return callback(err || new Error("Missing entry"));
     if (entry.mode === modes.commit) {
-      return entry.repo.loadAs("commit", entry.hash, onCommit);
+      return commitToTree(path, entry, onEntry);
     }
     if (entry.mode === modes.tree) {
       return entry.repo.loadAs("tree", entry.hash, onTree);
     }
     return callback(new Error("Invalid mode 0" + entry.mode.toString(8)));
-
-    function onCommit(err, commit) {
-      if (!commit) return callback(err || new Error("Missing commit"));
-      return entry.repo.loadAs("tree", commit.tree, onTree);
-    }
 
     function onTree(err, tree, hash) {
       if (!tree) return callback(err || new Error("Missing tree " + hash));
@@ -248,7 +302,7 @@ function readTree(path, callback) {
       entry.tree = tree;
       callback(null, entry);
     }
-  });
+  }
 }
 
 function readBlob(path, callback) {
@@ -405,6 +459,27 @@ function isGithub(path) {
 // Define internal helper functions
 ////////////////////////////////////////////////////////////////////////////////
 
+
+// Given a path and commit entry, find the tree entry inside it.
+function commitToTree(path, entry, callback) {
+  entry.repo.loadAs("commit", entry.hash, function (err, commit) {
+    if (!commit) return callback(err || new Error("Missing commit"));
+    var repo = repos[path];
+    if (!repo) return loadSubModule(path, entry, onSub);
+    onSub(null, { repo: repo, config: configs[path] });
+
+    function onSub(err, data) {
+      if (err) return callback(err);
+      callback(null, {
+        mode: modes.tree,
+        hash: commit.tree,
+        repo: data.repo,
+        config: data.config,
+        root: path
+      });
+    }
+  });
+}
 
 function findRepo(path) {
   var repo = repos[path];
@@ -793,35 +868,14 @@ function pathToEntry(path, callback) {
         // Move the path up one segment
         var part = parts[index++];
         partial = join(partial, part);
-        var child = cached[part];
-        entry.mode = child && child.mode;
-        entry.hash = child && child.hash;
+        cached = cached[part];
+        entry.mode = cached && cached.mode;
+        entry.hash = cached && cached.hash;
 
-        if (!child) {
-          // Sync mode doesn't go past this
-          if (!callback) return entry;
-          // If the path doesn't exist, check for a wildcard rule.
-          var match = findMatch(cached, part);
-          if (!match) {
-            // If the path still doesn't exist, send an empty entry
-            return callback(null, entry);
-          }
-          if (match) {
-            child = cached[match.key];
-            return entry.repo.loadAs("blob", child.hash, function (err, blob) {
-              if (err) return callback(err);
-              try {
-                var link = binary.toUnicode(blob);
-                entry.link = link.replace(match.variable, match.value);
-                entry.mode = modes.sym;
-                entry.hash = child.hash + "-" + match.value;
-              }
-              catch (err) { return callback(err); }
-              return walk();
-            });
-          }
-
-
+        // If the path doesn't exist, send an empty entry
+        if (!cached) {
+          if (callback) return callback(null, entry);
+          return entry;
         }
 
         // Non-commit entries can just continue with the next loop
@@ -835,7 +889,7 @@ function pathToEntry(path, callback) {
           continue;
         }
         // If we don't have the config already, then wait or throw depending.
-        if (callback) return loadSubModule();
+        if (callback) return getSubModule();
         throw new Error("Submodule not cached: " + partial);
       }
 
@@ -897,23 +951,37 @@ function pathToEntry(path, callback) {
     });
   }
 
-  function loadSubModule() {
-    var config = getGitmodule(partial);
-    if (!config) return callback(new Error("Missing .gitmodules entry"));
-    if (entry.config.github) config.github = true;
-    return livenConfig(config, entry.hash, function (err, repo, current) {
+  function getSubModule() {
+    loadSubModule(entry, partial, function (err, data) {
       if (err) return callback(err);
-      if (entry.hash !== current) {
-        return callback(new Error("current mismatch"));
-      }
-      entry.root = partial;
-      entry.config = configs[partial] = config;
-      entry.repo = repos[partial] = repo;
-      prefs.save();
+      entry.root = data.root;
+      entry.config = data.config;
+      entry.repo = data.repo;
       walk();
     });
   }
 
+}
+
+// Entry is entry of commit node in outer repo
+// path is global path to submodule inside
+function loadSubModule(entry, path, callback) {
+  var config = getGitmodule(path);
+  if (!config) return callback(new Error("Missing .gitmodules entry"));
+  if (entry.config.github) config.github = true;
+  return livenConfig(config, entry.hash, function (err, repo, current) {
+    if (err) return callback(err);
+    if (entry.hash !== current) {
+      return callback(new Error("current mismatch"));
+    }
+    var data = {
+      root: path,
+      config: configs[path] = config,
+      repo: repos[path] = repo
+    };
+    prefs.save();
+    callback(null, data);
+  });
 }
 
 function findMatch(tree, name) {
@@ -1054,6 +1122,10 @@ function dirname(path) {
   if (!path) throw new Error("No parent for root");
   var index = path.lastIndexOf("/");
   return index < 0 ? "" : path.substring(0, index);
+}
+
+function basename(path) {
+  return path.substring(path.lastIndexOf("/") + 1);
 }
 
 // Calculates a local path relative to some root.

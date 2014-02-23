@@ -6,9 +6,9 @@ var rescape = require('data/rescape');
 var loadModule = require('./load-module');
 var modes = require('js-git/lib/modes');
 
-// readEntry accepts a path and returns {mode,hash} in callback
+// readPath accepts a path and returns {mode,hash,{tree|link} in callback
 // req contains(...TODO: document...)
-module.exports = function (readEntry, settings) {
+module.exports = function (readPath, settings) {
 
   var codeHashes = {};
   var filters = {};
@@ -18,41 +18,18 @@ module.exports = function (readEntry, settings) {
   function servePath(path, etag, callback) {
     if (!callback) return servePath.bind(null, path, etag);
     // console.log("servePath", path);
-    return readEntry(path, onEntry);
+    return readPath(path, onEntry);
 
     function onEntry(err, entry) {
       if (!(entry && entry.hash)) return callback(err);
       var repo = entry.repo;
       var config = entry.config;
 
-      // Symlinks preload their contents
-      if (entry.mode === modes.sym && entry.link === undefined) {
-        return repo.loadAs("blob", entry.hash, function (err, blob) {
-          if (err) return callback(err);
-          entry.link = binary.toUnicode(blob);
-          onEntry(null, entry);
-        });
-      }
-
-
-      // Commits just redirect to their tree
-      if (entry.mode === modes.commit) {
-        return repo.loadAs("commit", entry.hash, function (err, commit) {
-          if (err) return callback(err);
-          repo.loadAs("tree", commit.tree, onTree);
-        });
-      }
-
-      // Trees go straight through, but expand wildcard symlinks first
+      // Trees go straight through, but expanded first
       if (entry.mode === modes.tree) {
-        return repo.loadAs("tree", entry.hash, onTree);
-      }
-
-      function onTree(err, tree) {
-        if (err) return callback(err);
-        return expandTree(repo, path, tree, function (err, tree) {
+        return expandTree(repo, path, entry.tree, function (err, tree) {
           if (err) return callback(err);
-          callback(null, {tree: tree});
+          return callback(null, {tree: tree});
         });
       }
 
@@ -66,7 +43,7 @@ module.exports = function (readEntry, settings) {
       if (modes.isFile(entry.mode)) {
         // Static file, serve it as-is.
         return callback(null, {etag: entry.hash, fetch: function (callback) {
-          entry.repo.loadAs("blob", entry.hash, callback);
+          repo.loadAs("blob", entry.hash, callback);
         }});
       }
 
@@ -76,8 +53,8 @@ module.exports = function (readEntry, settings) {
       // Symbolic links can have optional filters or wildcard matches.
       var index = entry.link.indexOf("|");
 
-      // Normal symlinks just redirect
       if (index < 0) {
+        // Normal symlinks just redirect
         var newPath = pathJoin(path, "..", entry.link);
         return servePath(newPath, etag, callback);
       }
@@ -135,7 +112,7 @@ module.exports = function (readEntry, settings) {
         try { link = binary.toUnicode(blob); }
         catch (err) { return callback(err); }
         parts = compile(path, name, link);
-        readEntry(parts.dir, onEntry);
+        readPath(parts.dir, onEntry);
       }
 
       function onEntry(err, entry) {
@@ -176,7 +153,7 @@ module.exports = function (readEntry, settings) {
   function handleCommand(req, callback) {
     var codeHash;
     var codePath = pathJoin(settings.filters, req.name + ".js");
-    readEntry(codePath, onCodeEntry);
+    readPath(codePath, onCodeEntry);
 
     function onCodeEntry(err, entry) {
       if (!(entry && entry.hash)) return callback(err || new Error("Missing filter " + req.name));
