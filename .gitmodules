@@ -28,6 +28,6 @@
 [submodule "lib/ace-builds"]
 	path = lib/ace-builds
 	url = git@github.com:ajaxorg/ace-builds.git
-[submodule "lib/filters"]
-	path = lib/filters
+[submodule "filters"]
+	path = filters
 	url = git@github.com:creationix/my-filters.git
