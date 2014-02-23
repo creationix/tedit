@@ -510,7 +510,7 @@ function makeMenu(row) {
         {sep:true},
         {icon:"folder", label:"Import Folder", action: importFolder},
         {icon:"fork", label: "Clone Remote Repo", action: addSubmodule},
-        {icon:"github", label: "Live Mount Github Repo", action: addGithubMount}
+        {icon:"github", label: "Mount Github Repo", action: addGithubMount}
       );
       if (!row.path) {
         actions.push({icon:"ccw", label: "Remove All", action: removeAll});
