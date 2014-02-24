@@ -40,6 +40,10 @@ function onDown(evt) {
   else if (evt.ctrlKey && evt.keyCode === 69) {
     tree.toggle();
   }
+  // Control-N Create new file
+  else if (evt.ctrlKey && !evt.shiftKey && evt.keyCode === 78) {
+    tree.newFile();
+  }
   else if (!tree.isFocused()) return;
   else if (evt.keyCode === 33) tree.pageUp();
   else if (evt.keyCode === 34) tree.pageDown();

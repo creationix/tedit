@@ -183,6 +183,7 @@ function jack() {/*
     Control-B: "Apply next Theme"
     Control-Shift-B: "Apply previous Theme"
     Control-E: "Toggle focus between editor and file tree"
+    Control-N: "Create new file relative to current or selected"
     Alt-Tilde: "Switch between recently opened files"
     -- If you manually close the tree by dragging, toggle remembers this.
   }

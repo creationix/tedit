@@ -154,7 +154,7 @@ function activateRow(row, hard) {
     editSymLink(row);
   }
   else {
-    console.log("TODO: handle click", row);
+    row.fail(new Error("Unknown node mode"));
   }
 }
 
@@ -192,16 +192,23 @@ function setActive(path) {
   prefs.set("activePath", activePath);
   if (old) old.active = false;
   if (active) {
-    var index = 0;
-    while ((index = path.indexOf("/", index + 1)) > 0) {
-      var parentPath = path.substring(0, index);
-      var parent = rows[parentPath];
-      if (!parent.open) openTree(parent);
-    }
     active.active = true;
-    scrollToRow(active);
+    showRow(active.path);
   }
 }
+
+function showRow(path) {
+  var index, parent;
+  while ((index = path.indexOf("/", index + 1)) > 0) {
+    var parentPath = path.substring(0, index);
+    parent = rows[parentPath];
+    if (!parent) break;
+    if (!parent.open) openTree(parent);
+  }
+  var row = rows[path];
+  if (row) scrollToRow(row);
+}
+
 
 function activateDoc(row, hard) {
   var path = row.path;
@@ -337,12 +344,29 @@ function addChild(row, name, mode, hash) {
     if (modes.isFile(mode)) {
       activePath = path;
     }
+    openPaths[row.path] = true;
     row.call(path, fs.writeEntry, {
       mode: mode,
       hash: hash
     });
   });
 }
+
+exports.newFile = function () {
+  var row = selected || active || rows[""];
+  if (!row) return;
+  while (row.mode !== modes.tree && row.mode !== modes.commit) {
+    row = rows[dirname(row.path)];
+  }
+  createFile(row);
+};
+
+function dirname(path) {
+  if (!path) throw new Error("No parent for root");
+  var index = path.lastIndexOf("/");
+  return index < 0 ? "" : path.substring(0, index);
+}
+
 
 function createFile(row) {
   dialog.prompt("Enter name for new file", "", function (name) {
@@ -792,7 +816,8 @@ exports.backspace = function () {
 };
 
 exports.cancel = function () {
-  editor.focus();
+  if (filter) cancelFilter();
+  else editor.focus();
 };
 
 function cancelFilter() {
