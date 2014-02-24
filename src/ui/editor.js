@@ -61,7 +61,7 @@ editor.commands.addCommand({
 
 editor.updatePath = function (doc) {
   if (doc !== currentDoc) return;
-  updateTitle(doc.path);
+  updateTitle(doc.row.path);
 };
 
 setTheme(themeNames[themeIndex], true);
@@ -107,7 +107,7 @@ var currentDoc = null;
 
 var fallback = {
   session: ace.createEditSession(code, "ace/mode/jack"),
-  path: "Tedit"
+  row: {path: "Tedit"}
 };
 whitespace.detectIndentation(fallback.session);
 
@@ -127,7 +127,7 @@ editor.setDoc = function (doc) {
   if (doc.session) {
     editor.setSession(doc.session);
   }
-  updateTitle(doc.path);
+  updateTitle(doc.row.path);
 
   if (doc.url) {
     // This is an image url.

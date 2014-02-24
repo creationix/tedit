@@ -191,7 +191,16 @@ function setActive(path) {
   activePath = active ? active.path : null;
   prefs.set("activePath", activePath);
   if (old) old.active = false;
-  if (active) active.active = true;
+  if (active) {
+    var index = 0;
+    while ((index = path.indexOf("/", index + 1)) > 0) {
+      var parentPath = path.substring(0, index);
+      var parent = rows[parentPath];
+      if (!parent.open) openTree(parent);
+    }
+    active.active = true;
+    scrollToRow(active);
+  }
 }
 
 function activateDoc(row, hard) {
@@ -697,13 +706,13 @@ function select(paths, index) {
   if (selected) {
     rootEl.classList.remove("blur");
     selected.selected = true;
-    scrollToSelected();
+    scrollToRow(selected);
   }
 }
 
-function scrollToSelected() {
-  var max = selected.el.offsetTop;
-  var min = max + selected.rowEl.offsetHeight - rootEl.offsetHeight + 16;
+function scrollToRow(row) {
+  var max = row.el.offsetTop;
+  var min = max + row.rowEl.offsetHeight - rootEl.offsetHeight + 16;
   var top = rootEl.scrollTop;
   if (top < min) rootEl.scrollTop = min;
   else if (top > max) rootEl.scrollTop = max;

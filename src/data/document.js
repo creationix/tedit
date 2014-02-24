@@ -41,6 +41,7 @@ setDoc.reset = reset;
 function setDoc(row, body) {
   if (!row) return editor.setDoc();
   var doc = row.doc || (row.doc = { save: save });
+  doc.row = row;
 
   var ext = row.path.match(/[^.]*$/)[0].toLowerCase();
   var imageType = imageTypes[ext];
@@ -79,7 +80,6 @@ function setDoc(row, body) {
     }
 
   }
-  doc.path = row.path;
   doc.hash = row.hash;
 
   current = doc;
@@ -98,7 +98,7 @@ function next() {
   recentIndex = (recentIndex + 1) % recent.length;
   current = recent[recentIndex];
   editor.setDoc(current);
-  setDoc.setActive(current.path);
+  setDoc.setActive(current.row.path);
 }
 
 function reset() {
