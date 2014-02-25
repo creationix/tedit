@@ -89,7 +89,7 @@ function renderChild(path, mode, hash) {
 
   function init() {
     if ((mode === modes.tree || mode === modes.commit) && openPaths[path]) openTree(row);
-    if (activePath && activePath === path) activateDoc(row);
+    if (activePath && activePath === path) activateDoc(row, !selected);
   }
 
 }
