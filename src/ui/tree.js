@@ -557,7 +557,7 @@ function makeMenu(row) {
         {icon:"link", label:"Create SymLink", action: createSymLink},
         {sep:true},
         {icon:"folder", label:"Import Folder", action: importFolder},
-        {icon:"fork", label: "Clone Remote Repo", action: addSubmodule},
+        // {icon:"fork", label: "Clone Remote Repo", action: addSubmodule},
         {icon:"github", label: "Mount Github Repo", action: addGithubMount}
       );
       if (!row.path) {
