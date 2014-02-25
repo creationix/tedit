@@ -9,6 +9,7 @@ dialog.prompt = promptDialog;
 dialog.confirm = confirmDialog;
 dialog.multiEntry = multiEntryDialog;
 dialog.exportConfig = exportConfigDialog;
+dialog.serveConfig = serveConfigDialog;
 
 module.exports = dialog;
 
@@ -130,7 +131,7 @@ function confirmDialog(question, callback) {
 
 function exportConfigDialog(config, callback) {
   var entry;
-  var $ = dialog("Live Export", [
+  var $ = dialog("Export Config", [
     ["form", {onsubmit: submit},
       ["label", {"for": "target"}, "Target Parent Folder"],
       [".input",
@@ -212,6 +213,63 @@ function exportConfigDialog(config, callback) {
   function chooseFolder(evt) {
     nullify(evt);
     return fileSystem.chooseEntry({ type: "openDirectory"}, onEntry);
+  }
+
+}
+
+
+function serveConfigDialog(config, callback) {
+  var $ = dialog("Serve Config", [
+    ["form", {onsubmit: submit},
+      ["label", {"for": "port"}, "Local HTTP Port"],
+      [".input",
+        ["input.input-field$port", {
+          name: "port",
+          value: config.port,
+          required: true
+        }],
+        ["input.input-item$public", {
+          type: "checkbox",
+          name: "public",
+          checked: !!config.public,
+          title: "Make this available to others on your local network?"
+        }],
+      ],
+      ["label", {"for": "source"}, "Source Path"],
+      [".input",
+        ["input.input-field$source", {
+          name: "source",
+          value: config.source,
+          required: true
+        }],
+      ],
+      ["label", {"for": "filters"}, "Filters Path"],
+      [".input",
+        ["input.input-field$filters", {
+          name: "filters",
+          value: config.filters,
+          required: true
+        }],
+        ["input.input-item$submit", {type:"submit",value:"OK"}]
+      ]
+    ]
+  ], onCancel);
+
+  function onCancel(evt) {
+    nullify(evt);
+    $.close();
+    callback();
+  }
+
+  function submit(evt) {
+    nullify(evt);
+
+    config.port = parseInt($.port.value, 10);
+    config.source = $.source.value;
+    config.public = $.public.checked;
+    config.filters = $.filters.value;
+    $.close();
+    callback(config);
   }
 
 }

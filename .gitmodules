@@ -31,3 +31,7 @@
 [submodule "filters"]
 	path = filters
 	url = git@github.com:creationix/my-filters.git
+[submodule "lib/http-codec"]
+	url = git@github.com:creationix/http-codec.git
+	ref = refs/heads/master
+	path = lib/http-codec

@@ -15,7 +15,8 @@ var editor = require('./editor');
 var slider = require('./slider');
 var notify = require('./notify');
 
-var addExportHook = require('data/push-export').addExportHook;
+var addExportHook = require('data/push-export');
+var addServeHook = require('data/pull-serve');
 
 setDoc.updateDoc = updateDoc;
 setDoc.setActive = setActive;
@@ -90,6 +91,11 @@ function renderChild(path, mode, hash) {
   function init() {
     if ((mode === modes.tree || mode === modes.commit) && openPaths[path]) openTree(row);
     if (activePath && activePath === path) activateDoc(row, !selected);
+    // var hookConfig = hookConfigs[row.path];
+    // if (hookConfig && !hooks[row.path]) {
+    //   // TODO: don't hard-code this to http mode
+    //   hooks[row.path] = addServeHook(row, hookConfig);
+    // }
   }
 
 }
@@ -500,21 +506,30 @@ function removeEntry(row) {
   });
 }
 
-function pushExport(row) {
+function editHook(row, dialogFn, action) {
   row.call(fs.readEntry, function (entry) {
     var config = hookConfigs[row.path] || {
       entry: prefs.get("defaultExportEntry"),
       source: row.path,
+      port: 8080,
       filters: entry.root + "/filters",
       name: row.path.substring(row.path.lastIndexOf("/") + 1)
     };
-    dialog.exportConfig(config, function (settings) {
+    dialogFn(config, function (settings) {
       if (!settings) return;
       hookConfigs[row.path] = settings;
-      prefs.set("defaultExportEntry", settings.entry);
-      hooks[row.path] = addExportHook(row, settings);
+      if (settings.entry) prefs.set("defaultExportEntry", settings.entry);
+      hooks[row.path] = action(row, settings);
     });
   });
+}
+
+function pullServe(row) {
+  editHook(row, dialog.serveConfig, addServeHook);
+}
+
+function pushExport(row) {
+  editHook(row, dialog.exportConfig, addExportHook);
 }
 
 function removeAll() {
@@ -579,7 +594,7 @@ function makeMenu(row) {
   );
   actions.push(
     {sep:true},
-    {icon:"globe", label:"Serve Over HTTP"},
+    {icon:"globe", label:"Serve Over HTTP", action: pullServe},
     {icon:"hdd", label:"Live Export to Disk", action: pushExport}
   );
 

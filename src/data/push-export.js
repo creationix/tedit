@@ -7,25 +7,23 @@ var notify = require('ui/notify');
 
 var memory = {};
 
-module.exports = {
-  addExportHook: addExportHook
-};
+module.exports = addExportHook;
 
 function addExportHook(row, settings) {
   var rootEntry;
   var servePath = publisher(readPath, settings);
   var dirty = null;
-  row.pulse = true;
+  row.pulse++;
   fileSystem.restoreEntry(settings.entry, function (entry) {
     if (!entry) row.fail(new Error("Failed to restore entry"));
     rootEntry = entry;
-    row.pulse = false;
-    hook(row);
+    row.pulse--;
+    hook();
   });
 
   return hook;
 
-  function hook(rootHash) {
+  function hook() {
     if (!rootEntry) return;
     // If it's busy doing an export, put the row in the dirty queue
     if (queue) {
@@ -35,7 +33,7 @@ function addExportHook(row, settings) {
     row.exportPath = rootEntry.fullPath + "/" + settings.name;
 
     // Mark the process as busy
-    row.pulse = true;
+    row.pulse++;
     queue = [];
 
     pending = 0;
@@ -66,7 +64,7 @@ function addExportHook(row, settings) {
   }
 
   function onDone() {
-    row.pulse = false;
+    row.pulse--;
     queue = null;
     notify("Finished Export to " + rootEntry.fullPath + "/" + settings.name);
     // If there was a pending request, run it now.
@@ -78,7 +76,7 @@ function addExportHook(row, settings) {
   }
 
   function onError(err) {
-    row.pulse = false;
+    row.pulse--;
     notify("Export Failed");
     row.fail(err);
   }

@@ -16,7 +16,7 @@ function makeRow(path, mode, hash) {
   var errorMessage = "",
       title,
       treeHash,
-      pulse,
+      pulse = 0,
       exportPath,
       serverPort,
       open = false,
@@ -150,7 +150,7 @@ function makeRow(path, mode, hash) {
     if (serverPort) {
       if (!$.server) {
         $.row.appendChild(domBuilder(["i$server"], $));
-        $.export.setAttribute("class", "icon-globe" + (pulse ? " animate-spin" : ""));
+        $.server.setAttribute("class", "icon-globe" + (pulse ? " animate-spin" : ""));
       }
       $.server.setAttribute("title", "Serving on port " + serverPort);
     }

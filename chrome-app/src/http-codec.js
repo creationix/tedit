@@ -1,0 +1,1 @@
+../../lib/http-codec/http-codec.js|amd .
