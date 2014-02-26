@@ -5,6 +5,8 @@ var pathJoin = require('pathjoin');
 var rescape = require('data/rescape');
 var loadModule = require('./load-module');
 var modes = require('js-git/lib/modes');
+var jonParse = require('data/jon-parser').parse;
+
 
 // readPath accepts a path and returns {mode,hash,{tree|link} in callback
 // req contains(...TODO: document...)

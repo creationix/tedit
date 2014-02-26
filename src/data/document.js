@@ -69,6 +69,7 @@ function setDoc(row, body) {
     }
     if (doc.mode !== row.mode) {
       var aceMode =
+        /\.rule/.test(row.path) ? "ace/mode/jack" :
         /\.gitmodules/.test(row.path) ? "ace/mode/ini" :
         row.mode === modes.sym ? "ace/mode/text" :
         modelist.getModeForPath(row.path).mode;
