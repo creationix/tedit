@@ -72,9 +72,8 @@ function lex(jon) {
                 token === "INTEGER" ? parseInt(value, 10) :
                 token === "ZERO" ? 0 : undefined;
         if (token === "HEX" || token === "ZERO" || token === "INTEGER" ||
-            token === "STRING" || token === "FORM" || token === "SYMBOL" ||
-            token === "BUFFER") {
-          token = "CONSTANT";
+            token === "BUFFER" || token === "FORM" || token === "SYMBOL") {
+          token = "VALUE";
         }
       }
       break;
@@ -95,7 +94,6 @@ function lex(jon) {
   return tokens;
 }
 
-
 exports.parse = parse;
 function parse(tokens) {
   if (typeof tokens === "string") tokens = lex(tokens);
@@ -104,7 +102,7 @@ function parse(tokens) {
 
   var out = any();
   while (is("TERM"));
-  if (offset < length - 1) unexpected();
+  if (offset < length - 1) fail();
   return out;
 
   function is(type) {
@@ -118,7 +116,7 @@ function parse(tokens) {
     return false;
   }
 
-  function unexpected() {
+  function fail() {
     if (offset >= length) throw new SyntaxError("Unexpected end of input");
     throw new SyntaxError("Unexpected token " + token.type);
   }
@@ -129,36 +127,44 @@ function parse(tokens) {
   //  Array
   function any() {
     while (is("TERM"));
-    if (is("CONSTANT")) return value;
+    if (is("VALUE") || is("STRING")) return value;
     if (is("{")) return object();
     if (is("[")) return list();
-    unexpected();
+    fail();
   }
 
   function object() {
     var out = {};
+    if (is("}")) return out;
     while (is("TERM"));
-    while (!is("}")) {
-      var key = is("IDENT") ? value : any();
-      if (!is(":")) unexpected();
+    while (true) {
+      var key;
+      if (is("IDENT") || is("STRING")) key = value;
+      else {
+        if (!is("[")) fail();
+        key = any();
+        if (!is("]")) fail();
+      }
+      if (!is(":")) fail();
       out[key] = any();
       var hasTerm = false;
       while (is("TERM")) hasTerm = true;
       if (is("}")) break;
-      if (!hasTerm) unexpected();
+      if (!hasTerm) fail();
     }
     return out;
   }
 
   function list() {
     var out = [];
+    if (is("]")) return out;
     while (is("TERM"));
-    while (!is("]")) {
+    while (true) {
       out.push(any());
       var hasTerm = false;
       while (is("TERM")) hasTerm = true;
       if (is("]")) break;
-      if (!hasTerm) unexpected();
+      if (!hasTerm) fail();
     }
     return out;
   }

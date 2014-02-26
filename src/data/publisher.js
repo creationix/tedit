@@ -7,7 +7,6 @@ var loadModule = require('./load-module');
 var modes = require('js-git/lib/modes');
 var jonParse = require('data/jon-parser').parse;
 
-
 // readPath accepts a path and returns {mode,hash,{tree|link} in callback
 // req contains(...TODO: document...)
 module.exports = function (readPath, settings) {
@@ -34,7 +33,6 @@ module.exports = function (readPath, settings) {
           return callback(null, {tree: tree});
         });
       }
-
 
       // If the request etag matches what's still there, we're done!
       if (etag && etag === entry.hash) {
