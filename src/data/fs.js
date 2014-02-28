@@ -107,11 +107,12 @@ var resolvePath = gitTree({
   get: function (hash) { return cache[hash]; },
   getRootHash: function () { return rootHash; },
   loadAs: function (root, type, hash, callback) {
+    if (!(/^[0-9a-f]{40}$/.test(hash))) throw new TypeError("Invalid hash '" + hash + "'");
     var repo = repos[root];
     if (!repo) return callback(new Error("No repo for root '" + root + "'"));
-    repo.loadAs(type, hash, function (err, value, hash) {
+    repo.loadAs(type, hash, function (err, value) {
       if (value === undefined) {
-        return callback(err || new Error("Missing " + type + " at " + hash));
+        return callback(err || new Error("Missing " + type + " " + hash + " in " + root));
       }
       return callback(null, value, hash);
     });

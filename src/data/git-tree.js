@@ -27,6 +27,7 @@ module.exports = function (storage) {
   function resolvePath(path, bake, callback) {
     var mode = modes.commit;
     var hash = storage.getRootHash();
+    var fetch;
     var root = "";
 
     var parts = path.split("/").filter(Boolean);
@@ -49,6 +50,7 @@ module.exports = function (storage) {
           // transition into the tree
           mode = modes.tree;
           hash = storage.get(hash).tree;
+          fetch = null;
         }
 
         // When a tree is found, check it's contents for the next path segment.
@@ -117,6 +119,14 @@ module.exports = function (storage) {
           // We're good, move on!
           mode = entry.mode;
           hash = entry.hash;
+          fetch = entry.fetch; // Dynamic content comes with it's own loader
+          if (!fetch && !/^[0-9a-f]{40}$/.test(hash)) {
+            console.log({
+              path: path,
+              entry: entry
+            });
+            debugger;
+          }
           partial = newPath;
           if (mode === modes.commit) root = partial;
           index++;
@@ -202,6 +212,7 @@ module.exports = function (storage) {
             if (!check("commit", hash)) return;
             mode = modes.tree;
             hash = storage.get(hash).tree;
+            fetch = null;
           }
 
           // Serve the static blob or tree
@@ -209,8 +220,8 @@ module.exports = function (storage) {
           entry.hash = hash;
           entry.mode = mode;
           var overlays = [];
-          entry.fetch = function (callback) {
-            storage.loadAs(root, type, hash, function (err, result) {
+          entry.fetch = fetch || function (callback) {
+            return storage.loadAs(root, type, hash, function (err, result) {
               if (err) return callback(err);
               if (entry.mode === modes.tree && overlays.length) {
                 return applyOverlays(result, overlays, callback);
@@ -218,7 +229,7 @@ module.exports = function (storage) {
               callback(null, result);
             });
           };
-          if (entry.mode === modes.tree && rules.length) {
+          if (entry.mode === modes.tree) {
             return loadOverlays(overlays, function (err) {
               if (err) return callback(err);
               callback(null, entry);
@@ -247,7 +258,7 @@ module.exports = function (storage) {
 
     function applyOverlays(tree, overlays, callback) {
       var local = {};
-      // Rename local rules.
+      // Find local rules.
       Object.keys(tree).forEach(function (key) {
         var entry = tree[key];
         if (entry.mode !== modes.exec || !/\.rule$/.test(key)) return;
@@ -262,20 +273,19 @@ module.exports = function (storage) {
         local[key] = loadRule(childPath, childRule);
       });
 
+      // Execute and merge in local rules
       carallel(local, function (err, results) {
         if (err) return callback(err);
         Object.keys(results).forEach(function (key) {
           if (!tree[key]) {
             var entry = results[key];
-            tree[key] = {
-              mode: entry.mode,
-              hash: entry.hash
-            };
+            tree[key] = entry;
           }
         });
         next();
       });
 
+      // Execute overlays in order, deepest first.
       function next() {
         var overlay;
         do {
@@ -290,7 +300,9 @@ module.exports = function (storage) {
       function onTree(err, extra) {
         if (err) return callback(err);
         Object.keys(extra).forEach(function (key) {
-          if (!tree[key]) tree[key] = extra[key];
+          if (!tree[key]) {
+            tree[key] = extra[key];
+          }
         });
         next();
       }
