@@ -519,6 +519,7 @@ function editHook(row, dialogFn, action) {
       hookConfigs[row.path] = settings;
       if (settings.entry) prefs.set("defaultExportEntry", settings.entry);
       hooks[row.path] = action(row, settings);
+      prefs.save();
     });
   });
 }

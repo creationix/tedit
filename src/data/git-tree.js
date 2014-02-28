@@ -27,7 +27,7 @@ module.exports = function (storage) {
   function resolvePath(path, bake, callback) {
     var mode = modes.commit;
     var hash = storage.getRootHash();
-    var fetch;
+    var fetch = null;
     var root = "";
 
     var parts = path.split("/").filter(Boolean);

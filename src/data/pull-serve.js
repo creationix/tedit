@@ -136,7 +136,9 @@ function addServeHook(row, settings) {
               path += "/index.html";
               return serve();
             }
+            // Otherwise send the raw JSON
             return respond(200, [
+              ["Etag", result.hash],
               ["Content-Type", "application/json"]
             ], JSON.stringify(tree) + "\n");
           });
