@@ -83,7 +83,6 @@ function addExportHook(row, settings) {
   }
 
   function exportPath(path, name, dir) {
-    var hash = memory[path];
     pending++;
     return servePath(path, onEntry);
 

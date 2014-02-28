@@ -215,7 +215,7 @@ module.exports = function (storage) {
       entry.fetch = function (callback) {
         return storage.loadAs(root, type, hash, function (err, result) {
           if (err) return callback(err);
-          if (entry.mode === modes.tree && overlays.length) {
+          if (entry.mode === modes.tree) {
             return applyOverlays(result, overlays, callback);
           }
           callback(null, result);
@@ -295,8 +295,8 @@ module.exports = function (storage) {
       function onTree(err, extra) {
         if (err) return callback(err);
         Object.keys(extra).forEach(function (key) {
-          if (!tree[key]) {
-            tree[key] = extra[key];
+          if (!newTree[key]) {
+            newTree[key] = extra[key];
           }
         });
         next();
