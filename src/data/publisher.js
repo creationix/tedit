@@ -32,7 +32,7 @@ module.exports = function (readPath, settings) {
     function onCodeEntry(err, entry) {
       if (err) return callback(err);
       if (!entry.hash) return callback(new Error("Missing filter " + req.name));
-      codeHash = entry.hash;
+      req.codeHash = codeHash = entry.hash;
       // If the code hasn't changed, reuse the existing compiled worker.
       if (codeHashes[req.program] === codeHash) {
         return filters[req.program](servePath, req, callback);
