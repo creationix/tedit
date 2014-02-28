@@ -83,7 +83,7 @@ function addExportHook(row, settings) {
   }
 
   function exportPath(path, name, dir) {
-    var etag = memory[path];
+    var hash = memory[path];
     pending++;
     return servePath(path, onEntry);
 
@@ -95,20 +95,20 @@ function addExportHook(row, settings) {
   }
 
   function exportEntry(path, name, dir, entry) {
-    var etag = memory[path];
+    var hash = memory[path];
     // Always walk trees because there might be symlinks under them that point
     // to changed content without  the tree's content actually changing.
     if (entry.mode === modes.tree) return exportTree(path, name, dir, entry);
-    // If the etags match, it means we've already exported this version of this path.
-    if (etag && entry.etag === etag) {
-      // console.log("Skipping", path, etag);
+    // If the hashes match, it means we've already exported this version of this path.
+    if (hash && entry.hash === hash) {
+      // console.log("Skipping", path, hash);
       return onSuccess();
     }
     notify("Exporting " + path + "...");
-    // console.log("Exporting", path, etag);
+    // console.log("Exporting", path, hash);
 
     // Mark this as being saved.
-    memory[path] = entry.etag;
+    memory[path] = entry.hash;
     pending++;
     entry.fetch(onBody);
 
