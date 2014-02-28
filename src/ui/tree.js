@@ -91,11 +91,11 @@ function renderChild(path, mode, hash) {
   function init() {
     if ((mode === modes.tree || mode === modes.commit) && openPaths[path]) openTree(row);
     if (activePath && activePath === path) activateDoc(row, !selected);
-    // var hookConfig = hookConfigs[row.path];
-    // if (hookConfig && !hooks[row.path]) {
-    //   // TODO: don't hard-code this to http mode
-    //   hooks[row.path] = addServeHook(row, hookConfig);
-    // }
+    var hookConfig = hookConfigs[row.path];
+    if (hookConfig && !hooks[row.path]) {
+      // TODO: don't hard-code this to http mode
+      hooks[row.path] = addServeHook(row, hookConfig);
+    }
   }
 
 }
@@ -258,7 +258,7 @@ function commitChanges(row) {
           name: result.name,
           email: result.email
         },
-        parent: entry.config.head,
+        parent: entry.headHash,
         message: result.message
       };
       row.call(fs.saveAs, "commit", commit, function (hash) {
@@ -408,8 +408,8 @@ function createSymLink(row) {
 function importFolder(row) {
   chrome.fileSystem.chooseEntry({ type: "openDirectory"}, function (dir) {
     if (!dir) return;
-    row.call(fs.readEntry, function (entry) {
-      row.call(entry.repo, importEntry, dir, function (hash) {
+    row.call(fs.readRepo, function (repo) {
+      row.call(repo, importEntry, dir, function (hash) {
         addChild(row, dir.name, modes.tree, hash);
       });
     });

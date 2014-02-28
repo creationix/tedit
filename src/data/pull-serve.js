@@ -1,12 +1,13 @@
 
 var readPath = require('./fs').readPath;
-var publisher = require('data/publisher');
+var publisher = require('./publisher');
 var notify = require('ui/notify');
 var codec = require('http-codec').server;
 var socket = window.chrome.socket;
 var binary = require('bodec');
 var getMime = require('simple-mime')("text/plain");
 var pathJoin = require('pathjoin');
+var modes = require('js-git/lib/modes');
 
 module.exports = addServeHook;
 
@@ -15,7 +16,6 @@ function addServeHook(row, settings) {
   var servePath = publisher(readPath, settings);
 
   socket.create("tcp", {}, onCreate);
-  row.call(readPath, onEntry);
 
   return hook;
 
@@ -100,7 +100,7 @@ function addServeHook(row, settings) {
 
       function serve() {
         row.pulse++;
-        servePath(path, etag, function (err, result) {
+        servePath(path, function (err, result) {
           row.pulse--;
           try { onServe(err, result); }
           catch (err) { row.fail(err); }
@@ -109,51 +109,54 @@ function addServeHook(row, settings) {
 
       function onServe(err, result) {
 
-        if (err) {
-          respond(500, [], err.stack);
-          row.fail(err);
-        }
+        if (err) return error(err);
 
         if (!result) {
           return respond(404, [], item.path + " not found");
         }
 
-        if (result.etag && result.etag === etag) {
+        if (result.hash && result.hash === etag) {
           // etag matches, no change
           return respond(304, [
-            ["Etag", result.etag]
+            ["Etag", result.hash]
           ], "");
         }
 
-        if (result.tree) {
+        if (result.mode === modes.tree) {
           // Tell the browser to redirect if they forgot the trailing slash on a tree.
           if (item.path[item.path.length - 1] !== "/") {
             return respond(301, [
               ["Location", item.path + "/"]
             ], "");
           }
-          // Do an internal redirect if an index.html exists
-          if (result.tree["index.html"]) {
-            path += "/index.html";
-            return serve();
-          }
-          return respond(200, [
-            ["Content-Type", "application/json"]
-          ], JSON.stringify(result.tree) + "\n");
+          return result.fetch(function (err, tree) {
+            if (err) return error(err);
+            // Do an internal redirect if an index.html exists
+            if (tree["index.html"]) {
+              path += "/index.html";
+              return serve();
+            }
+            return respond(200, [
+              ["Content-Type", "application/json"]
+            ], JSON.stringify(tree) + "\n");
+          });
         }
 
         result.fetch(function (err, body) {
-          if (err) {
-            respond(500, [], err.stack);
-            row.fail(err);
-          }
+          if (err) return error(err);
           var resHeaders = [
-            ["Etag", result.etag],
+            ["Etag", result.hash],
             ["Content-Type", result.mime || getMime(path)]
           ];
           respond(200, resHeaders, body);
         });
       }
+
+      function error(err) {
+        respond(500, [], err.stack);
+        row.fail(err);
+      }
+
 
       function respond(code, headers, body) {
         // Log the request
@@ -176,10 +179,6 @@ function addServeHook(row, settings) {
         encode();
       }
     }
-  }
-
-  function onEntry(entry) {
-    hook(entry.hash);
   }
 
   function hook(newHash) {

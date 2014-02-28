@@ -86,6 +86,7 @@ editor.commands.addCommand({
 
 function save() {
 
+  if (!currentDoc.session) return;
   // Trim trailing whitespace.
   var doc = currentDoc.session.getDocument();
   var lines = doc.getAllLines();
