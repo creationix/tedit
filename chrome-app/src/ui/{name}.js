@@ -1,1 +1,0 @@
-../../../src/ui/{name}.js|amd ..

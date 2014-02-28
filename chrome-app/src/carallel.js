@@ -1,1 +1,0 @@
-../../lib/carallel/carallel.js|amd .

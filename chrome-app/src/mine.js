@@ -1,1 +1,0 @@
-../../lib/mine/mine.js|amd .

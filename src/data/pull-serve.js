@@ -111,7 +111,7 @@ function addServeHook(row, settings) {
 
         if (err) return error(err);
 
-        if (!result) {
+        if (!(result && result.hash)) {
           return respond(404, [], item.path + " not found");
         }
 

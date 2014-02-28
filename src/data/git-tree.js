@@ -4,6 +4,7 @@ var modes = require('js-git/lib/modes');
 var binary = require('bodec');
 var jonParse = require('data/jon-parser').parse;
 var carallel = require('carallel');
+var pathJoin = require('pathjoin');
 
 module.exports = function (storage) {
   // storage provides the following interface
@@ -104,8 +105,13 @@ module.exports = function (storage) {
             return searchRules();
           }
 
-          if (entry.mode === modes.sym) {
-            throw "TODO: Implement symlink resolving";
+          if (bake && (entry.mode === modes.sym)) {
+             if (!check("blob", entry.hash)) return;
+             var blob = storage.get(entry.hash);
+             var link = binary.toUnicode(blob);
+             var rest = parts.slice(index + 1).join("/");
+             var linkPath = pathJoin(partial, link, rest);
+             return resolvePath(linkPath, bake, callback);
           }
 
           // We're good, move on!
