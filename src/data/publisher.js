@@ -17,15 +17,15 @@ module.exports = function (readPath, settings) {
 
   function servePath(path, callback) {
     if (!callback) return servePath.bind(null, path);
-    console.log("servePath", path);
+    // console.log("servePath", path);
     return readPath(path, bake, callback);
   }
 
   function bake(req, callback) {
-    console.log("BAKE", {
-      req: req,
-      settings: settings
-    });
+    // console.log("BAKE", {
+    //   req: req,
+    //   settings: settings
+    // });
 
     var codeHash;
     var codePath = pathJoin(settings.filters, req.program + ".js");
@@ -37,7 +37,7 @@ module.exports = function (readPath, settings) {
       codeHash = entry.hash;
       // If the code hasn't changed, reuse the existing compiled worker.
       if (codeHashes[req.program] === codeHash) {
-        return filters[req.program](servePath, req, onHandle);
+        return filters[req.program](servePath, req, callback);
       }
       return entry.fetch(onCode);
     }
@@ -54,13 +54,7 @@ module.exports = function (readPath, settings) {
       }
       filters[req.program] = module;
       codeHashes[req.program] = codeHash;
-      filters[req.program](servePath, req, onHandle);
-    }
-
-    function onHandle(err, result) {
-      if (!result) return callback(err);
-      if (result.hash) result.hash += "-" + codeHash;
-      return callback(null, result);
+      filters[req.program](servePath, req, callback);
     }
   }
 

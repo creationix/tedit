@@ -92,8 +92,7 @@ function renderChild(path, mode, hash) {
     if ((mode === modes.tree || mode === modes.commit) && openPaths[path]) openTree(row);
     if (activePath && activePath === path) activateDoc(row, !selected);
     var hookConfig = hookConfigs[row.path];
-    if (hookConfig && !hooks[row.path]) {
-      // TODO: don't hard-code this to http mode
+    if (hookConfig && hookConfig.port && !hooks[row.path]) {
       hooks[row.path] = addServeHook(row, hookConfig);
     }
   }

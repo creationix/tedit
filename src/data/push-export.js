@@ -4,6 +4,7 @@ var fileSystem = chrome.fileSystem;
 var readPath = require('./fs').readPath;
 var publisher = require('data/publisher');
 var notify = require('ui/notify');
+var modes = require('js-git/lib/modes');
 
 var memory = {};
 
@@ -84,7 +85,7 @@ function addExportHook(row, settings) {
   function exportPath(path, name, dir) {
     var etag = memory[path];
     pending++;
-    return servePath(path, etag, onEntry);
+    return servePath(path, onEntry);
 
     function onEntry(err, entry) {
       pending--;
@@ -97,7 +98,7 @@ function addExportHook(row, settings) {
     var etag = memory[path];
     // Always walk trees because there might be symlinks under them that point
     // to changed content without  the tree's content actually changing.
-    if (entry.tree) return exportTree(path, name, dir, entry.tree);
+    if (entry.mode === modes.tree) return exportTree(path, name, dir, entry);
     // If the etags match, it means we've already exported this version of this path.
     if (etag && entry.etag === etag) {
       // console.log("Skipping", path, etag);
@@ -118,16 +119,19 @@ function addExportHook(row, settings) {
     }
   }
 
-  function exportTree(path, name, dir, tree) {
+  function exportTree(path, name, dir, entry) {
     // Create the directoy
     pending++;
-    dir.getDirectory(name, {create: true}, onDir, onError);
+    entry.fetch(function (err, tree) {
+      if (err) return onError(err);
+      dir.getDirectory(name, {create: true}, onDir, onError);
+      function onDir(dirEntry) {
+        pending--;
+        // Export it's children.
+        exportChildren(path, tree, dirEntry);
+      }
+    });
 
-    function onDir(dirEntry) {
-      pending--;
-      // Export it's children.
-      exportChildren(path, tree, dirEntry);
-    }
   }
 
   function exportChildren(base, tree, dir) {

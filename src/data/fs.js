@@ -433,7 +433,7 @@ function writeEntry(path, entry, callback) {
 function copyEntry(path, target, callback) {
   if (!callback) return copyEntry.bind(null, path, target);
   // Copy path related data between trees
-  var entry = resolvePath(path, true);
+  var entry = resolvePath(path);
   if (!entry.hash) return callback(new Error("Can't find source"));
   copyConfig(path, target);
   writeEntry(target, {
@@ -445,7 +445,7 @@ function copyEntry(path, target, callback) {
 
 function moveEntry(path, target, callback) {
   if (!callback) return moveEntry.bind(null, path, target);
-  var entry = resolvePath(path, true);
+  var entry = resolvePath(path);
   if (!entry.hash) return callback(new Error("Can't find source"));
 
   copyConfig(path, target);

@@ -62,8 +62,7 @@ module.exports = function (theme) {
   var prefix = new RegExp("^." + cssClass + " ");
   var rules = {};
   try {
-    // Fix a typo in the kuroir theme
-    var aceCss = aceTheme.cssText.replace("background-color: ;", "");
+    var aceCss = aceTheme.cssText;
 
     parseCss(aceCss).stylesheet.rules.forEach(function (rule) {
       if (rule.type !== "rule") return;

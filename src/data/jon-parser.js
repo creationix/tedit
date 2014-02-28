@@ -133,6 +133,7 @@ function parse(tokens) {
     fail();
   }
 
+
   function object() {
     var out = {};
     if (is("}")) return out;
@@ -140,11 +141,6 @@ function parse(tokens) {
     while (true) {
       var key;
       if (is("IDENT") || is("STRING")) key = value;
-      else {
-        if (!is("[")) fail();
-        key = any();
-        if (!is("]")) fail();
-      }
       if (!is(":")) fail();
       out[key] = any();
       var hasTerm = false;

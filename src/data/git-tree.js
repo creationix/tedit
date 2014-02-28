@@ -3,6 +3,7 @@
 var modes = require('js-git/lib/modes');
 var binary = require('bodec');
 var jonParse = require('data/jon-parser').parse;
+var carallel = require('carallel');
 
 module.exports = function (storage) {
   // storage provides the following interface
@@ -28,6 +29,7 @@ module.exports = function (storage) {
     var root = "";
 
     var parts = path.split("/").filter(Boolean);
+    path = parts.join("/");
     var index = 0;
     var partial = "";
 
@@ -118,41 +120,47 @@ module.exports = function (storage) {
       return done(index >= parts.length);
     }
 
-    function searchRules() {
-      var overlay, localPath;
-      path = parts.join("/");
-      return next();
-
-      function next() {
-        overlay = rules.pop();
-        if (!overlay) return done(false);
-        localPath = overlay.path ? path.substring(overlay.path.length + 1) : path;
-        return storage.loadAs(overlay.root, "blob", overlay.hash, onBlob);
-      }
-
-      function onBlob(err, blob) {
-        if (blob === undefined) return callback(err || new Error("Missing blob " + overlay.hash));
+    function loadRule(path, rule, callback) {
+      if (!callback) return loadRule.bind(null, path, rule);
+      return storage.loadAs(rule.root, "blob", rule.hash, function (err, blob) {
+        if (err) return callback(err);
+        if (blob === undefined) return callback(new Error("Missing blob " + rule.hash));
         var data;
         try {
           var jon = binary.toUnicode(blob);
           data = jonParse(jon);
         }
-        catch (err) { return callback(err); }
+        catch (err) {
+          err.message += "\nin " + rule.path + ".rule";
+          err.path = rule.path + ".rule";
+          return callback(err);
+        }
         data.paths = {
           full: path,
-          local: localPath,
-          rule: overlay.path,
+          local: rule.path ? path.substring(rule.path.length + 1) : path,
+          rule: rule.path,
           root: root
         };
-        return bake(data, onHandled);
+        bake(data, callback);
+      });
+    }
+
+    // The target entry was not found, this searches to see if any rules
+    // generate the path.
+    function searchRules() {
+      return next();
+
+      function next() {
+        var rule = rules.pop();
+        if (!rule) return done(false);
+        loadRule(path, rule, onHandled);
       }
 
       function onHandled(err, result) {
         if (err) return callback(err);
-        if (!result) return next();
+        if (!(result && result.hash)) return next();
         return callback(null, result);
       }
-
     }
 
     function check(type, hash) {
@@ -211,22 +219,75 @@ module.exports = function (storage) {
             });
           }
         }
-        else {
-          throw "TODO: Implement baked output";
-        }
       }
       if (callback) return callback(null, entry);
       return entry;
     }
 
     function loadOverlays(overlays, callback) {
-      throw "TODO: loadOverlays";
-      // Run all rules in parallel to get the etags for those who affect path
+      carallel(rules.map(function (rule) {
+        return loadRule(path, rule);
+      }), function (err, entries) {
+        if (err) return callback(err);
+
+        entries.forEach(function (entry, i) {
+          if (!entry) return;
+          entry.rule = rules[i];
+          overlays.push(entry);
+        });
+        callback();
+      });
     }
 
     function applyOverlays(tree, overlays, callback) {
-      throw "TODO: applyOverlays";
-      // Run all the fetchs in parallel and merge tree results
+      var local = {};
+      // Rename local rules.
+      Object.keys(tree).forEach(function (key) {
+        var entry = tree[key];
+        if (entry.mode !== modes.exec || !/\.rule$/.test(key)) return;
+        delete tree[key];
+        var childPath = path ? path + "/" + key : key;
+        var childRule = {
+          path: childPath,
+          root: root,
+          hash: entry.hash
+        };
+        key = key.substring(0, key.length - 5);
+        local[key] = loadRule(childPath, childRule);
+      });
+
+      carallel(local, function (err, results) {
+        if (err) return callback(err);
+        Object.keys(results).forEach(function (key) {
+          if (!tree[key]) {
+            var entry = results[key];
+            tree[key] = {
+              mode: entry.mode,
+              hash: entry.hash
+            };
+          }
+        });
+        next();
+      });
+
+      function next() {
+        var overlay;
+        do {
+          overlay = overlays.pop();
+          if (!overlay) {
+            return callback(null, tree);
+          }
+        } while (overlay.mode !== modes.tree);
+        overlay.fetch(onTree);
+      }
+
+      function onTree(err, extra) {
+        if (err) return callback(err);
+        Object.keys(extra).forEach(function (key) {
+          if (!tree[key]) tree[key] = extra[key];
+        });
+        next();
+      }
     }
 
   }
