@@ -2,9 +2,7 @@
 
 var binary = require('bodec');
 var pathJoin = require('pathjoin');
-var rescape = require('data/rescape');
 var loadModule = require('./load-module');
-var modes = require('js-git/lib/modes');
 
 // readPath accepts a path and outputs {mode,hash,root,[mime],fetch}
 module.exports = function (readPath, settings) {
