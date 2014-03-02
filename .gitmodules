@@ -39,3 +39,7 @@
 	url = git@github.com:creationix/jon-parse.git
 	ref = refs/heads/master
 	path = lib/jon-parse
+[submodule "lib/git-tree"]
+	url = git@github.com:creationix/git-tree.git
+	ref = refs/heads/master
+	path = lib/git-tree
