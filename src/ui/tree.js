@@ -692,7 +692,7 @@ function uniquePath(name, obj) {
 
 function splitPath(path) {
   return path.split("/").map(function (part) {
-    return part.replace(/[^a-z0-9#.+!*'()_\- ]*/g, "").trim();
+    return part.replace(/[^a-zA-Z0-9#.+!*'()_\- ]*/g, "").trim();
   }).filter(Boolean);
 }
 
