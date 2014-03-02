@@ -35,3 +35,7 @@
 	url = git@github.com:creationix/http-codec.git
 	ref = refs/heads/master
 	path = lib/http-codec
+[submodule "lib/jon-parse"]
+	url = git@github.com:creationix/jon-parse.git
+	ref = refs/heads/master
+	path = lib/jon-parse
