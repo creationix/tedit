@@ -2,7 +2,7 @@
 
 var modes = require('js-git/lib/modes');
 var binary = require('bodec');
-var jonParse = require('jon-parse').parse;
+var jonParse = require('jon-parse');
 var carallel = require('carallel');
 var pathJoin = require('pathjoin');
 
