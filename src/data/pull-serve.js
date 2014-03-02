@@ -96,7 +96,7 @@ function addServeHook(row, settings) {
       });
 
       var etag = headers['if-none-match'];
-      serve(path, etag);
+      serve();
 
       function serve() {
         row.pulse++;
