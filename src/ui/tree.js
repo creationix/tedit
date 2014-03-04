@@ -91,10 +91,10 @@ function renderChild(path, mode, hash) {
   function init() {
     if ((mode === modes.tree || mode === modes.commit) && openPaths[path]) openTree(row);
     if (activePath && activePath === path) activateDoc(row, !selected);
-    var hookConfig = hookConfigs[row.path];
-    if (hookConfig && hookConfig.port && !hooks[row.path]) {
-      hooks[row.path] = addServeHook(row, hookConfig);
-    }
+    // var hookConfig = hookConfigs[row.path];
+    // if (hookConfig && hookConfig.port && !hooks[row.path]) {
+    //   hooks[row.path] = addServeHook(row, hookConfig);
+    // }
   }
 
 }
