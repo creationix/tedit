@@ -86,8 +86,10 @@ function addServeHook(row, settings) {
         ], "");
       }
 
+      var pathname = item.path.split("?")[0];
+
       // Normalize the path to work with publisher system
-      var path = pathJoin(settings.source, item.path);
+      var path = pathJoin(settings.source, pathname);
 
       // Put headers in lowercased object for quick access
       var headers = {};
