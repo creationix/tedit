@@ -452,7 +452,7 @@ function addGithubMount(row) {
     if (/^[^\/:@]+\/[^\/:@]+$/.test(url)) {
       url = "git@github.com:" + url + ".git";
     }
-    var name = result.name || result.path;
+    var name = result.name || result.path.match(/[^\/]*$/)[0];
     var ref = result.ref || "refs/heads/master";
     makeUnique(row, name, modes.commit, function (path) {
       row.call(path, fs.addRepo, { url: url, ref: ref, github: true });
