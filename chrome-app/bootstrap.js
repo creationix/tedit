@@ -16,7 +16,7 @@
 
   function requireAsync(name, callback) {
     if (!(/\.[^\/]+$/.test(name))) name += ".js";
-    load(name, function () {
+    load("", name, function () {
       var module = requireSync(name);
       if (callback) callback(module);
     });
@@ -32,13 +32,13 @@
   }
 
   // Make sure a module and all it's deps are defined.
-  function load(name, callback) {
+  function load(parentName, name, callback) {
     // If it's flagged ready, it's ready
     if (ready[name]) return callback();
     // If there is something going on wait for it to finish.
     if (name in pending) return pending[name].push(callback);
     // If the module isn't downloaded yet, start it.
-    if (!(name in defs)) return download(name, callback);
+    if (!(name in defs)) return download(parentName, name, callback);
     var def = defs[name];
     var missing = def.deps.filter(function (depName) {
       return !ready[depName];
@@ -49,19 +49,22 @@
       return callback();
     }
     return missing.forEach(function (depName) {
-      load(depName, onDepLoad);
+      load(name, depName, onDepLoad);
     });
 
     function onDepLoad() {
-      if (!--left) return load(name, callback);
+      if (!--left) return load(parentName, name, callback);
     }
   }
 
-  function download(name, callback) {
+  function download(parentName, name, callback) {
     var script = document.createElement("script");
     script.setAttribute("charset", "utf-8");
     script.setAttribute("src", "src/" + name);
     script.setAttribute("async", true);
+    script.addEventListener("error", function () {
+      console.error("Error loading " + name + " required by " + parentName);
+    });
     scripts[name] = script;
     pending[name] = [callback];
     document.head.appendChild(script);
@@ -83,7 +86,7 @@
     var list = pending[name];
     delete pending[name];
     for (var i = 0, l = list.length; i < l; i++) {
-      load(name, list[i]);
+      load("", name, list[i]);
     }
   }
 
