@@ -47,3 +47,7 @@
 	url = git@github.com:nodeca/pako.git
 	ref = refs/heads/master
 	path = lib/pako
+[submodule "lib/js-github"]
+	url = git@github.com:creationix/js-github.git
+	ref = refs/heads/master
+	path = lib/js-github

@@ -28,7 +28,7 @@ function createRepo(config) {
     var githubName = getGithubName(config.url);
     var githubToken = prefs.get("githubToken", "");
     if (!githubToken) throw new Error("Missing github access token");
-    require('js-git/mixins/github-db')(repo, githubName, githubToken);
+    require('js-github/mixins/github-db')(repo, githubName, githubToken);
     // Github has this built-in, but it's currently very buggy
     require('js-git/mixins/create-tree')(repo);
     // Cache github objects locally in indexeddb
