@@ -3,7 +3,8 @@ var readPath = require('./fs').readPath;
 var publisher = require('./publisher');
 var notify = require('ui/notify');
 var codec = require('http-codec').server;
-var socket = window.chrome.socket;
+var tcpServer = window.chrome.sockets.tcpServer;
+var tcp = window.chrome.sockets.tcp;
 var binary = require('bodec');
 var getMime = require('simple-mime')("text/plain");
 var pathJoin = require('pathjoin');
@@ -15,63 +16,55 @@ function addServeHook(row, settings) {
   var serverId, rootHash;
   var servePath = publisher(readPath, settings);
 
-  socket.create("tcp", {}, onCreate);
+  tcpServer.create({}, onCreate);
 
   return hook;
 
-  function onCreate(socketInfo) {
-    serverId = socketInfo.socketId;
+  function onCreate(createInfo) {
+    serverId = createInfo.socketId;
     var ip = settings.public ? "0.0.0.0" : "127.0.0.1";
-    socket.listen(serverId, ip, settings.port, onListen);
+    tcpServer.listen(serverId, ip, settings.port, onListen);
   }
 
   // TODO: add proper error checking all over this file
 
   function onListen(result) {
+    if (result < 0) console.warn("Negative result to listen", result);
     // Look up the local port to show the user
-    socket.getInfo(serverId, function (info) {
+    tcpServer.getInfo(serverId, function (info) {
       // Show the user a globe icon with port information.
       var address = info.localAddress === "0.0.0.0" ? "localhost" : info.localAddress;
       notify("Local Server at http://" + address + ":" + info.localPort + "/");
       row.serverPort = info.localPort;
     });
-    start();
+    tcpServer.onAccept.addListener(onAccept);
   }
 
-  function start() {
-    socket.accept(serverId, onAccept);
-  }
+  function onAccept(info) {
+    if (info.socketId !== serverId) return;
 
-  function onAccept(acceptInfo) {
-
-    var clientId = acceptInfo.socketId;
+    var clientId = info.clientSocketId;
     var decode = codec.decoder(onItem);
     var encode = codec.encoder(onOut);
 
-    socket.getInfo(clientId, function (info) {
+
+    tcp.getInfo(clientId, function (info) {
       notify("TCP connection from " + info.peerAddress + ":" + info.peerPort);
-      read();
+      tcp.onReceive.addListener(onReceive);
+      tcp.setPaused(clientId, false);
     });
 
-    // Start listening for the next request
-    start();
-
-    function read() {
-      socket.read(clientId, onRead);
-    }
-
-    function onRead(readInfo) {
-      decode(new Uint8Array(readInfo.data));
-      // if (readInfo.resultCode) read();
-      read();
+    function onReceive(info) {
+      if (info.socketId !== clientId) return;
+      decode(new Uint8Array(info.data));
     }
 
     function onOut(binary) {
       if (binary) {
-        socket.write(clientId, binary.buffer, function (writeInfo) { });
+        tcp.send(clientId, binary.buffer, noop);
       }
       else {
-        socket.disconnect(clientId);
+        tcp.close(clientId, noop);
       }
     }
 
@@ -193,3 +186,5 @@ function addServeHook(row, settings) {
   }
 
 }
+
+function noop() {}

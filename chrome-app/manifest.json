@@ -14,11 +14,11 @@
   "permissions": [
     "storage",
     "unlimitedStorage",
-    {"fileSystem": ["write", "retainEntries", "directory"]},
-    "http://*/*",
-    "https://*/*",
-    {"socket": [ "tcp-connect", "tcp-listen" ]}
+    {"fileSystem": ["write", "retainEntries", "directory"]}
   ],
+  "sockets": {
+    "tcpServer" : {"listen":":*"}
+  },
   "icons": {
     "196": "icons/icon-196.png",
     "128": "icons/icon-128.png"
