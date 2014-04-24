@@ -27,8 +27,8 @@ module.exports = function (readPath, settings) {
     // });
     if (!settings.filters) {
       // TODO: serve rule file as static file.
-      return callback({mode:modes.file,hash:"TODO:servefile",fetch:function (callback) {
-        callback(binary.create("TODO:servefile"));
+      return callback(null, {mode:modes.file,hash:"TODO:servefile",fetch:function (callback) {
+        callback(null, binary.create("TODO:servefile"));
       }});
     }
 
