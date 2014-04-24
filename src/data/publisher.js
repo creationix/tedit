@@ -29,7 +29,7 @@ module.exports = function (readPath, settings) {
       // TODO: serve rule file as static file.
       return callback({mode:modes.file,hash:"TODO:servefile",fetch:function (callback) {
         callback(binary.create("TODO:servefile"));
-      });
+      }});
     }
 
     var codeHash;
