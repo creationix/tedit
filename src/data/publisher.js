@@ -3,6 +3,7 @@
 var binary = require('bodec');
 var pathJoin = require('pathjoin');
 var loadModule = require('./load-module');
+var modes = require('js-git/lib/modes');
 
 // readPath accepts a path and outputs {mode,hash,root,[mime],fetch}
 module.exports = function (readPath, settings) {
@@ -26,7 +27,9 @@ module.exports = function (readPath, settings) {
     // });
     if (!settings.filters) {
       // TODO: serve rule file as static file.
-      return callback();
+      return callback({mode:modes.file,hash:"TODO:servefile",fetch:function (callback) {
+        callback(binary.create("TODO:servefile"));
+      });
     }
 
     var codeHash;
