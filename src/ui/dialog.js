@@ -164,7 +164,6 @@ function exportConfigDialog(config, callback) {
         ["input.input-field$filters", {
           name: "filters",
           value: config.filters,
-          required: true
         }],
         ["input.input-item$submit", {type:"submit",value:"OK"}]
       ]
@@ -248,7 +247,6 @@ function serveConfigDialog(config, callback) {
         ["input.input-field$filters", {
           name: "filters",
           value: config.filters,
-          required: true
         }],
         ["input.input-item$submit", {type:"submit",value:"OK"}]
       ]

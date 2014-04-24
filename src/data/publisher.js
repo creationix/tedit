@@ -24,6 +24,10 @@ module.exports = function (readPath, settings) {
     //   req: req,
     //   settings: settings
     // });
+    if (!settings.filters) {
+      // TODO: serve rule file as static file.
+      return callback();
+    }
 
     var codeHash;
     var codePath = pathJoin(settings.filters, req.program + ".js");
