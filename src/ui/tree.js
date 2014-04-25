@@ -415,6 +415,18 @@ function importFolder(row) {
   });
 }
 
+function mountBareRepo(row) {
+  chrome.fileSystem.chooseEntry({ type: "openDirectory"}, function (dir) {
+    if (!dir) return;
+    makeUnique(row, dir.name, modes.commit, function (path) {
+      var entry = chrome.fileSystem.retainEntry(dir);
+      console.log("Adding repo", entry);
+      row.call(path, fs.addRepo, { entry: entry });
+      console.log("Added")
+    });
+  });
+}
+
 function addSubmodule(row) {
   dialog.multiEntry("Add a submodule", [
     {name: "url", placeholder: "git@hostname:path/to/repo.git", required: true},
@@ -557,6 +569,7 @@ function makeMenu(row) {
         {icon:"link", label:"Create SymLink", action: createSymLink},
         {sep:true},
         {icon:"folder", label:"Import Folder", action: importFolder},
+        {icon:"git", label: "Mount Local Bare Repo", action: mountBareRepo},
         // {icon:"fork", label: "Clone Remote Repo", action: addSubmodule},
         {icon:"github", label: "Mount Github Repo", action: addGithubMount}
       );

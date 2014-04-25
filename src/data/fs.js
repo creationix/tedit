@@ -29,20 +29,23 @@ function createRepo(config) {
     var githubToken = prefs.get("githubToken", "");
     if (!githubToken) throw new Error("Missing github access token");
     require('js-github/mixins/github-db')(repo, githubName, githubToken);
-    // Github has this built-in, but it's currently very buggy
-    require('js-git/mixins/create-tree')(repo);
     // Cache github objects locally in indexeddb
     require('js-git/mixins/add-cache')(repo, require('js-git/mixins/indexed-db'));
   }
+  else if (config.entry) {
+    require('git-chrome-fs/mixins/bare-db')(repo, config.entry);
+  }
   else {
-    // Prefix so we can find our refs after a reload
     if (!config.prefix) {
       config.prefix = Date.now().toString(36) + "-" + (Math.random() * 0x100000000).toString(36);
       prefs.save();
     }
     require('js-git/mixins/indexed-db')(repo, config.prefix);
-    require('js-git/mixins/create-tree')(repo);
+    prefs.save();
   }
+
+  // Github has this built-in, but it's currently very buggy
+  require('js-git/mixins/create-tree')(repo);
 
   // require('js-git/mixins/delay')(repo, 200);
 
