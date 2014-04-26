@@ -145,6 +145,7 @@ function addServeHook(row, settings) {
             ["Etag", result.hash],
             ["Content-Type", result.mime || getMime(path)]
           ];
+          body = new Uint8Array(body);
           respond(200, resHeaders, body);
         });
       }
