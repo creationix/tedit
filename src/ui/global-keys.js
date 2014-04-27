@@ -6,21 +6,24 @@ var editor = require('./editor');
 var tree = require('./tree');
 var dialog = require('./dialog');
 var doc = require('data/document');
+var os = require('data/os');
 var pending;
 
 window.addEventListener("keydown", onDown, true);
 window.addEventListener("keyup", onUp, true);
 window.addEventListener("keypress", onPress, true);
 function onDown(evt) {
+  console.log(evt);
+  var ctrlOrMeta = os.isMac ? evt.metaKey : evt.ctrlKey;
   // Ctrl-0
-  if (evt.ctrlKey && !evt.shiftKey && evt.keyCode === 48) zoom.reset();
+  if (ctrlOrMeta && !evt.shiftKey && evt.keyCode === 48) zoom.reset();
   // Ctrl-"+"
-  else if (evt.ctrlKey && !evt.shiftKey && evt.keyCode === 187) zoom.bigger();
+  else if (ctrlOrMeta && !evt.shiftKey && evt.keyCode === 187) zoom.bigger();
   // Ctrl-"-"
-  else if (evt.ctrlKey && !evt.shiftKey && evt.keyCode === 189) zoom.smaller();
+  else if (ctrlOrMeta && !evt.shiftKey && evt.keyCode === 189) zoom.smaller();
   // Ctrl-Shift-R
-  else if (evt.ctrlKey && evt.shiftKey && evt.keyCode === 82) chrome.runtime.reload();
-  else if (evt.ctrlKey && evt.keyCode === 66) {
+  else if (ctrlOrMeta && evt.shiftKey && evt.keyCode === 82) chrome.runtime.reload();
+  else if (ctrlOrMeta && evt.keyCode === 66) {
     // Ctrl-Shift-B
     if (evt.shiftKey) editor.prevTheme();
     // Ctrl-B
@@ -32,16 +35,16 @@ function onDown(evt) {
     else return;
   }
   // Alt+` switches between documents
-  else if (evt.altKey && evt.keyCode === 192) {
+  else if ((os.isMac ? evt.ctrlKey : evt.altKey) && evt.keyCode === 192) {
     pending = true;
     doc.next();
   }
   // Control-E Toggles Tree
-  else if (evt.ctrlKey && evt.keyCode === 69) {
+  else if (ctrlOrMeta && evt.keyCode === 69) {
     tree.toggle();
   }
   // Control-N Create new file
-  else if (evt.ctrlKey && !evt.shiftKey && evt.keyCode === 78) {
+  else if (ctrlOrMeta && !evt.shiftKey && evt.keyCode === 78) {
     tree.newFile();
   }
   else if (!tree.isFocused()) return;
