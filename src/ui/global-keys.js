@@ -13,7 +13,6 @@ window.addEventListener("keydown", onDown, true);
 window.addEventListener("keyup", onUp, true);
 window.addEventListener("keypress", onPress, true);
 function onDown(evt) {
-  console.log(evt);
   var ctrlOrMeta = os.isMac ? evt.metaKey : evt.ctrlKey;
   // Ctrl-0
   if (ctrlOrMeta && !evt.shiftKey && evt.keyCode === 48) zoom.reset();
