@@ -177,6 +177,7 @@ function jack() {/*
 
   "Right-Click in the area to the left to create a new repo"
 
+  -- If you are on ChromeOS, Linux, Windows
   Global-Controls = {
     Control-Shift-R: "Reload the app"
     Control-Plus: "Increase font size"
@@ -187,6 +188,18 @@ function jack() {/*
     Control-N: "Create new file relative to current or selected"
     Alt-Tilde: "Switch between recently opened files"
     -- If you manually close the tree by dragging, toggle remembers this.
+  }
+
+  -- But if you are on a Mac
+  Global-Controls-On-Mac = {
+    Command-Shift-R: "Reload the app"
+    Command-Plus: "Increase font size"
+    Command-Minus: "Decrease font size"
+    Command-B: "Apply next Theme"
+    Command-Shift-B: "Apply previous Theme"
+    Command-E: "Toggle focus between editor and file tree"
+    Command-N: "Create new file relative to current or selected"
+    Control-Tilde: "Switch between recently opened files"
   }
 
   File-Tree-Controls = {
