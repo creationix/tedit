@@ -418,12 +418,19 @@ function importFolder(row) {
 function mountBareRepo(row) {
   chrome.fileSystem.chooseEntry({ type: "openDirectory"}, function (dir) {
     if (!dir) return;
-    makeUnique(row, dir.name, modes.commit, function (path) {
-      var entry = chrome.fileSystem.retainEntry(dir);
-      console.log("Adding repo", entry);
-      row.call(path, fs.addRepo, { entry: entry });
-      console.log("Added")
-    });
+    var name = dir.name;
+    dir.getDirectory(".git", {}, function (result) {
+      dir = result;
+      go();
+    }, go);
+    function go() {
+      makeUnique(row, name, modes.commit, function (path) {
+        var entry = chrome.fileSystem.retainEntry(dir);
+        console.log("Adding repo", entry);
+        row.call(path, fs.addRepo, { entry: entry });
+        console.log("Added")
+      });
+    }
   });
 }
 
@@ -569,7 +576,7 @@ function makeMenu(row) {
         {icon:"link", label:"Create SymLink", action: createSymLink},
         {sep:true},
         {icon:"folder", label:"Import Folder", action: importFolder},
-        {icon:"git", label: "Mount Local Bare Repo", action: mountBareRepo},
+        {icon:"git", label: "Mount Local Repo", action: mountBareRepo},
         // {icon:"fork", label: "Clone Remote Repo", action: addSubmodule},
         {icon:"github", label: "Mount Github Repo", action: addGithubMount}
       );
