@@ -1,0 +1,26 @@
+{
+  -- This rule auto-generates an appcache manifest file.
+  -- This is referenced by index.html and enables the game to be played
+  -- even when the server is not accessable (user is offline usually)
+  program: "appcache"
+
+  -- Explicitly cached 'master entries'.
+  cache: [
+    "index.html"
+    "style.css"
+    "tedit-embedded.css"
+    "pixi.js"
+    "app.js"
+    "sprites.json"
+    "sprites.png"
+    "icon.png"
+  ]
+
+  -- Resources that require the user to be online.
+  network: ["*"]
+
+  -- In case we ever wanted to fallback data when offline
+  fallback: {
+    -- "/": "index.html"
+  }
+}

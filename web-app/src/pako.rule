@@ -1,0 +1,4 @@
+{
+  program: "amd-tree"
+  input: "lib/pako/lib"
+}
