@@ -1,4 +1,0 @@
-{
-  program: "amd-tree"
-  input: "src/main-fxos.js"
-}

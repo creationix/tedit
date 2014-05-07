@@ -1,4 +1,0 @@
-{
-  program: "amd-tree"
-  input: "lib/jon-parse/jon-parse.js"
-}
