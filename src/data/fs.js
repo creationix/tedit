@@ -33,7 +33,7 @@ function createRepo(config) {
     require('js-git/mixins/add-cache')(repo, require('js-git/mixins/indexed-db'));
   }
   else if (config.entry) {
-    require('git-chrome-fs/mixins/bare-db')(repo, config.entry);
+    require('git-chrome-fs/mixins/fs-db')(repo, config.entry);
   }
   else {
     if (!config.prefix) {
