@@ -19,6 +19,8 @@ module.exports = require('git-tree')({
   saveConfig: prefs.save,
   createRepo: createRepo,
 });
+module.exports.repos = repos;
+module.exports.configs = configs;
 
 // Create a repo instance from a config
 function createRepo(config) {

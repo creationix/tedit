@@ -1,4 +1,5 @@
 /* global chrome*/
+"use strict";
 var rootEl = require('./elements').tree;
 var fs = require('data/fs');
 
@@ -234,6 +235,17 @@ function updateDoc(row, body) {
   });
 }
 
+function updateRemote(row) {
+  var config = fs.configs[row.path];
+  var repo = fs.repos[row.path];
+  row.call(config.ref, repo.readRef, function (ref) {
+    if (config.head === ref) return;
+    config.head = ref;
+    notify("Head moved to " + ref);
+    onChange(fs.configs[""].current);
+  });
+}
+
 function commitChanges(row) {
   row.call(fs.readCommit, function (entry) {
     var githubName = fs.isGithub(row.path);
@@ -426,9 +438,7 @@ function mountBareRepo(row) {
     function go() {
       makeUnique(row, name, modes.commit, function (path) {
         var entry = chrome.fileSystem.retainEntry(dir);
-        console.log("Adding repo", entry);
         row.call(path, fs.addRepo, { entry: entry });
-        console.log("Added")
       });
     }
   });
@@ -586,8 +596,11 @@ function makeMenu(row) {
     }
   }
   if (row.mode === modes.commit) {
-    if (fs.isDirty(row.path)) actions.push(
+    actions.push(
       {sep:true},
+      {icon:"spinner", label: "Update", action: updateRemote}
+    );
+    if (fs.isDirty(row.path)) actions.push(
       {icon:"floppy", label:"Commit Changes", action: commitChanges},
       {icon:"ccw", label:"Revert all Changes", action: revertChanges}
     );
