@@ -107,7 +107,7 @@ ul.tree {
   left: 2px;
   right: 2px;
 }
-body, .tree, .titlebar, .main, .editor, .preview, .dragger, .image {
+body, .tree, .titlebar, .main, .main .editor, .preview, .dragger, .image {
   position: absolute;
   top: 0;
   left: 0;

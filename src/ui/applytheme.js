@@ -4,7 +4,7 @@
 var parseCss = require('css-parse');
 
 var template = {
-  ".tree": {
+  ".tree, div#ace_settingsmenu": {
     "color": [".ace_text-layer", ""],
     "background-color": [".ace_text-layer", ""],
     "background": [".ace_text-layer", ""],
