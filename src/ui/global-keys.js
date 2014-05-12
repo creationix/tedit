@@ -12,50 +12,54 @@ window.addEventListener("keydown", onDown, true);
 window.addEventListener("keyup", onUp, true);
 window.addEventListener("keypress", onPress, true);
 function onDown(evt) {
+  // Combine all combinations into number from 0 to 15.
+  var combo =
+    (evt.ctrlKey ? 1 : 0) |
+    (evt.shiftKey ? 2 : 0) |
+    (evt.altKey ? 4 : 0) |
+    (evt.metaKey ? 8 : 0);
+
   // Ctrl-0
-  if (evt.ctrlKey && !evt.shiftKey && evt.keyCode === 48) zoom.reset();
+  if (combo === 1 && evt.keyCode === 48) zoom.reset();
   // Ctrl-"+"
-  else if (evt.ctrlKey && !evt.shiftKey && evt.keyCode === 187) zoom.bigger();
+  else if (combo === 1 && evt.keyCode === 187) zoom.bigger();
   // Ctrl-"-"
-  else if (evt.ctrlKey && !evt.shiftKey && evt.keyCode === 189) zoom.smaller();
+  else if (combo === 1 && evt.keyCode === 189) zoom.smaller();
+
   // Ctrl-Shift-R
-  else if (evt.ctrlKey && evt.shiftKey && evt.keyCode === 82) chrome.runtime.reload();
-  else if (evt.ctrlKey && evt.keyCode === 66) {
-    // Ctrl-Shift-B
-    if (evt.shiftKey) editor.prevTheme();
-    // Ctrl-B
-    else editor.nextTheme();
-  }
+  else if (combo === 3 && evt.keyCode === 82) chrome.runtime.reload();
+
+  // Ctrl-B
+  else if (combo === 1 && evt.keyCode === 66) editor.nextTheme();
+  // Ctrl-Shift-B
+  else if (combo === 3 && evt.keyCode === 66) editor.prevTheme();
+
   else if (dialog.close) {
     // Esc closes a dialog
-    if (evt.keyCode === 27) dialog.close();
+    if (combo === 0 && evt.keyCode === 27) dialog.close();
     else return;
   }
   // Alt+` switches between documents
-  else if (evt.altKey && evt.keyCode === 192) {
+  else if (combo === 4 && evt.keyCode === 192) {
     pending = true;
     doc.next();
   }
   // Control-E Toggles Tree
-  else if (evt.ctrlKey && evt.keyCode === 69) {
-    tree.toggle();
-  }
+  else if (combo === 1 && evt.keyCode === 69) tree.toggle();
   // Control-N Create new file
-  else if (evt.ctrlKey && !evt.shiftKey && evt.keyCode === 78) {
-    tree.newFile();
-  }
+  else if (combo === 1 && evt.keyCode === 78) tree.newFile();
   else if (!tree.isFocused()) return;
-  else if (evt.keyCode === 33) tree.pageUp();
-  else if (evt.keyCode === 34) tree.pageDown();
-  else if (evt.keyCode === 35) tree.end();
-  else if (evt.keyCode === 36) tree.home();
-  else if (evt.keyCode === 37) tree.left();
-  else if (evt.keyCode === 38) tree.up();
-  else if (evt.keyCode === 39) tree.right();
-  else if (evt.keyCode === 40) tree.down();
-  else if (evt.keyCode === 27) tree.cancel();
-  else if (evt.keyCode ===  8) tree.backspace();
-  else if (evt.keyCode === 13) { // Enter
+  else if (combo === 0 && evt.keyCode === 33) tree.pageUp();
+  else if (combo === 0 && evt.keyCode === 34) tree.pageDown();
+  else if (combo === 0 && evt.keyCode === 35) tree.end();
+  else if (combo === 0 && evt.keyCode === 36) tree.home();
+  else if (combo === 0 && evt.keyCode === 37) tree.left();
+  else if (combo === 0 && evt.keyCode === 38) tree.up();
+  else if (combo === 0 && evt.keyCode === 39) tree.right();
+  else if (combo === 0 && evt.keyCode === 40) tree.down();
+  else if (combo === 0 && evt.keyCode === 27) tree.cancel();
+  else if (combo === 0 && evt.keyCode ===  8) tree.backspace();
+  else if (combo === 0 && evt.keyCode === 13) { // Enter
     tree.activate();
   }
   else return;
