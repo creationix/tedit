@@ -107,7 +107,7 @@ function addServeHook(row, settings) {
         if (err) return error(err);
 
         if (!(result && result.hash)) {
-          return respond(404, [], item.path + " not found");
+          return respond(404, [], pathname + " not found");
         }
 
         if (result.hash && result.hash === etag) {
@@ -119,9 +119,9 @@ function addServeHook(row, settings) {
 
         if (result.mode === modes.tree) {
           // Tell the browser to redirect if they forgot the trailing slash on a tree.
-          if (item.path[item.path.length - 1] !== "/") {
+          if (pathname[pathname.length - 1] !== "/") {
             return respond(301, [
-              ["Location", item.path + "/"]
+              ["Location", pathname + "/"]
             ], "");
           }
           return result.fetch(function (err, tree) {
@@ -158,7 +158,7 @@ function addServeHook(row, settings) {
 
       function respond(code, headers, body) {
         // Log the request
-        notify(item.method + " " + item.path + " " + code);
+        notify(item.method + " " + pathname + " " + code);
 
         if (typeof body === "string") body = binary.fromUnicode(body);
         var contentType, contentLength;
