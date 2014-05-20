@@ -1,2 +1,2 @@
-exports = module.exports = require('backends-web');
-exports.chrome = require('backends/chrome-fs');
+var backends = module.exports = require('backends-web');
+backends.push(require('backends/chrome-fs'));

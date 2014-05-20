@@ -26,9 +26,8 @@ module.exports.configs = configs;
 
 // Create a repo instance from a config
 function createRepo(config) {
-  var names = Object.keys(backends);
-  for (var i = 0, l = names.length; i < l; i++) {
-    var repo = backends[names[i]].createRepo(config);
+  for (var i = 0, l = backends.length; i < l; i++) {
+    var repo = backends[i].createRepo(config);
     if (repo) return repo;
   }
 }
