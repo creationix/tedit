@@ -1,15 +1,13 @@
 "use strict";
-/*global chrome*/
 
 var domBuilder = require('dombuilder');
-var fileSystem = chrome.fileSystem;
 
 // dialog.alert = alertDialog;
 dialog.prompt = promptDialog;
 dialog.confirm = confirmDialog;
 dialog.multiEntry = multiEntryDialog;
-dialog.exportConfig = exportConfigDialog;
-dialog.serveConfig = serveConfigDialog;
+// dialog.exportConfig = exportConfigDialog;
+// dialog.serveConfig = serveConfigDialog;
 
 module.exports = dialog;
 
@@ -129,145 +127,145 @@ function confirmDialog(question, callback) {
   }
 }
 
-function exportConfigDialog(config, callback) {
-  var entry;
-  var $ = dialog("Export Config", [
-    ["form", {onsubmit: submit},
-      ["label", {"for": "target"}, "Target Parent Folder"],
-      [".input",
-        ["input.input-field$target", {
-          name: "target",
-          onclick: chooseFolder,
-          onkeyup: reset,
-          required: true
-        }],
-        ["button.input-item", {onclick: chooseFolder}, "Choose..."]
-      ],
-      ["label", {"for": "name"}, "Target Name"],
-      [".input",
-        ["input.input-field$name", {
-          name: "name",
-          value: config.name,
-          required: true
-        }],
-      ],
-      ["label", {"for": "source"}, "Source Path"],
-      [".input",
-        ["input.input-field$source", {
-          name: "source",
-          value: config.source,
-          required: true
-        }],
-      ],
-      ["label", {"for": "filters"}, "Filters Path"],
-      [".input",
-        ["input.input-field$filters", {
-          name: "filters",
-          value: config.filters,
-        }],
-        ["input.input-item$submit", {type:"submit",value:"OK"}]
-      ]
-    ]
-  ], onCancel);
+// function exportConfigDialog(config, callback) {
+//   var entry;
+//   var $ = dialog("Export Config", [
+//     ["form", {onsubmit: submit},
+//       ["label", {"for": "target"}, "Target Parent Folder"],
+//       [".input",
+//         ["input.input-field$target", {
+//           name: "target",
+//           onclick: chooseFolder,
+//           onkeyup: reset,
+//           required: true
+//         }],
+//         ["button.input-item", {onclick: chooseFolder}, "Choose..."]
+//       ],
+//       ["label", {"for": "name"}, "Target Name"],
+//       [".input",
+//         ["input.input-field$name", {
+//           name: "name",
+//           value: config.name,
+//           required: true
+//         }],
+//       ],
+//       ["label", {"for": "source"}, "Source Path"],
+//       [".input",
+//         ["input.input-field$source", {
+//           name: "source",
+//           value: config.source,
+//           required: true
+//         }],
+//       ],
+//       ["label", {"for": "filters"}, "Filters Path"],
+//       [".input",
+//         ["input.input-field$filters", {
+//           name: "filters",
+//           value: config.filters,
+//         }],
+//         ["input.input-item$submit", {type:"submit",value:"OK"}]
+//       ]
+//     ]
+//   ], onCancel);
 
-  if (config.entry) {
-    return fileSystem.isRestorable(config.entry, onCheck);
-  }
-  return reset();
+//   if (config.entry) {
+//     return fileSystem.isRestorable(config.entry, onCheck);
+//   }
+//   return reset();
 
-  function onCheck(isRestorable) {
-    if (!isRestorable) {
-      delete config.entry;
-      return reset();
-    }
-    return fileSystem.restoreEntry(config.entry, onEntry);
-  }
+//   function onCheck(isRestorable) {
+//     if (!isRestorable) {
+//       delete config.entry;
+//       return reset();
+//     }
+//     return fileSystem.restoreEntry(config.entry, onEntry);
+//   }
 
-  function onEntry(result) {
-    if (result) entry = result;
-    return reset();
-  }
+//   function onEntry(result) {
+//     if (result) entry = result;
+//     return reset();
+//   }
 
-  function onCancel(evt) {
-    nullify(evt);
-    $.close();
-    callback();
-  }
+//   function onCancel(evt) {
+//     nullify(evt);
+//     $.close();
+//     callback();
+//   }
 
-  function reset() {
-    $.target.value = entry && entry.fullPath || "";
-  }
+//   function reset() {
+//     $.target.value = entry && entry.fullPath || "";
+//   }
 
-  function submit(evt) {
-    nullify(evt);
+//   function submit(evt) {
+//     nullify(evt);
 
-    config.source = $.source.value;
-    config.name = $.name.value;
-    config.filters = $.filters.value;
-    config.entry = fileSystem.retainEntry(entry);
-    $.close();
-    callback(config);
-  }
+//     config.source = $.source.value;
+//     config.name = $.name.value;
+//     config.filters = $.filters.value;
+//     config.entry = fileSystem.retainEntry(entry);
+//     $.close();
+//     callback(config);
+//   }
 
-  function chooseFolder(evt) {
-    nullify(evt);
-    return fileSystem.chooseEntry({ type: "openDirectory"}, onEntry);
-  }
+//   function chooseFolder(evt) {
+//     nullify(evt);
+//     return fileSystem.chooseEntry({ type: "openDirectory"}, onEntry);
+//   }
 
-}
+// }
 
 
-function serveConfigDialog(config, callback) {
-  var $ = dialog("Serve Config", [
-    ["form", {onsubmit: submit},
-      ["label", {"for": "port"}, "Local HTTP Port"],
-      [".input",
-        ["input.input-field$port", {
-          name: "port",
-          value: config.port,
-          required: true
-        }],
-        ["input.input-item$public", {
-          type: "checkbox",
-          name: "public",
-          checked: !!config.public,
-          title: "Make this available to others on your local network?"
-        }],
-      ],
-      ["label", {"for": "source"}, "Source Path"],
-      [".input",
-        ["input.input-field$source", {
-          name: "source",
-          value: config.source,
-          required: true
-        }],
-      ],
-      ["label", {"for": "filters"}, "Filters Path"],
-      [".input",
-        ["input.input-field$filters", {
-          name: "filters",
-          value: config.filters,
-        }],
-        ["input.input-item$submit", {type:"submit",value:"OK"}]
-      ]
-    ]
-  ], onCancel);
+// function serveConfigDialog(config, callback) {
+//   var $ = dialog("Serve Config", [
+//     ["form", {onsubmit: submit},
+//       ["label", {"for": "port"}, "Local HTTP Port"],
+//       [".input",
+//         ["input.input-field$port", {
+//           name: "port",
+//           value: config.port,
+//           required: true
+//         }],
+//         ["input.input-item$public", {
+//           type: "checkbox",
+//           name: "public",
+//           checked: !!config.public,
+//           title: "Make this available to others on your local network?"
+//         }],
+//       ],
+//       ["label", {"for": "source"}, "Source Path"],
+//       [".input",
+//         ["input.input-field$source", {
+//           name: "source",
+//           value: config.source,
+//           required: true
+//         }],
+//       ],
+//       ["label", {"for": "filters"}, "Filters Path"],
+//       [".input",
+//         ["input.input-field$filters", {
+//           name: "filters",
+//           value: config.filters,
+//         }],
+//         ["input.input-item$submit", {type:"submit",value:"OK"}]
+//       ]
+//     ]
+//   ], onCancel);
 
-  function onCancel(evt) {
-    nullify(evt);
-    $.close();
-    callback();
-  }
+//   function onCancel(evt) {
+//     nullify(evt);
+//     $.close();
+//     callback();
+//   }
 
-  function submit(evt) {
-    nullify(evt);
+//   function submit(evt) {
+//     nullify(evt);
 
-    config.port = parseInt($.port.value, 10);
-    config.source = $.source.value;
-    config.public = $.public.checked;
-    config.filters = $.filters.value;
-    $.close();
-    callback(config);
-  }
+//     config.port = parseInt($.port.value, 10);
+//     config.source = $.source.value;
+//     config.public = $.public.checked;
+//     config.filters = $.filters.value;
+//     $.close();
+//     callback(config);
+//   }
 
-}
+// }
