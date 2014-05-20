@@ -1,0 +1,29 @@
+{
+  program: "js-compiler"
+  bootstrap: {
+    path: "bootstrap.js"
+    main: "src/main.js"
+  }
+  mappings: {
+    -- Map to the main tedit source files
+    src: "src"
+
+    -- Map to platform specific adapters
+    local-storage: "lib/platform/local-storage.js"
+
+    -- Map to the external dependencies
+    bodec: "lib/bodec/bodec.js"
+    carallel: "lib/carallel/carallel.js"
+    css-parse: "lib/css-parse/index.js"
+    dombuilder: "lib/dombuilder/dombuilder.js"
+    git-sha1: "lib/git-sha1/git-sha1.js"
+    git-tree: "lib/git-tree/git-tree.js"
+    jon-parse: "lib/jon-parse/jon-parse.js"
+    js-git: "lib/js-git"
+    js-github: "lib/js-github"
+    mine: "lib/mine/mine.js"
+    pako: "lib/pako/lib"
+    pathjoin: "lib/pathjoin/pathjoin.js"
+    simple-mime: "lib/simple-mime/simple-mime.js"
+  }
+}

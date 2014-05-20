@@ -3,7 +3,7 @@
 require('./editor');
 
 var $ = require("./elements");
-var prefs = require('data/prefs');
+var prefs = require('platform/prefs');
 
 var position = null;
 var isTouch = false;

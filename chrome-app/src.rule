@@ -1,5 +1,0 @@
-{
-  program: "amd-tree"
-  input: "src"
-  base: "src"
-}

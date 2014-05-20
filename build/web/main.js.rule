@@ -1,8 +1,0 @@
-{
-  program: "sourcerer"
-  style: "bundle"
-  main: "src/main-web.js"
-  include-bootstrap: true
-  regenerator: true
-  minify: true
-}

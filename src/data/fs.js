@@ -1,4 +1,4 @@
-var prefs = require('./prefs');
+var prefs = require('platform/prefs');
 
 // Data for repos is keyed by path. The root config is keyed by "".
 // Live js-git instances by path

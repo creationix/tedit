@@ -1,5 +1,0 @@
-{
-  program: "styler"
-  style: "bundle"
-  main: "src/style-web.css"
-}
