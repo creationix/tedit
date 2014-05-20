@@ -5,7 +5,7 @@ var domBuilder = require('dombuilder');
 
 var notify = require('./notify');
 var $ = require('./elements');
-var prefs = require('platform/prefs');
+var prefs = require('prefs');
 var zoom = require('./zoom');
 
 ace.require("ace/ext/language_tools"); // Trigger the extension.

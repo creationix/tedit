@@ -1,29 +1,30 @@
 {
   program: "js-compiler"
-  bootstrap: {
-    path: "bootstrap.js"
-    main: "src/main.js"
-  }
+
   mappings: {
     -- Map to the main tedit source files
-    src: "src"
+    main.js: "src/main-web.js"
+    prefs.js: "src/prefs-web.js"
+    data: "src/data"
+    ui: "src/ui"
+    backends.js: "src/backends-web.js"
+    backends: "src/backends"
 
-    -- Map to platform specific adapters
-    local-storage: "lib/platform/local-storage.js"
 
     -- Map to the external dependencies
-    bodec: "lib/bodec/bodec.js"
-    carallel: "lib/carallel/carallel.js"
-    css-parse: "lib/css-parse/index.js"
-    dombuilder: "lib/dombuilder/dombuilder.js"
-    git-sha1: "lib/git-sha1/git-sha1.js"
-    git-tree: "lib/git-tree/git-tree.js"
-    jon-parse: "lib/jon-parse/jon-parse.js"
+    http-codec.js: "lib/http-codec/http-codec.js"
+    bodec.js: "lib/bodec/bodec.js"
+    carallel.js: "lib/carallel/carallel.js"
+    css-parse.js: "lib/css-parse/index.js"
+    dombuilder.js: "lib/dombuilder/dombuilder.js"
+    git-sha1.js: "lib/git-sha1/git-sha1.js"
+    git-tree.js: "lib/git-tree/git-tree.js"
+    jon-parse.js: "lib/jon-parse/jon-parse.js"
     js-git: "lib/js-git"
     js-github: "lib/js-github"
-    mine: "lib/mine/mine.js"
+    mine.js: "lib/mine/mine.js"
     pako: "lib/pako/lib"
-    pathjoin: "lib/pathjoin/pathjoin.js"
-    simple-mime: "lib/simple-mime/simple-mime.js"
+    pathjoin.js: "lib/pathjoin/pathjoin.js"
+    simple-mime.js: "lib/simple-mime/simple-mime.js"
   }
 }

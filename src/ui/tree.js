@@ -1,4 +1,3 @@
-/* global chrome*/
 "use strict";
 var rootEl = require('./elements').tree;
 var fs = require('data/fs');
@@ -6,18 +5,17 @@ var fs = require('data/fs');
 var makeRow = require('./row');
 var modes = require('js-git/lib/modes');
 var defer = require('js-git/lib/defer');
-var prefs = require('data/prefs');
+var prefs = require('prefs');
 var setDoc = require('data/document');
 var dialog = require('./dialog');
 var contextMenu = require('./context-menu');
-var importEntry = require('data/importfs');
+// var importEntry = require('data/importfs');
 var rescape = require('data/rescape');
 var editor = require('./editor');
 var slider = require('./slider');
 var notify = require('./notify');
 
-var addExportHook = require('data/push-export');
-var addServeHook = require('data/pull-serve');
+// var runtimes = require('runtimes');
 
 setDoc.updateDoc = updateDoc;
 setDoc.setActive = setActive;
@@ -416,53 +414,53 @@ function createSymLink(row) {
   });
 }
 
-function importFolder(row) {
-  chrome.fileSystem.chooseEntry({ type: "openDirectory"}, function (dir) {
-    if (!dir) return;
-    row.call(fs.readRepo, function (repo) {
-      row.call(repo, importEntry, dir, function (hash) {
-        addChild(row, dir.name, modes.tree, hash);
-      });
-    });
-  });
-}
+// function importFolder(row) {
+//   chrome.fileSystem.chooseEntry({ type: "openDirectory"}, function (dir) {
+//     if (!dir) return;
+//     row.call(fs.readRepo, function (repo) {
+//       row.call(repo, importEntry, dir, function (hash) {
+//         addChild(row, dir.name, modes.tree, hash);
+//       });
+//     });
+//   });
+// }
 
-function mountBareRepo(row) {
-  chrome.fileSystem.chooseEntry({ type: "openDirectory"}, function (dir) {
-    if (!dir) return;
-    var name = dir.name;
-    dir.getDirectory(".git", {}, function (result) {
-      dir = result;
-      go();
-    }, go);
-    function go() {
-      makeUnique(row, name, modes.commit, function (path) {
-        var entry = chrome.fileSystem.retainEntry(dir);
-        row.call(path, fs.addRepo, { entry: entry });
-      });
-    }
-  });
-}
+// function mountBareRepo(row) {
+//   chrome.fileSystem.chooseEntry({ type: "openDirectory"}, function (dir) {
+//     if (!dir) return;
+//     var name = dir.name;
+//     dir.getDirectory(".git", {}, function (result) {
+//       dir = result;
+//       go();
+//     }, go);
+//     function go() {
+//       makeUnique(row, name, modes.commit, function (path) {
+//         var entry = chrome.fileSystem.retainEntry(dir);
+//         row.call(path, fs.addRepo, { entry: entry });
+//       });
+//     }
+//   });
+// }
 
-function addSubmodule(row) {
-  dialog.multiEntry("Add a submodule", [
-    {name: "url", placeholder: "git@hostname:path/to/repo.git", required: true},
-    {name: "ref", placeholder: "refs/heads/master"},
-    {name: "name", placeholder: "localname"}
-  ], function (result) {
-    if (!result) return;
-    var url = result.url;
-    // Assume github if user/name combo is given
-    if (/^[^\/:@]+\/[^\/:@]+$/.test(url)) {
-      url = "git@github.com:" + url + ".git";
-    }
-    var name = result.name || result.url.substring(result.url.lastIndexOf("/") + 1);
-    var ref = result.ref || "refs/heads/master";
-    makeUnique(row, name, modes.commit, function (path) {
-      row.call(path, fs.addRepo, { url: url, ref: ref });
-    });
-  });
-}
+// function addSubmodule(row) {
+//   dialog.multiEntry("Add a submodule", [
+//     {name: "url", placeholder: "git@hostname:path/to/repo.git", required: true},
+//     {name: "ref", placeholder: "refs/heads/master"},
+//     {name: "name", placeholder: "localname"}
+//   ], function (result) {
+//     if (!result) return;
+//     var url = result.url;
+//     // Assume github if user/name combo is given
+//     if (/^[^\/:@]+\/[^\/:@]+$/.test(url)) {
+//       url = "git@github.com:" + url + ".git";
+//     }
+//     var name = result.name || result.url.substring(result.url.lastIndexOf("/") + 1);
+//     var ref = result.ref || "refs/heads/master";
+//     makeUnique(row, name, modes.commit, function (path) {
+//       row.call(path, fs.addRepo, { url: url, ref: ref });
+//     });
+//   });
+// }
 
 function addGithubMount(row) {
   var githubToken = prefs.get("githubToken", "");
@@ -534,41 +532,41 @@ function removeEntry(row) {
   });
 }
 
-function editHook(row, dialogFn, action) {
-  row.call(fs.readEntry, function (entry) {
-    var config = hookConfigs[row.path] || {
-      entry: prefs.get("defaultExportEntry"),
-      source: row.path,
-      port: 8080,
-      filters: entry.root + "/filters",
-      name: row.path.substring(row.path.lastIndexOf("/") + 1)
-    };
-    dialogFn(config, function (settings) {
-      if (!settings) return;
-      hookConfigs[row.path] = settings;
-      if (settings.entry) prefs.set("defaultExportEntry", settings.entry);
-      hooks[row.path] = action(row, settings);
-      prefs.save();
-    });
-  });
-}
+// function editHook(row, dialogFn, action) {
+//   row.call(fs.readEntry, function (entry) {
+//     var config = hookConfigs[row.path] || {
+//       entry: prefs.get("defaultExportEntry"),
+//       source: row.path,
+//       port: 8080,
+//       filters: entry.root + "/filters",
+//       name: row.path.substring(row.path.lastIndexOf("/") + 1)
+//     };
+//     dialogFn(config, function (settings) {
+//       if (!settings) return;
+//       hookConfigs[row.path] = settings;
+//       if (settings.entry) prefs.set("defaultExportEntry", settings.entry);
+//       hooks[row.path] = action(row, settings);
+//       prefs.save();
+//     });
+//   });
+// }
 
-function pullServe(row) {
-  editHook(row, dialog.serveConfig, addServeHook);
-}
+// function pullServe(row) {
+//   editHook(row, dialog.serveConfig, addServeHook);
+// }
 
-function pushExport(row) {
-  editHook(row, dialog.exportConfig, addExportHook);
-}
+// function pushExport(row) {
+//   editHook(row, dialog.exportConfig, addExportHook);
+// }
 
-function removeAll() {
-  dialog.confirm("Are you sure you want to reset app to factory settings?", function (confirm) {
-    if (!confirm) return;
-    window.indexedDB.deleteDatabase("tedit");
-    chrome.storage.local.clear();
-    chrome.runtime.reload();
-  });
-}
+// function removeAll() {
+//   dialog.confirm("Are you sure you want to reset app to factory settings?", function (confirm) {
+//     if (!confirm) return;
+//     window.indexedDB.deleteDatabase("tedit");
+//     chrome.storage.local.clear();
+//     chrome.runtime.reload();
+//   });
+// }
 
 
 function makeMenu(row) {
@@ -585,13 +583,13 @@ function makeMenu(row) {
         {icon:"folder", label:"Create Folder", action: createFolder},
         {icon:"link", label:"Create SymLink", action: createSymLink},
         {sep:true},
-        {icon:"folder", label:"Import Folder", action: importFolder},
-        {icon:"git", label: "Mount Local Repo", action: mountBareRepo},
+        // {icon:"folder", label:"Import Folder", action: importFolder},
+        // {icon:"git", label: "Mount Local Repo", action: mountBareRepo},
         // {icon:"fork", label: "Clone Remote Repo", action: addSubmodule},
         {icon:"github", label: "Mount Github Repo", action: addGithubMount}
       );
       if (!row.path) {
-        actions.push({icon:"ccw", label: "Remove All", action: removeAll});
+        // actions.push({icon:"ccw", label: "Remove All", action: removeAll});
       }
     }
   }
@@ -625,11 +623,11 @@ function makeMenu(row) {
     {icon:"docs", label:"Copy " + type, action: copyEntry},
     {icon:"trash", label:"Delete " + type, action: removeEntry}
   );
-  actions.push(
-    {sep:true},
-    {icon:"globe", label:"Serve Over HTTP", action: pullServe},
-    {icon:"hdd", label:"Live Export to Disk", action: pushExport}
-  );
+  // actions.push(
+  //   {sep:true},
+  //   {icon:"globe", label:"Serve Over HTTP", action: pullServe},
+  //   {icon:"hdd", label:"Live Export to Disk", action: pushExport}
+  // );
 
   // If there was a leading separator, remove it.
   if (actions[0].sep) actions.shift();
