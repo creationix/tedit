@@ -1,5 +1,32 @@
 {
-  program: "amd-tree"
-  input: "src"
-  base: "src"
+  program: "js-compiler"
+
+  mappings: {
+    -- Map to the main tedit source files
+    main.js: "src/main-chrome.js"
+    prefs.js: "src/prefs-chrome.js"
+    backends: "src/backends"
+    backends.js: "src/backends-chrome.js"
+    runtimes: "src/runtimes"
+    runtimes.js: "src/runtimes-chrome.js"
+    data: "src/data"
+    ui: "src/ui"
+
+    -- Map to the external dependencies
+    bodec.js: "lib/bodec/bodec.js"
+    carallel.js: "lib/carallel/carallel.js"
+    css-parse.js: "lib/css-parse/index.js"
+    dombuilder.js: "lib/dombuilder/dombuilder.js"
+    git-chrome-fs: "lib/git-chrome-fs"
+    git-sha1.js: "lib/git-sha1/git-sha1.js"
+    git-tree.js: "lib/git-tree/git-tree.js"
+    http-codec.js: "lib/http-codec/http-codec.js"
+    jon-parse.js: "lib/jon-parse/jon-parse.js"
+    js-git: "lib/js-git"
+    js-github: "lib/js-github"
+    mine.js: "lib/mine/mine.js"
+    pako: "lib/pako/lib"
+    pathjoin.js: "lib/pathjoin/pathjoin.js"
+    simple-mime.js: "lib/simple-mime/simple-mime.js"
+  }
 }

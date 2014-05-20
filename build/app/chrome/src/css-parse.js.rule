@@ -1,4 +1,0 @@
-{
-  program: "amd-tree"
-  input: "lib/css-parse/index.js"
-}

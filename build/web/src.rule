@@ -5,11 +5,12 @@
     -- Map to the main tedit source files
     main.js: "src/main-web.js"
     prefs.js: "src/prefs-web.js"
+    backends: "src/backends"
+    backends.js: "src/backends-web.js"
+    runtimes: "src/runtimes"
+    runtimes.js: "src/runtimes-web.js"
     data: "src/data"
     ui: "src/ui"
-    backends.js: "src/backends-web.js"
-    backends: "src/backends"
-
 
     -- Map to the external dependencies
     http-codec.js: "lib/http-codec/http-codec.js"

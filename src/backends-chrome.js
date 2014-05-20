@@ -1,2 +1,5 @@
-var backends = module.exports = require('backends-web');
-backends.push(require('backends/chrome-fs'));
+module.exports = [
+  require('backends/github'),
+  require('backends/indexed-db'),
+  require('backends/chrome-fs'),
+];
