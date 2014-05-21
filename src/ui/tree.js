@@ -422,23 +422,6 @@ function createSymLink(row) {
 //   });
 // }
 
-// function mountBareRepo(row) {
-//   chrome.fileSystem.chooseEntry({ type: "openDirectory"}, function (dir) {
-//     if (!dir) return;
-//     var name = dir.name;
-//     dir.getDirectory(".git", {}, function (result) {
-//       dir = result;
-//       go();
-//     }, go);
-//     function go() {
-//       makeUnique(row, name, modes.commit, function (path) {
-//         var entry = chrome.fileSystem.retainEntry(dir);
-//         row.call(path, fs.addRepo, { entry: entry });
-//       });
-//     }
-//   });
-// }
-
 // function addSubmodule(row) {
 //   dialog.multiEntry("Add a submodule", [
 //     {name: "url", placeholder: "git@hostname:path/to/repo.git", required: true},

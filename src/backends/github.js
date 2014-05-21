@@ -20,19 +20,7 @@ exports.createRepo = function (config) {
   // Cache github objects locally in indexeddb
   require('js-git/mixins/add-cache')(repo, require('js-git/mixins/indexed-db'));
 
-  // Github has this built-in, but it's currently very buggy
-  require('js-git/mixins/create-tree')(repo);
-
-  // require('js-git/mixins/delay')(repo, 200);
-
-  // Cache everything except blobs over 100 bytes in memory.
-  require('js-git/mixins/mem-cache')(repo);
-
-  // Combine concurrent read requests for the same hash
-  require('js-git/mixins/read-combiner')(repo);
-
-  // Add in value formatting niceties.  Also adds text and array types.
-  require('js-git/mixins/formats')(repo);
+  require('./repo-common')(repo);
 
   return repo;
 };
