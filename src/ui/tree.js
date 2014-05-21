@@ -315,6 +315,7 @@ function editSymLink(row) {
   });
 }
 
+exports.makeUnique = makeUnique;
 function makeUnique(row, name, mode, callback) {
   // Walk the path making sure we don't overwrite existing files.
   var parts = splitPath(name);
@@ -458,31 +459,6 @@ function createSymLink(row) {
 //   });
 // }
 
-function addGithubMount(row) {
-  var githubToken = prefs.get("githubToken", "");
-  dialog.multiEntry("Mount Github Repo", [
-    {name: "path", placeholder: "user/name", required:true},
-    {name: "ref", placeholder: "refs/heads/master"},
-    {name: "name", placeholder: "localname"},
-    {name: "token", placeholder: "Enter github auth token", required:true, value: githubToken}
-  ], function (result) {
-    if (!result) return;
-    if (result.token !== githubToken) {
-      prefs.set("githubToken", result.token);
-    }
-    var url = result.path;
-    // Assume github if user/name combo is given
-    if (/^[^\/:@]+\/[^\/:@]+$/.test(url)) {
-      url = "git@github.com:" + url + ".git";
-    }
-    var name = result.name || result.path.match(/[^\/]*$/)[0];
-    var ref = result.ref || "refs/heads/master";
-    makeUnique(row, name, modes.commit, function (path) {
-      row.call(path, fs.addRepo, { url: url, ref: ref, github: true });
-    });
-  });
-}
-
 function toggleExec(row) {
   var newMode = row.mode === modes.exec ? modes.file : modes.exec;
   row.call(fs.readEntry, function (entry) {
@@ -529,14 +505,24 @@ function removeEntry(row) {
 }
 
 
-// function removeAll() {
-//   dialog.confirm("Are you sure you want to reset app to factory settings?", function (confirm) {
-//     if (!confirm) return;
-//     window.indexedDB.deleteDatabase("tedit");
-//     chrome.storage.local.clear();
-//     chrome.runtime.reload();
-//   });
-// }
+function removeAll() {
+  dialog.confirm("Are you sure you want to remove all repos?", function (confirm) {
+    if (!confirm) return;
+    var key;
+    for (key in fs.configs) delete fs.configs[key];
+    for (key in fs.repos) delete fs.repos[key];
+    for (key in hookConfigs) delete hookConfigs[key];
+    for (key in hooks) delete hooks[key];
+    prefs.set("rootHash");
+    prefs.save();
+    if (window.chrome && window.chrome.runtime) {
+      window.chrome.runtime.reload();
+    }
+    else {
+      window.location.reload();
+    }
+  });
+}
 
 
 function makeMenu(row) {
@@ -551,15 +537,16 @@ function makeMenu(row) {
       actions.push(
         {icon:"doc", label:"Create File", action: createFile},
         {icon:"folder", label:"Create Folder", action: createFolder},
-        {icon:"link", label:"Create SymLink", action: createSymLink},
-        {sep:true},
-        // {icon:"folder", label:"Import Folder", action: importFolder},
-        // {icon:"git", label: "Mount Local Repo", action: mountBareRepo},
-        // {icon:"fork", label: "Clone Remote Repo", action: addSubmodule},
-        {icon:"github", label: "Mount Github Repo", action: addGithubMount}
+        {icon:"link", label:"Create SymLink", action: createSymLink}
       );
+      if (backends.length) {
+        actions.push({sep:true});
+        backends.forEach(function (backend) {
+          if (backend.menuItem) actions.push(backend.menuItem);
+        });
+      }
       if (!row.path) {
-        // actions.push({icon:"ccw", label: "Remove All", action: removeAll});
+        actions.push({icon:"ccw", label: "Remove All Repos", action: removeAll});
       }
     }
   }

@@ -19,7 +19,7 @@
     load(name, function () {
       var module = requireSync(name);
       if (callback) callback(module);
-    });
+    }, {});
   }
 
   function requireSync(name) {
@@ -32,13 +32,15 @@
   }
 
   // Make sure a module and all it's deps are defined.
-  function load(name, callback) {
+  function load(name, callback, chain) {
     // If it's flagged ready, it's ready
     if (ready[name]) return callback();
     // If there is something going on wait for it to finish.
     if (name in pending) return pending[name].push(callback);
     // If the module isn't downloaded yet, start it.
     if (!(name in defs)) return download(name, callback);
+    if (chain[name]) return callback();
+    chain[name] = true;
     var def = defs[name];
     var missing = def.deps.filter(function (depName) {
       return !ready[depName];
@@ -49,11 +51,11 @@
       return callback();
     }
     return missing.forEach(function (depName) {
-      load(depName, onDepLoad);
+      load(depName, onDepLoad, chain);
     });
 
     function onDepLoad() {
-      if (!--left) return load(name, callback);
+      if (!--left) return load(name, callback, chain);
     }
   }
 
@@ -88,7 +90,7 @@
     var list = pending[name];
     delete pending[name];
     for (var i = 0, l = list.length; i < l; i++) {
-      load(name, list[i]);
+      load(name, list[i], {});
     }
   }
 
