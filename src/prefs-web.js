@@ -5,7 +5,14 @@ module.exports = { get: get, set: set, save: save, clearSync: clearSync };
 function get(name, fallback) {
   var value = localStorage.getItem(name);
   if (!value) return fallback;
-  return JSON.parse(value);
+  try {
+    value = JSON.parse(value);
+  }
+  catch (err) {
+    console.warn(err.stack);
+    value = fallback;
+  }
+  return value;
 }
 
 function set(name, value) {
