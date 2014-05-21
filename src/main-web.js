@@ -6,7 +6,6 @@ require('carallel')([
 ], function (err) {
   if (err) throw err;
   // Load the main GUI components
-  // require('ui/tree');
   require('ui/editor');
   require('ui/slider');
   require('ui/global-keys');
