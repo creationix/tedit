@@ -52,6 +52,41 @@ function onChange(hash) {
 
 rootEl.addEventListener("click", onGlobalClick, false);
 rootEl.addEventListener("contextmenu", onGlobalContextMenu, false);
+rootEl.addEventListener("dragover", enableDrop, false);
+rootEl.addEventListener("dragenter", enableDrop, false);
+rootEl.addEventListener("drop", onGlobalDrop, false);
+function enableDrop(evt) {
+  var row = findRow(evt.target) || rows[""];
+  if (!row) return;
+  evt.preventDefault();
+  return false;
+}
+
+function onGlobalDrop(evt) {
+  var row = findRow(evt.target) || rows[""];
+  if (!row) return;
+  while (row.mode !== modes.tree && row.mode !== modes.commit) {
+    row = rows[dirname(row.path)];
+  }
+
+  if (!row) return;
+  evt.preventDefault();
+  var files = evt.dataTransfer.files;
+  if (!files || !files.length) return;
+  [].slice.call(files).forEach(function (file) {
+    notify("Reading " + file.name + "...");
+    var reader = new FileReader();
+    reader.onloadend = function() {
+      notify("Storing " + file.name + "...");
+      var body = new Uint8Array(this.result);
+      row.call(fs.saveAs, "blob", body, function (hash) {
+        notify("Adding " + file.name);
+        addChild(row, file.name, modes.file, hash);
+      });
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
 
 function renderChild(path, mode, hash) {
   var row = rows[path];
@@ -411,37 +446,6 @@ function createSymLink(row) {
   });
 }
 
-// function importFolder(row) {
-//   chrome.fileSystem.chooseEntry({ type: "openDirectory"}, function (dir) {
-//     if (!dir) return;
-//     row.call(fs.readRepo, function (repo) {
-//       row.call(repo, importEntry, dir, function (hash) {
-//         addChild(row, dir.name, modes.tree, hash);
-//       });
-//     });
-//   });
-// }
-
-// function addSubmodule(row) {
-//   dialog.multiEntry("Add a submodule", [
-//     {name: "url", placeholder: "git@hostname:path/to/repo.git", required: true},
-//     {name: "ref", placeholder: "refs/heads/master"},
-//     {name: "name", placeholder: "localname"}
-//   ], function (result) {
-//     if (!result) return;
-//     var url = result.url;
-//     // Assume github if user/name combo is given
-//     if (/^[^\/:@]+\/[^\/:@]+$/.test(url)) {
-//       url = "git@github.com:" + url + ".git";
-//     }
-//     var name = result.name || result.url.substring(result.url.lastIndexOf("/") + 1);
-//     var ref = result.ref || "refs/heads/master";
-//     makeUnique(row, name, modes.commit, function (path) {
-//       row.call(path, fs.addRepo, { url: url, ref: ref });
-//     });
-//   });
-// }
-
 function toggleExec(row) {
   var newMode = row.mode === modes.exec ? modes.file : modes.exec;
   row.call(fs.readEntry, function (entry) {
@@ -654,17 +658,22 @@ function trim(path, tree, callback) {
 
 // Make a path unique
 function uniquePath(name, obj) {
-  var base = name;
+  var index = name.lastIndexOf(".");
+  var base, ext;
+  if (index >= 0) {
+    base = name.substring(0, index);
+    ext = name.substring(index);
+  }
   var i = 1;
   while (name in obj) {
-    name = base + "-" + (++i);
+    name = base + "-" + (++i) + ext;
   }
   return name;
 }
 
 function splitPath(path) {
   return path.split("/").map(function (part) {
-    return part.replace(/[^a-zA-Z0-9#.+!*'()_\- ]*/g, "").trim();
+    return part.replace(/[\t\r\n\/]*/g, "").trim();
   }).filter(Boolean);
 }
 
