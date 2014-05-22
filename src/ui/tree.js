@@ -194,7 +194,7 @@ function activateRow(row, hard) {
 }
 
 function onGlobalContextMenu(evt) {
-  var row = findRow(evt.target);
+  var row = findRow(evt.target) || rows[""];
   if (!row) return;
   nullify(evt);
   var menu = makeMenu(row);
@@ -502,7 +502,7 @@ function removeAll() {
     for (key in hooks) delete hooks[key];
     prefs.set("rootHash");
     prefs.save();
-    if (window.chrome && window.chrome.runtime) {
+    if (window.chrome && window.chrome.runtime && window.chrome.runtime.reload) {
       window.chrome.runtime.reload();
     }
     else {

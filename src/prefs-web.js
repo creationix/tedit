@@ -16,7 +16,8 @@ function get(name, fallback) {
 }
 
 function set(name, value) {
-  localStorage.setItem(name, JSON.stringify(value));
+  if (value === undefined) localStorage.removeItem(name);
+  else localStorage.setItem(name, JSON.stringify(value));
   return value;
 }
 
