@@ -118,8 +118,14 @@ function renderChild(path, mode, hash) {
     row.hash = entry.hash;
     row.treeHash = commit.tree;
     row.staged = commit.tree !== head.tree;
-    row.title = commit.author.date.toString() + "\n" + commit.author.name + " <" + commit.author.email + ">\n\n" + commit.message.trim();
+    row.title = formatDate(commit.author.date) + "\n" + commit.author.name + " <" + commit.author.email + ">\n\n" + commit.message.trim();
     init();
+  }
+
+  function formatDate(date) {
+    var d = new Date(date.seconds * 1000);
+    // TODO: find a way to show the original time zone?
+    return d.toString();
   }
 
   function init() {
