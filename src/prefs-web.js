@@ -1,27 +1,28 @@
 "use strict";
 
+var json = localStorage.getItem("prefs");
+var prefs;
+try {
+  prefs = json && JSON.parse(json);
+}
+catch (err) {
+}
+prefs = prefs || {};
+
 module.exports = { get: get, set: set, save: save, clearSync: clearSync };
 
 function get(name, fallback) {
-  var value = localStorage.getItem(name);
-  if (!value) return fallback;
-  try {
-    value = JSON.parse(value);
-  }
-  catch (err) {
-    console.warn(err.stack);
-    value = fallback;
-  }
-  return value;
+  return prefs[name] || (prefs[name] = fallback);
 }
 
 function set(name, value) {
-  if (value === undefined) localStorage.removeItem(name);
-  else localStorage.setItem(name, JSON.stringify(value));
+  prefs[name] = value;
+  save();
   return value;
 }
 
 function save() {
+  localStorage.setItem("prefs", JSON.stringify(prefs));
 }
 
 function clearSync(names, callback) {
