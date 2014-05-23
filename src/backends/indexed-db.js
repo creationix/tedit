@@ -1,5 +1,8 @@
 var prefs = require('prefs');
 
+
+exports.init = require('js-git/mixins/indexed-db').init;
+
 exports.createRepo = function (config) {
   var repo = {};
   if (!config.prefix) {
