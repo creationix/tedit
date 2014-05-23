@@ -18,7 +18,12 @@ exports.createRepo = function (config) {
   if (!githubToken) throw new Error("Missing github access token");
   require('js-github/mixins/github-db')(repo, githubName, githubToken);
   // Cache github objects locally in indexeddb
-  require('js-git/mixins/add-cache')(repo, require('js-git/mixins/indexed-db'));
+  if (window.indexedDB) {
+    require('js-git/mixins/add-cache')(repo, require('js-git/mixins/indexed-db'));
+  }
+  else {
+    require('js-git/mixins/add-cache')(repo, require('js-git/mixins/websql-db'));
+  }
 
   require('./repo-common')(repo);
 
