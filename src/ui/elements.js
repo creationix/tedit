@@ -1,5 +1,6 @@
 "use strict";
 /*global chrome*/
+var isChrome = window.chrome && window.chrome.app && window.chrome.app.window;
 
 // Create the main UI
 var domBuilder = require('dombuilder');
@@ -19,7 +20,7 @@ document.body.appendChild(domBuilder([
     ],
     [".titlebar$titlebar"],
   ],
-  [".closebox$closebox", {onclick: closeWindow}, "×"],
+  isChrome ? [".closebox$closebox", {onclick: closeWindow}, "×"]: [],
 ], $));
 
 
