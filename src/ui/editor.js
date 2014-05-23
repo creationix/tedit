@@ -193,7 +193,7 @@ function jack() {/*
     Up: "Move the selection up"
     Down: "Move the selection down"
     Left: "Close the current folder or move to parent folder"
-    Down: "Open the current folder or move to first child"
+    Right: "Open the current folder or move to first child"
     Home: "Jump to top of list"
     End: "Jump to end of list"
     Page-Up: "Go up 10 times"
