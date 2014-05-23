@@ -7,8 +7,11 @@
 body {
   margin: 0;
   font-family: sans-serif;
+  display: -webkit-flex;
   display: flex;
+  -webkit-align-items: center;
   align-items: center;
+  -webkit-justify-content: center;
   justify-content: center;
 }
 
@@ -209,7 +212,9 @@ body, .tree, .titlebar, .main, .main .editor, .preview, .dragger, .image {
 .dialog {
   box-shadow: 0 0 .6em rgba(0,0,0,0.7);
   z-index: 12;
+  display: -webkit-flex;
   display: flex;
+  -webkit-flex-direction: column;
   flex-direction: column;
   font-size: 1em;
   border: 1px solid rgba(128,128,128,0.5);
@@ -229,10 +234,12 @@ body, .tree, .titlebar, .main, .main .editor, .preview, .dragger, .image {
 .dialog .title {
   line-height: 2em;
   height: 2em;
+  display: -webkit-flex;
   display: flex;
 }
 .dialog .title .content {
   text-align: center;
+  -webkit-flex: 1;
   flex: 1;
   padding: 0 .6em;
 }
@@ -244,6 +251,7 @@ body, .tree, .titlebar, .main, .main .editor, .preview, .dragger, .image {
 }
 
 .input {
+  display: -webkit-flex;
   display: flex;
   margin-bottom: 0.5em;
 }
@@ -254,6 +262,7 @@ body, .tree, .titlebar, .main, .main .editor, .preview, .dragger, .image {
 }
 
 .input-field {
+  -webkit-flex: 1
   flex: 1
 }
 
