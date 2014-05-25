@@ -17,6 +17,8 @@ var notify = require('./notify');
 var runtimes = require('runtimes');
 var backends = require('backends');
 
+var globalKeys = require('ui/global-keys');
+
 setDoc.updateDoc = updateDoc;
 setDoc.setActive = setActive;
 
@@ -40,6 +42,17 @@ fs.init(onChange, function (err, hash) {
   openPaths[""] = true;
   rootRow = renderChild("", modes.commit, hash);
   rootEl.appendChild(rootRow.el);
+});
+
+setTimeout(function () {
+  runtimes.forEach(function (runtime) {
+    var menuItem = runtime.menuItem;
+    if (!menuItem || menuItem.keyCode === undefined) return;
+    globalKeys.register(menuItem.combo, menuItem.keyCode, function () {
+      if (!active) return;
+      menuItem.action(active);
+    });
+  });
 });
 
 function onChange(hash) {

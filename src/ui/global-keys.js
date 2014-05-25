@@ -8,6 +8,15 @@ var dialog = require('./dialog');
 var doc = require('data/document');
 var pending;
 
+var extras = [];
+exports.register = function (combo, keyCode, handler) {
+  extras.push({
+    combo: combo,
+    keyCode: keyCode,
+    handler: handler
+  });
+};
+
 window.addEventListener("keydown", onDown, true);
 window.addEventListener("keyup", onUp, true);
 window.addEventListener("keypress", onPress, true);
@@ -48,7 +57,14 @@ function onDown(evt) {
   else if (combo === 1 && evt.keyCode === 69) tree.toggle();
   // Control-N Create new file
   else if (combo === 1 && evt.keyCode === 78) tree.newFile();
-  else if (!tree.isFocused()) return;
+  else if (!tree.isFocused()) {
+    extras.forEach(function (extra) {
+      if (extra.combo === combo && extra.keyCode === evt.keyCode) {
+        extra.handler();
+      }
+    });
+    return;
+  }
   else if (combo === 0 && evt.keyCode === 33) tree.pageUp();
   else if (combo === 0 && evt.keyCode === 34) tree.pageDown();
   else if (combo === 0 && evt.keyCode === 35) tree.end();

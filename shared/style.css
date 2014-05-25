@@ -262,16 +262,16 @@ body, .tree, .titlebar, .main, .main .editor, .preview, .dragger, .image {
 }
 
 .input-field {
-  -webkit-flex: 1
-  flex: 1
+  -webkit-flex: 1;
+  flex: 1;
 }
 
 .input-field:not(:first-child) {
-  border-left: 0
+  border-left: 0;
 }
 
 .input-field:not(:last-child) {
-  border-right: 0
+  border-right: 0;
 }
 
 .input-item {

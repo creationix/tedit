@@ -84,6 +84,7 @@ editor.commands.addCommand({
   readOnly: false
 });
 
+editor.saveToGit = save;
 function save() {
 
   if (!currentDoc.session) return;

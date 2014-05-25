@@ -2,6 +2,7 @@
 
 var domBuilder = require('dombuilder');
 
+dialog.alert = alertDialog;
 dialog.prompt = promptDialog;
 dialog.confirm = confirmDialog;
 dialog.multiEntry = multiEntryDialog;
@@ -39,6 +40,15 @@ function dialog(title, contents, onCancel) {
     delete dialog.close;
     document.body.removeChild($.shield);
     document.body.removeChild($.dialog);
+  }
+}
+
+function alertDialog(title, message) {
+  var $ = dialog(title, ["p", message], onCancel);
+  return $;
+
+  function onCancel() {
+    $.close();
   }
 }
 
