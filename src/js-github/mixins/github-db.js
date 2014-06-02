@@ -70,7 +70,7 @@ module.exports = function (repo, root, accessToken) {
 
   function hasHash(type, hash, callback) {
     if (!callback) return hasHash.bind(repo, type, hash);
-    apiRequest("GET", "/repos/:root/git/" + type + "s/" + hash, onValue);
+    apiRequest("HEAD", "/repos/:root/git/" + type + "s/" + hash, onValue);
 
     function onValue(err, xhr, result) {
       if (err) return callback(err);
@@ -84,19 +84,32 @@ module.exports = function (repo, root, accessToken) {
 
   function saveAs(type, body, callback) {
     if (!callback) return saveAs.bind(repo, type, body);
-    var request;
+    var hash;
     try {
-      request = encoders[type](body);
+      hash = hashAs(type, body);
     }
     catch (err) {
       return callback(err);
     }
+    repo.hasHash(type, hash, function (err, has) {
+      if (err) return callback(err);
+      if (has) return callback(null, hash, body);
 
-    // Github doesn't allow creating empty trees.
-    if (type === "tree" && request.tree.length === 0) {
-      return callback(null, emptyTree, body);
-    }
-    return apiRequest("POST", "/repos/:root/git/" + type + "s", request, onWrite);
+      var request;
+      try {
+        request = encoders[type](body);
+      }
+      catch (err) {
+        return callback(err);
+      }
+
+      // Github doesn't allow creating empty trees.
+      if (type === "tree" && request.tree.length === 0) {
+        return callback(null, emptyTree, body);
+      }
+      return apiRequest("POST", "/repos/:root/git/" + type + "s", request, onWrite);
+
+    });
 
     function onWrite(err, xhr, result) {
       if (err) return callback(err);

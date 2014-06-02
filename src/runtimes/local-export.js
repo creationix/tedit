@@ -103,7 +103,7 @@ function addExportHook(row, settings) {
       var names = Object.keys(tree);
       serial(names.map(function (name) {
         return exportPath(pathJoin(source, name), pathJoin(target, name));
-      }), 4, callback);
+      }), 2, callback);
     });
   }
 
@@ -126,6 +126,7 @@ function addExportHook(row, settings) {
     function add() {
       notify("Writing " + target + "...");
       repo.saveAs("blob", body, function (err, hash) {
+        if (!hash) return callback(err || new Error("Problem saving"));
         // record as being saved
         memory[source] = entry.hash;
         toWrite[target] = {
