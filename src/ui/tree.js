@@ -55,6 +55,7 @@ setTimeout(function () {
   });
 });
 
+exports.onChange = onChange;
 function onChange(hash) {
   renderChild("", modes.commit, hash);
   // Run any hooks
