@@ -198,6 +198,7 @@ function serial(actions, num, callback) {
   var i = 0, l = actions.length;
   var left = l;
   var results = new Array(l);
+  if (!left) return callback();
   var done = false;
   for (var j = 0; j < num; j++) {
     check();
