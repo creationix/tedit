@@ -302,8 +302,9 @@ function updateRemote(row) {
 
 function commitChanges(row) {
   row.call(fs.readCommit, function (entry) {
+    var config = fs.configs[row.path];
     var githubName = fs.isGithub(row.path);
-    if (githubName) {
+    if (githubName && !config.passphrase) {
       var previewDiff = "https://github.com/" + githubName + "/commit/" + entry.hash;
       window.open(previewDiff);
     }
