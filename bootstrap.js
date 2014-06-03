@@ -1,7 +1,9 @@
 // Tiny AMD loader that auto-loads src/main.js
 (function () {
   "use strict";
-  var modules = {};
+  var modules = {
+    "forge.js": { exports: window.forge },
+  };
   var defs = {};
   var ready = {};
   var pending = {};
@@ -26,6 +28,7 @@
     if (!(/\.[^\/]+$/.test(name))) name += ".js";
     if (name in modules) return modules[name].exports;
     var exports = {};
+    if (!(name in defs)) throw new Error("Unknown module " + name);
     var module = modules[name] = {exports:exports};
     if (defs[name].fn(module, exports) !== undefined) throw new Error("Use `module.exports = value`, not `return value`");
     return module.exports;

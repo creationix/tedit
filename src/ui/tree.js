@@ -55,7 +55,10 @@ setTimeout(function () {
   });
 });
 
-exports.onChange = onChange;
+exports.reload = function () {
+  onChange(fs.configs[""].current);
+};
+
 function onChange(hash) {
   renderChild("", modes.commit, hash);
   // Run any hooks
@@ -265,13 +268,15 @@ function showRow(path) {
 }
 
 
-function activateDoc(row, hard) {
+exports.activateDoc = activateDoc;
+function activateDoc(row, hard, callback) {
   var path = row.path;
   setActive(path);
   if (!active) return setDoc();
   row.call(fs.readBlob, function (entry) {
     setDoc(row, entry.blob);
     if (hard) editor.focus();
+    if (callback) callback();
   });
 }
 
