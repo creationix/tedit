@@ -6,8 +6,11 @@ exports.menuItem = {
 };
 
 var editor = require('ui/editor');
+var tree = require('ui/tree');
 
 function execFile(row) {
-  var js = editor.getText();
-  (new Function(js))();
+  tree.activateDoc(row, true, function () {
+    var js = editor.getText();
+    (new Function(js))();
+  });
 }
