@@ -1,5 +1,5 @@
 "use strict";
-var forge = window.forge;
+var forge = require('forge');
 var bodec = require('bodec');
 var defer = require('js-git/lib/defer');
 var prefs = require('prefs');
