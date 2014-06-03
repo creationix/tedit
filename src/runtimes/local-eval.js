@@ -35,7 +35,9 @@ function execFile(row) {
     if (path in defs) {
       var exports = {};
       var module = modules[path] = { exports: exports };
-      defs[path](fakeRequire, module, exports, pathJoin(path, ".."), path);
+      var filename = path.substring(5);
+      var dirname = pathJoin(filename, "..");
+      defs[path](fakeRequire, module, exports, dirname, filename);
       return module.exports;
     }
     return require(path);
