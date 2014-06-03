@@ -1,7 +1,7 @@
 
 exports.menuItem = {
   icon: "cog",
-  label: "Execute File",
+  label: "Run in Worker",
   combo: 1,    //Control
   keyCode: 13, // Enter
   action: execFile
