@@ -1,0 +1,21 @@
+{
+  "name": "Tedit Development Environment",
+  "developer": {
+    "name": "Tim Caswell",
+    "url": "http://creationix.com/"
+  },
+  "default_locale": "en",
+  "version": "0.2.16",
+  "type": "privileged",
+  "description": "An offline enabled development environment that works directly on js-git databases",
+  "launch_path": "/index.html",
+  "icons": {
+    "60": "/icons/icon-moz-60.png",
+    "128": "/icons/icon-moz-128.png"
+  },
+  "permissions": {
+    "tcp-socket": {
+      "description": "Required for communicate with remote git servers"
+    }
+  }
+}
