@@ -55,7 +55,7 @@ function addExportHook(row, settings) {
       }
       if (old !== fs.configs[""].current) {
         notify("Finished Export to " + settings.name);
-        tree.onChange(fs.configs[""].current);
+        tree.reload();
       }
 
       // If there was a pending request, run it now.

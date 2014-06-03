@@ -55,7 +55,10 @@ setTimeout(function () {
   });
 });
 
-exports.onChange = onChange;
+exports.reload = function () {
+  onChange(fs.configs[""].current);
+};
+
 function onChange(hash) {
   renderChild("", modes.commit, hash);
   // Run any hooks

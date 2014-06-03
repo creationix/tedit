@@ -5,16 +5,9 @@ exports.menuItem = {
   action: execFile
 };
 
-var bodec = require('bodec');
-var modes = require('js-git/lib/modes');
-var fs = require('data/fs');
+var editor = require('ui/editor');
 
 function execFile(row) {
-  row.call(fs.readBlob, function (file) {
-    if (!/\.js$/.test(row.path) || !modes.isFile(file.mode)) {
-      return;
-    }
-    var js = bodec.toUnicode(file.blob);
-    eval(js);
-  });
+  var js = editor.getText();
+  (new Function(js))();
 }

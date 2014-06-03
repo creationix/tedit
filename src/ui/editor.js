@@ -122,6 +122,10 @@ $.image.addEventListener("click", function (evt) {
   }
 }, false);
 
+editor.getText = function () {
+  return currentDoc.session.getValue();
+};
+
 editor.setDoc = function (doc) {
   if (!doc) doc = fallback;
   currentDoc = doc;
