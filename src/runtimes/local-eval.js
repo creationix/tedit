@@ -20,7 +20,7 @@ function execFile(row) {
 
   tree.activateDoc(row, true, function () {
     var js = editor.getText();
-    var path = "vfs:" + row.path;
+    var path = "vfs:/" + row.path;
     load(path, js, function (err) {
       if (err) row.fail(err);
       try { fakeRequire(path); }
