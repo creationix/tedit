@@ -54,3 +54,7 @@
 [submodule "lib/git-chrome-fs"]
 	path = lib/git-chrome-fs
 	url = git@github.com:creationix/git-chrome-fs.git
+[submodule "lib/forge-bin"]
+	url = git@github.com:creationix/forge-bin.git
+	ref = refs/heads/master
+	path = lib/forge-bin
