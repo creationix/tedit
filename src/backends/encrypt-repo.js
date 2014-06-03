@@ -1,6 +1,8 @@
+"use strict";
 var forge = window.forge;
 var bodec = require('bodec');
 var defer = require('js-git/lib/defer');
+var prefs = require('prefs');
 
 module.exports = function (storage, passphrase) {
 
@@ -40,6 +42,7 @@ module.exports = function (storage, passphrase) {
       return bodec.fromRaw(decipher.output.bytes());
     },
     getRootTree: function (callback) {
+
       if (rootTree) {
         callback(null, rootTree);
         callback = null;
@@ -72,8 +75,8 @@ module.exports = function (storage, passphrase) {
     storage.saveAs("commit", {
       tree: rootTree,
       author: {
-        name: "JS-Git",
-        email: "js-git@creationix.com"
+        name: prefs.get("userName", "JS-Git"),
+        email: prefs.get("userEmail", "js-git@creationix.com")
       },
       message: "Auto commit to update fs image"
     }, function (err, hash) {
@@ -88,17 +91,7 @@ module.exports = function (storage, passphrase) {
         if (err) throw err;
       }
     });
-
   }
-  // Don't wait for writes to finish.
-  var writeFile = fs.writeFile;
-  fs.writeFile = function fastWriteFile(path, value, callback) {
-    if (!callback) return fastWriteFile.bind(fs, path, value);
-    writeFile.call(fs, path, value, function (err) {
-      if (err) console.error(err.stack);
-    });
-    callback();
-  };
 
   require('js-git/mixins/fs-db')(repo, fs);
 
