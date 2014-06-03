@@ -71,6 +71,7 @@ function setDoc(row, body) {
       var aceMode =
         /\.rule/.test(row.path) ? "ace/mode/jack" :
         /\.gitmodules/.test(row.path) ? "ace/mode/ini" :
+        /\.webapp/.test(row.path) ? "ace/mode/json" :
         row.mode === modes.sym ? "ace/mode/text" :
         modelist.getModeForPath(row.path).mode;
       doc.session.setMode(aceMode, function () {
