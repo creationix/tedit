@@ -17,6 +17,11 @@ exports.createRepo = function (config) {
   var githubToken = prefs.get("githubToken", "");
   if (!githubToken) throw new Error("Missing github access token");
   require('js-github/mixins/github-db')(repo, githubName, githubToken);
+
+  if (config.passphrase) {
+    repo = require('./encrypt-repo')(repo, config.passphrase);
+  }
+
   // Cache github objects locally in indexeddb
   if (window.indexedDB) {
     require('js-git/mixins/add-cache')(repo, require('js-git/mixins/indexed-db'));
@@ -45,6 +50,7 @@ function addGithubMount(row) {
     {name: "path", placeholder: "user/name", required:true},
     {name: "ref", placeholder: "refs/heads/master"},
     {name: "name", placeholder: "localname"},
+    {name: "passphrase", placeholder: "encryption passphrase"},
     {name: "token", placeholder: "Enter github auth token", required:true, value: githubToken}
   ], function (result) {
     if (!result) return;
@@ -59,8 +65,14 @@ function addGithubMount(row) {
     var fs = require('data/fs');
     var name = result.name || result.path.match(/[^\/]*$/)[0];
     var ref = result.ref || "refs/heads/master";
+    var config = {
+      url: url,
+      ref: ref,
+      github: true
+    };
+    if (result.passphrase) config.passphrase = result.passphrase;
     require('ui/tree').makeUnique(row, name, modes.commit, function (path) {
-      row.call(path, fs.addRepo, { url: url, ref: ref, github: true });
+      row.call(path, fs.addRepo, config);
     });
   });
 }
