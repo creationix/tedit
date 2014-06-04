@@ -1,9 +1,7 @@
 // Tiny AMD loader that auto-loads src/main.js
 (function () {
   "use strict";
-  var modules = {
-    "forge.js": { exports: window.forge },
-  };
+  var modules = {};
   var defs = {};
   var ready = {};
   var pending = {};
@@ -13,6 +11,9 @@
   window.requireAsync = requireAsync;
   window.defs = defs;
   document.body.textContent = "";
+
+  modules["forge.js"] = window.forge;
+  ready["forge.js"] = true;
 
   requireAsync("main.js");
 

@@ -1,5 +1,5 @@
-define("backends/encrypt-repo.js", ["forge.js","bodec.js","js-git/lib/defer.js","prefs.js","js-git/mixins/path-to-entry.js","js-git/mixins/mem-cache.js","js-git/mixins/formats.js","js-git/lib/git-fs.js","js-git/mixins/fs-db.js"], function (module, exports) { "use strict";
-var forge = require('forge.js');
+define("backends/encrypt-repo.js", ["bodec.js","js-git/lib/defer.js","prefs.js","js-git/mixins/path-to-entry.js","js-git/mixins/mem-cache.js","js-git/mixins/formats.js","js-git/lib/git-fs.js","js-git/mixins/fs-db.js"], function (module, exports) { "use strict";
+var forge = window.forge;//require('forge');
 var bodec = require('bodec.js');
 var defer = require('js-git/lib/defer.js');
 var prefs = require('prefs.js');
@@ -10,11 +10,8 @@ module.exports = function (storage, passphrase) {
   require('js-git/mixins/mem-cache.js')(storage);
   require('js-git/mixins/formats.js')(storage);
 
-  // Derive an AES symetric key from the passphrase
-  var hmac = forge.hmac.create();
-  hmac.start('sha256', 'kodeforkids');
-  hmac.update(passphrase);
-  var key = hmac.digest().bytes();
+  // Derive a 32 bit key from the passphrase
+  var key = forge.pkcs5.pbkdf2(passphrase, 'kodeforkids', 16000, 32);
 
   var repo = {};
   var fs = require('js-git/lib/git-fs.js')(storage, {
@@ -27,7 +24,8 @@ module.exports = function (storage, passphrase) {
       var iv = forge.random.getBytesSync(16);
       var cipher = forge.cipher.createCipher('AES-CBC', key);
       cipher.start({iv: iv});
-      cipher.update(forge.util.createBuffer(plain));
+      var raw = bodec.toRaw(plain);
+      cipher.update(forge.util.createBuffer(raw));
       cipher.finish();
       var encrypted = cipher.output.bytes();
       return bodec.fromRaw(iv + encrypted);
