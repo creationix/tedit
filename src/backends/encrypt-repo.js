@@ -1,5 +1,5 @@
 "use strict";
-var forge = require('forge');
+var forge = window.forge;//require('forge');
 var bodec = require('bodec');
 var defer = require('js-git/lib/defer');
 var prefs = require('prefs');
@@ -10,11 +10,8 @@ module.exports = function (storage, passphrase) {
   require('js-git/mixins/mem-cache')(storage);
   require('js-git/mixins/formats')(storage);
 
-  // Derive an AES symetric key from the passphrase
-  var hmac = forge.hmac.create();
-  hmac.start('sha256', 'kodeforkids');
-  hmac.update(passphrase);
-  var key = hmac.digest().bytes();
+  // Derive a 32 bit key from the passphrase
+  var key = forge.pkcs5.pbkdf2(passphrase, 'kodeforkids', 16000, 32);
 
   var repo = {};
   var fs = require('js-git/lib/git-fs')(storage, {
@@ -27,7 +24,8 @@ module.exports = function (storage, passphrase) {
       var iv = forge.random.getBytesSync(16);
       var cipher = forge.cipher.createCipher('AES-CBC', key);
       cipher.start({iv: iv});
-      cipher.update(forge.util.createBuffer(plain));
+      var raw = bodec.toRaw(plain);
+      cipher.update(forge.util.createBuffer(raw));
       cipher.finish();
       var encrypted = cipher.output.bytes();
       return bodec.fromRaw(iv + encrypted);
