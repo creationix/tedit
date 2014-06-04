@@ -4,6 +4,7 @@ var binary = require('bodec');
 var pathJoin = require('pathjoin');
 var loadModule = require('./load-module');
 var modes = require('js-git/lib/modes');
+var sha1 = require('git-sha1');
 
 // readPath accepts a path and outputs {mode,hash,root,[mime],fetch}
 module.exports = function (readPath, settings) {
@@ -21,6 +22,7 @@ module.exports = function (readPath, settings) {
   }
 
   function bake(req, callback) {
+    req.ruleHash = sha1(JSON.stringify(req));
     // console.log("BAKE", {
     //   req: req,
     //   settings: settings
