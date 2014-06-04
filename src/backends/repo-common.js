@@ -7,6 +7,8 @@ module.exports = function (repo) {
   // Combine concurrent read requests for the same hash
   require('js-git/mixins/read-combiner')(repo);
 
+  require('js-git/mixins/walkers')(repo);
+
   // Add in value formatting niceties.  Also adds text and array types.
   require('js-git/mixins/formats')(repo);
 };
