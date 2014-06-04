@@ -1,9 +1,10 @@
-define("data/publisher.js", ["bodec.js","pathjoin.js","data/load-module.js","js-git/lib/modes.js"], function (module, exports) { "use strict";
+define("data/publisher.js", ["bodec.js","pathjoin.js","data/load-module.js","js-git/lib/modes.js","git-sha1.js"], function (module, exports) { "use strict";
 
 var binary = require('bodec.js');
 var pathJoin = require('pathjoin.js');
 var loadModule = require('data/load-module.js');
 var modes = require('js-git/lib/modes.js');
+var sha1 = require('git-sha1.js');
 
 // readPath accepts a path and outputs {mode,hash,root,[mime],fetch}
 module.exports = function (readPath, settings) {
@@ -21,6 +22,7 @@ module.exports = function (readPath, settings) {
   }
 
   function bake(req, callback) {
+    req.ruleHash = sha1(JSON.stringify(req));
     // console.log("BAKE", {
     //   req: req,
     //   settings: settings
