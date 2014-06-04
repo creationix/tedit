@@ -203,10 +203,17 @@ function addServeHook(row, settings) {
               path += "/index.html";
               return serve();
             }
+            var accept = headers.accept;
+            if (/text\/html/.test(accept)) {
+              return respond(200, [
+                ["Etag", result.hash],
+                ["Content-Type", "text/html; charset=utf-8"]
+              ], formatTree(tree) + "\n");
+            }
             // Otherwise send the raw JSON
             return respond(200, [
               ["Etag", result.hash],
-              ["Content-Type", "application/json"]
+              ["Content-Type", "application/json; charset=utf-8"]
             ], JSON.stringify(tree) + "\n");
           });
         }
@@ -239,7 +246,10 @@ function addServeHook(row, settings) {
           if (key === "content-type") contentType = pair[1];
           else if (key === "content-length") contentLength = pair[1];
         });
-        if (!contentType) headers.push(["Content-Type", "text/plain"]);
+        if (typeof body === "string") {
+          body = bodec.fromUnicode(body);
+        }
+        if (!contentType) headers.push(["Content-Type", "text/plain; charset=utf-8"]);
         if (!contentLength) headers.push(["Content-Length", body.length]);
         encode({
           code: code,
@@ -258,6 +268,19 @@ function addServeHook(row, settings) {
     // TODO: maybe invalidate some caches if needed?
   }
 
+}
+
+function formatTree(tree) {
+  return "<ul>\n  " + Object.keys(tree).map(function (name) {
+    var escaped = name.replace(/&/g, '&amp;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;');
+    var entry = tree[name];
+    return '<li><a href="' + escaped + '">' + escaped + "</a>" +
+                " - " + entry.mode.toString(8) +
+                " - " + entry.hash + "</li>";
+  }).join("\n  ") + "\n</ul>";
 }
 
 function noop() {}
