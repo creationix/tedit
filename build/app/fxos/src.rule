@@ -16,7 +16,7 @@
     http-codec.js: "lib/http-codec/http-codec.js"
     bodec.js: "lib/bodec/bodec.js"
     carallel.js: "lib/carallel/carallel.js"
-    css-parse.js: "lib/css-parse/index.js"
+    css-parse.js: "lib/css/lib/parse/index.js"
     dombuilder.js: "lib/dombuilder/dombuilder.js"
     git-sha1.js: "lib/git-sha1/git-sha1.js"
     git-tree.js: "lib/git-tree/git-tree.js"

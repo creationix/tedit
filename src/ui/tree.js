@@ -479,66 +479,113 @@ function toggleExec(row) {
   });
 }
 
-function fetchUpdates(row) {
-  var repo = fs.findRepo(row.path);
-  if (!repo) row.fail("Not a commit node");
-  var config = fs.configs[row.path];
-  if (config.head !== config.current) {
-    notify("Please commit changes before fetching");
-    row.fail(new Error("Please commit changes first"));
-  }
-  row.call(config.ref, repo.fetch, Infinity, function (hash) {
-    row.call(repo, findCommon, config.current, hash, function (ahead, behind) {
-      row.ahead = ahead;
-      config.ahead = ahead;
-      row.behind = behind;
-      prefs.save();
-      config.behind = behind;
-      if (!behind) {
-        var message = "No new commits";
-        if (ahead) {
-          message += ", but local is " + ahead + " commits ahead";
-        }
-        return notify(message);
-      }
-      if (!ahead) {
-        return fastForward();
-      }
-
-      var message = "Local and remote have diverged, destroy local changes?";
-      return dialog.confirm(message, function (confirm) {
-        if (confirm) fastForward();
-      });
-
-      function fastForward() {
-        notify("Fast forwarding " + behind + " commits");
-        row.ahead = 0;
-        row.behind = 0;
-        config.ahead = 0;
-        config.behind = 0;
-        prefs.save();
-        row.call(fs.setHead, hash);
-      }
-    });
-  });
+function forcePush(row) {
+  sync(row, 2);
+}
+function discardCommits(row) {
+  sync(row, 1);
 }
 
-function sendUpdates(row) {
-  var repo = fs.findRepo(row.path);
+function doSync(row, repo, config, callback) {
   if (!repo) row.fail("Not a commit node");
-  var config = fs.configs[row.path];
   if (config.head !== config.current) {
-    notify("Please commit changes before pushing");
-    row.fail(new Error("Please commit changes first"));
+    notify("Please commit or revert changes before syncing");
+    row.fail(new Error("Uncommited changes, can't sync."));
   }
-  row.call(config.ref, repo.send, function (hash) {
-    if (config.current === hash) {
-      notify("No new Commits");
-      return;
+  var localHead, remoteHead;
+  row.call(config.ref, repo.send, function (result) {
+    localHead = result;
+    if (remoteHead) {
+      row.call(repo, findCommon, localHead, remoteHead, onResult);
     }
-    notify("Moving remote head to " + hash);
-    row.call(config.ref, repo.updateRemoteRef, hash);
   });
+  row.call(config.ref, repo.fetch, Infinity, function (result) {
+    remoteHead = result;
+    if (localHead) {
+      row.call(repo, findCommon, localHead, remoteHead, onResult);
+    }
+  });
+  function onResult(ahead, behind) {
+    row.ahead = ahead;
+    row.behind = behind;
+    config.ahead = ahead;
+    config.behind = behind;
+    prefs.save();
+    callback(ahead, behind, localHead, remoteHead);
+  }
+}
+
+// force = 1 discard local commits
+// force = 2 discard remote commits
+function sync(row, force) {
+  var repo = fs.findRepo(row.path);
+  var config = fs.configs[row.path];
+  doSync(row, repo, config, onSync);
+
+  function onSync(ahead, behind, localHead, remoteHead) {
+
+    if (!ahead) {
+      if (!behind) {
+        return notify("No changes to sync");
+      }
+      return dialog.confirm("You are " + plural(behind, "commit") + " behind remote.  Pull changes?", function (confirm) {
+        if (!confirm) return;
+        fastForwardLocal();
+      });
+    }
+    if (!behind) {
+      return dialog.confirm("You are " + plural(ahead, "commit") + " ahead of remote.  Push changes?", function (confirm) {
+        if (!confirm) return;
+        fastForwardRemote();
+      });
+    }
+    notify("Local and remote have diverged!\n" +
+      "You are " + plural(ahead, "commit") + " ahead " +
+      "and " + plural(behind, "commit") + " behind remote."
+    );
+    var message;
+    if (force === 1) {
+      message = "Are you sure you wish to discard " + plural(ahead, "commit") + "?";
+      dialog.confirm(message, function (confirm) {
+        if (!confirm) return;
+        fastForwardLocal();
+      });
+    }
+    if (force === 2) {
+      message = "Are you sure you wish to force push over " + plural(behind, "commit") + "?";
+      return dialog.confirm(message, function (confirm) {
+        if (!confirm) return;
+        fastForwardRemote(true);
+      });
+    }
+
+    function fastForwardRemote(forcePush) {
+      notify("Updating remote head on " + config.ref);
+      row.busy++;
+      repo.updateRemoteRef(config.ref, localHead, function (err) {
+        row.busy--;
+        if (err) row.fail(err);
+        reset();
+      }, forcePush);
+    }
+
+    function fastForwardLocal() {
+      notify("Fast forwarding local head on " + config.ref);
+      row.call(fs.setHead, remoteHead, reset);
+    }
+  }
+
+  function reset() {
+    row.ahead = 0;
+    row.behind = 0;
+    config.ahead = 0;
+    config.behind = 0;
+    prefs.save();
+  }
+}
+
+function plural(num, word) {
+  return num + " " + word + (num === 1 ? "" : "s");
 }
 
 function moveEntry(row) {
@@ -633,9 +680,14 @@ function makeMenu(row) {
     if (repo.fetch && config.current === config.head) {
       actions.push(
         {sep:true},
-        {icon:"download-cloud", label:"Pull from Remote", action: fetchUpdates },
-        {icon:"upload-cloud", label:"Push to Remote", action: sendUpdates }
+        {icon:"cw", label:"Sync with Remote", action: sync }
       );
+      if (config.ahead && config.behind) {
+        actions.push(
+          {icon:"upload-cloud", label:"Force push", action: forcePush },
+          {icon:"trash", label:"Discard Local Commits", action: discardCommits }
+        );
+      }
     }
   }
   else if (modes.isFile(row.mode)) {

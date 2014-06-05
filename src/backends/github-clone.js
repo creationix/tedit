@@ -17,6 +17,7 @@ exports.createRepo = function (config) {
   var remote = {};
   var githubName = getGithubName(config.url);
   require('js-github/mixins/github-db')(remote, githubName, githubToken);
+  require('js-git/mixins/read-combiner')(remote);
 
   var repo = {};
   if (!config.prefix) {

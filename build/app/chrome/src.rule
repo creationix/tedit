@@ -15,7 +15,7 @@
     -- Map to the external dependencies
     bodec.js: "lib/bodec/bodec.js"
     carallel.js: "lib/carallel/carallel.js"
-    css-parse.js: "lib/css-parse/index.js"
+    css-parse.js: "lib/css/lib/parse/index.js"
     dombuilder.js: "lib/dombuilder/dombuilder.js"
     git-chrome-fs: "lib/git-chrome-fs"
     git-sha1.js: "lib/git-sha1/git-sha1.js"

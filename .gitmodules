@@ -22,9 +22,6 @@
 [submodule "lib/simple-mime"]
 	path = lib/simple-mime
 	url = git@github.com:creationix/simple-mime.git
-[submodule "lib/css-parse"]
-	path = lib/css-parse
-	url = git@github.com:reworkcss/css-parse.git
 [submodule "lib/ace-builds"]
 	path = lib/ace-builds
 	url = git@github.com:ajaxorg/ace-builds.git
@@ -58,3 +55,7 @@
 	url = git@github.com:creationix/forge-bin.git
 	ref = refs/heads/master
 	path = lib/forge-bin
+[submodule "lib/css"]
+	url = git@github.com:reworkcss/css.git
+	ref = refs/heads/master
+	path = lib/css
