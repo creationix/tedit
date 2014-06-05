@@ -1,6 +1,10 @@
 var backends = module.exports = [];
-backends.push(require('backends/github'));
-// backends.push(require('backends/github-clone'));
+if (/beta/.test(window.location)) {
+  backends.push(require('backends/github-clone'));
+}
+else {
+  backends.push(require('backends/github'));
+}
 if (window.indexedDB) {
   backends.push(require('backends/indexed-db'));
 }
