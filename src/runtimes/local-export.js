@@ -48,12 +48,12 @@ function addExportHook(row, settings) {
 
     doExport(settings.source, settings.name, function (err) {
       row.pulse--;
-      toWrite = null;
       if (err) {
+        toWrite = null;
         notify("Export Failed");
-        return row.fail(err);
+        row.fail(err);
       }
-      if (old !== fs.configs[""].current) {
+      else if (old !== fs.configs[""].current) {
         notify("Finished Export to " + settings.name);
         tree.reload();
       }
@@ -72,10 +72,13 @@ function addExportHook(row, settings) {
       if (err) return callback(err);
       var paths = Object.keys(toWrite);
       if (!paths.length) return callback();
+
       notify("Updating trees...");
       carallel(paths.map(function (path) {
         return fs.writeEntry(path, toWrite[path]);
       }), callback);
+      toWrite = null;
+
     });
   }
 

@@ -1,5 +1,10 @@
-define("backends.js", ["backends/github.js","backends/indexed-db.js","backends/websql.js"], function (module, exports) { var backends = module.exports = [];
-backends.push(require('backends/github.js'));
+define("backends.js", ["backends/github-clone.js","backends/github.js","backends/indexed-db.js","backends/websql.js"], function (module, exports) { var backends = module.exports = [];
+if (/beta/.test(window.location)) {
+  backends.push(require('backends/github-clone.js'));
+}
+else {
+  backends.push(require('backends/github.js'));
+}
 if (window.indexedDB) {
   backends.push(require('backends/indexed-db.js'));
 }

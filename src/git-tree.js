@@ -130,6 +130,7 @@ module.exports = function (platform) {
     // will error out if the target is not there and the desired type.
     readEntry: readEntry,     // (path) => { mode, hash, root }
     readRepo: readRepo,       // (path) => repo
+    findRepo: findRepo,
     // readPath is like readEntry, except it runs the build system.
     readPath: readPath,       // (path, bake) => { mode, hash, root, [mime], fetch }
     readCommit: readCommit,   // (path) => { mode, hash, commit }
@@ -554,8 +555,9 @@ module.exports = function (platform) {
       if (hash) config.head = hash;
       if (!current) {
         if (config.head) current = config.head;
-        else if (config.url && !config.github) {
-          return callback(new Error("TODO: Implement clone"));
+        else if (repo.fetch) {
+          config.depth = config.depth || 1;
+          return repo.fetch(config.ref, config.depth, onHead);
         }
         else return initEmpty(repo, null, onCurrent);
       }

@@ -1,4 +1,4 @@
-define("ui/tree.js", ["ui/elements.js","data/fs.js","ui/row.js","js-git/lib/modes.js","js-git/lib/defer.js","prefs.js","data/document.js","ui/dialog.js","ui/context-menu.js","data/rescape.js","ui/editor.js","ui/slider.js","ui/notify.js","runtimes.js","backends.js","ui/global-keys.js","data/hooks.js"], function (module, exports) { "use strict";
+define("ui/tree.js", ["ui/elements.js","data/fs.js","ui/row.js","js-git/lib/modes.js","js-git/lib/defer.js","prefs.js","data/document.js","ui/dialog.js","ui/context-menu.js","data/rescape.js","ui/editor.js","ui/slider.js","ui/notify.js","js-git/lib/find-common.js","runtimes.js","backends.js","ui/global-keys.js","data/hooks.js"], function (module, exports) { "use strict";
 var rootEl = require('ui/elements.js').tree;
 var fs = require('data/fs.js');
 
@@ -13,6 +13,7 @@ var rescape = require('data/rescape.js');
 var editor = require('ui/editor.js');
 var slider = require('ui/slider.js');
 var notify = require('ui/notify.js');
+var findCommon = require('js-git/lib/find-common.js');
 
 var runtimes = require('runtimes.js');
 var backends = require('backends.js');
@@ -134,6 +135,9 @@ function renderChild(path, mode, hash) {
     var head = entry.head || {};
     row.hash = entry.hash;
     row.treeHash = commit.tree;
+    var config = fs.configs[row.path];
+    row.ahead = config.ahead || 0;
+    row.behind = config.behind || 0;
     row.staged = commit.tree !== head.tree;
     row.title = formatDate(commit.author.date) + "\n" + commit.author.name + " <" + commit.author.email + ">\n\n" + commit.message.trim();
     init();
@@ -289,25 +293,14 @@ function updateDoc(row, body) {
   });
 }
 
-function updateRemote(row) {
-  var config = fs.configs[row.path];
-  var repo = fs.repos[row.path];
-  row.call(config.ref, repo.readRef, function (ref) {
-    if (config.head === ref) return;
-    config.head = ref;
-    notify("Head moved to " + ref);
-    onChange(fs.configs[""].current);
-  });
-}
-
 function commitChanges(row) {
   row.call(fs.readCommit, function (entry) {
-    var config = fs.configs[row.path];
-    var githubName = fs.isGithub(row.path);
-    if (githubName && !config.passphrase) {
-      var previewDiff = "https://github.com/" + githubName + "/commit/" + entry.hash;
-      window.open(previewDiff);
-    }
+    // var config = fs.configs[row.path];
+    // var githubName = fs.isGithub(row.path);
+    // if (githubName && !config.passphrase) {
+    //   var previewDiff = "https://github.com/" + githubName + "/commit/" + entry.hash;
+    //   window.open(previewDiff);
+    // }
     var userName = prefs.get("userName", "");
     var userEmail = prefs.get("userEmail", "");
     dialog.multiEntry("Enter Commit Message", [
@@ -328,6 +321,10 @@ function commitChanges(row) {
         message: result.message
       };
       row.call(fs.saveAs, "commit", commit, function (hash) {
+        row.ahead++;
+        var config = fs.configs[row.path];
+        config.ahead = row.ahead;
+        prefs.save();
         row.call(fs.setHead, hash);
       });
     });
@@ -482,6 +479,115 @@ function toggleExec(row) {
   });
 }
 
+function forcePush(row) {
+  sync(row, 2);
+}
+function discardCommits(row) {
+  sync(row, 1);
+}
+
+function doSync(row, repo, config, callback) {
+  if (!repo) row.fail("Not a commit node");
+  if (config.head !== config.current) {
+    notify("Please commit or revert changes before syncing");
+    row.fail(new Error("Uncommited changes, can't sync."));
+  }
+  var localHead, remoteHead;
+  row.call(config.ref, repo.send, function (result) {
+    localHead = result;
+    if (remoteHead) {
+      row.call(repo, findCommon, localHead, remoteHead, onResult);
+    }
+  });
+  row.call(config.ref, repo.fetch, Infinity, function (result) {
+    remoteHead = result;
+    if (localHead) {
+      row.call(repo, findCommon, localHead, remoteHead, onResult);
+    }
+  });
+  function onResult(ahead, behind) {
+    row.ahead = ahead;
+    row.behind = behind;
+    config.ahead = ahead;
+    config.behind = behind;
+    prefs.save();
+    callback(ahead, behind, localHead, remoteHead);
+  }
+}
+
+// force = 1 discard local commits
+// force = 2 discard remote commits
+function sync(row, force) {
+  var repo = fs.findRepo(row.path);
+  var config = fs.configs[row.path];
+  doSync(row, repo, config, onSync);
+
+  function onSync(ahead, behind, localHead, remoteHead) {
+
+    if (!ahead) {
+      if (!behind) {
+        return notify("No changes to sync");
+      }
+      return dialog.confirm("You are " + plural(behind, "commit") + " behind remote.  Pull changes?", function (confirm) {
+        if (!confirm) return;
+        fastForwardLocal();
+      });
+    }
+    if (!behind) {
+      return dialog.confirm("You are " + plural(ahead, "commit") + " ahead of remote.  Push changes?", function (confirm) {
+        if (!confirm) return;
+        fastForwardRemote();
+      });
+    }
+    notify("Local and remote have diverged!\n" +
+      "You are " + plural(ahead, "commit") + " ahead " +
+      "and " + plural(behind, "commit") + " behind remote."
+    );
+    var message;
+    if (force === 1) {
+      message = "Are you sure you wish to discard " + plural(ahead, "commit") + "?";
+      dialog.confirm(message, function (confirm) {
+        if (!confirm) return;
+        fastForwardLocal();
+      });
+    }
+    if (force === 2) {
+      message = "Are you sure you wish to force push over " + plural(behind, "commit") + "?";
+      return dialog.confirm(message, function (confirm) {
+        if (!confirm) return;
+        fastForwardRemote(true);
+      });
+    }
+
+    function fastForwardRemote(forcePush) {
+      notify("Updating remote head on " + config.ref);
+      row.busy++;
+      repo.updateRemoteRef(config.ref, localHead, function (err) {
+        row.busy--;
+        if (err) row.fail(err);
+        reset();
+      }, forcePush);
+    }
+
+    function fastForwardLocal() {
+      notify("Fast forwarding local head on " + config.ref);
+      row.call(fs.setHead, remoteHead, reset);
+    }
+  }
+
+  function reset() {
+    row.ahead = 0;
+    row.behind = 0;
+    config.ahead = 0;
+    config.behind = 0;
+    prefs.save();
+  }
+}
+
+function plural(num, word) {
+  return num + " " + word + (num === 1 ? "" : "s");
+}
+
 function moveEntry(row) {
   dialog.prompt("Enter target path for move", row.path, function (newPath) {
     if (!newPath || newPath === row.path) return;
@@ -564,19 +670,25 @@ function makeMenu(row) {
     }
   }
   if (row.mode === modes.commit) {
-    actions.push(
-      {sep:true},
-      {icon:"spinner", label: "Update", action: updateRemote}
-    );
     if (fs.isDirty(row.path)) actions.push(
+      {sep:true},
       {icon:"floppy", label:"Commit Changes", action: commitChanges},
       {icon:"ccw", label:"Revert all Changes", action: revertChanges}
     );
-    // if (!config.githubName) {
-    //   actions.push({sep:true});
-    //   actions.push({icon:"download-cloud", label:"Pull from Remote"});
-    //   actions.push({icon:"upload-cloud", label:"Push to Remote"});
-    // }
+    var config = fs.configs[row.path];
+    var repo = fs.findRepo(row.path);
+    if (repo.fetch && config.current === config.head) {
+      actions.push(
+        {sep:true},
+        {icon:"cw", label:"Sync with Remote", action: sync }
+      );
+      if (config.ahead && config.behind) {
+        actions.push(
+          {icon:"upload-cloud", label:"Force push", action: forcePush },
+          {icon:"trash", label:"Discard Local Commits", action: discardCommits }
+        );
+      }
+    }
   }
   else if (modes.isFile(row.mode)) {
     var label = (row.mode === modes.exec) ?

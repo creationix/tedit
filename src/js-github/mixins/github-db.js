@@ -70,7 +70,7 @@ module.exports = function (repo, root, accessToken) {
 
   function hasHash(type, hash, callback) {
     if (!callback) return hasHash.bind(repo, type, hash);
-    apiRequest("HEAD", "/repos/:root/git/" + type + "s/" + hash, onValue);
+    apiRequest("GET", "/repos/:root/git/" + type + "s/" + hash, onValue);
 
     function onValue(err, xhr, result) {
       if (err) return callback(err);
@@ -377,7 +377,7 @@ function encodePerson(person) {
   return {
     name: person.name,
     email: person.email,
-    date: (new Date(person.date.seconds * 1000)).toISOString()
+    date: encodeDate(person.date)
   };
 }
 
@@ -480,6 +480,34 @@ function parseDate(string) {
     seconds: date.valueOf() / 1000,
     offset: timezoneOffset
   };
+}
+
+function encodeDate(date) {
+  var seconds = date.seconds - (date.offset) * 60;
+  var d = new Date(seconds * 1000);
+  var string = d.toISOString();
+  var hours = (date.offset / 60)|0;
+  var minutes = date.offset % 60;
+  string = string.substring(0, string.lastIndexOf(".")) +
+    (date.offset > 0 ? "-" : "+") +
+    twoDigit(hours) + ":" + twoDigit(minutes);
+  return string;
+}
+
+// Run some quick unit tests to make sure date encoding works.
+[
+  { offset: 300, seconds: 1401938626 },
+  { offset: 400, seconds: 1401938626 }
+].forEach(function (date) {
+  var verify = parseDate(encodeDate(date));
+  if (verify.seconds !== date.seconds || verify.offset !== date.offset) {
+    throw new Error("Verification failure testing date encoding");
+  }
+});
+
+function twoDigit(num) {
+  if (num < 10) return "0" + num;
+  return "" + num;
 }
 
 function singleCall(callback) {

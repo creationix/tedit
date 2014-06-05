@@ -20,6 +20,8 @@ function makeRow(path, mode, hash) {
       exportPath,
       serverPort,
       open = false,
+      ahead = 0,
+      behind = 0,
       busy = 0,
       active = false,
       selected = false,
@@ -59,6 +61,16 @@ function makeRow(path, mode, hash) {
       mode = value;
       updateIcon();
       updateUl();
+    },
+    get ahead() { return ahead; },
+    set ahead(value) {
+      ahead = value;
+      updateIcon();
+    },
+    get behind() { return behind; },
+    set behind(value) {
+      behind = value;
+      updateIcon();
     },
     get open() { return open; },
     set open(value) {
@@ -146,6 +158,28 @@ function makeRow(path, mode, hash) {
       }
       $.folder.setAttribute("class", "icon-folder" + (open ? "-open" : ""));
       $.folder.setAttribute("title", "tree " + treeHash);
+    }
+    if (ahead) {
+      if (!$.ahead) {
+        $.row.appendChild(domBuilder(["i$ahead"], $));
+        $.ahead.setAttribute("class", "icon-upload-cloud");
+      }
+      $.ahead.setAttribute("title", ahead + " commit" + (ahead === 1 ? "" : "s") + " ahead");
+    }
+    else if ($.ahead) {
+      $.row.removeChild($.ahead);
+      delete $.ahead;
+    }
+    if (behind) {
+      if (!$.behind) {
+        $.row.appendChild(domBuilder(["i$behind"], $));
+        $.behind.setAttribute("class", "icon-download-cloud");
+      }
+      $.behind.setAttribute("title", behind + " commit" + (behind === 1 ? "" : "s") + " behind");
+    }
+    else if ($.behind) {
+      $.row.removeChild($.behind);
+      delete $.behind;
     }
     if (serverPort) {
       if (!$.server) {

@@ -9,7 +9,10 @@ if (typeof process === 'object' && typeof process.versions === 'object' && proce
 // Browser XHR
 else {
   module.exports = function (root, accessToken) {
-    return function request(method, url, body, callback) {
+    var timeout = 2000;
+    return request;
+
+    function request(method, url, body, callback) {
       if (typeof body === "function" && callback === undefined) {
         callback = body;
         body = undefined;
@@ -19,11 +22,10 @@ else {
       var done = false;
       var json;
       var xhr = new XMLHttpRequest();
-      xhr.timeout = 8000;
+      xhr.timeout = timeout;
       xhr.open(method, 'https://api.github.com' + url, true);
       xhr.setRequestHeader("Authorization", "token " + accessToken);
       if (body) {
-        xhr.setRequestHeader("Content-Type", "application/json");
         try { json = JSON.stringify(body); }
         catch (err) { return callback(err); }
       }
@@ -47,10 +49,14 @@ else {
 
       function onTimeout() {
         if (done) return;
+        if (timeout < 8000) {
+          timeout *= 2;
+          return request(method, url, body, callback);
+        }
         done = true;
         callback(new Error("Timeout requesting " + url));
       }
-    };
+    }
   };
 }
 });
