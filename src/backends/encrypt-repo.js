@@ -8,6 +8,7 @@ module.exports = function (storage, passphrase) {
 
   require('js-git/mixins/path-to-entry')(storage);
   require('js-git/mixins/mem-cache')(storage);
+  require('js-git/mixins/create-tree')(storage);
   require('js-git/mixins/formats')(storage);
 
   // Derive a 32 bit key from the passphrase
