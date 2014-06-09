@@ -19,16 +19,16 @@ exports.createRepo = function (config) {
   require('js-github/mixins/github-db')(remote, githubName, githubToken);
   require('js-git/mixins/read-combiner')(remote);
 
+  if (config.passphrase) {
+    remote = require('./encrypt-repo')(remote, config.passphrase);
+  }
+
   var repo = {};
   if (!config.prefix) {
     config.prefix = Date.now().toString(36) + "-" + (Math.random() * 0x100000000).toString(36);
   }
   require('js-git/mixins/indexed-db')(repo, config.prefix);
   prefs.save();
-
-  if (config.passphrase) {
-    repo = require('./encrypt-repo')(repo, config.passphrase);
-  }
 
   require('js-git/mixins/sync')(repo, remote);
 
