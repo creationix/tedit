@@ -31,6 +31,7 @@ exports.createRepo = function (config) {
   prefs.save();
 
   require('js-git/mixins/sync')(repo, remote);
+  require('js-git/mixins/fall-through')(repo, remote);
 
   require('./repo-common')(repo);
 
