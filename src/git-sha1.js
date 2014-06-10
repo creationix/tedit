@@ -1,10 +1,10 @@
-define("git-sha1.js", ["crypto.js"], function (module, exports) { "use strict";
+define("git-sha1.js", [], function (module, exports) { "use strict";
 
-var isNode = typeof process === 'object' && typeof process.versions === 'object' && process.versions.node;
-if (isNode) {
-  try { require('crypto.js'); }
-  catch (err) { isNode = false; }
-}
+var isNode = typeof process === 'object' &&
+             typeof process.versions === 'object' &&
+             process.versions.node &&
+             process.type !== "renderer";
+
 var shared, create, crypto;
 if (isNode) {
   var nodeRequire = require; // Prevent mine.js from seeing this require
