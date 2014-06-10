@@ -6,9 +6,9 @@
     main.js: "src/main-web.js"
     prefs.js: "src/prefs-web.js"
     backends: "src/backends"
-    backends.js: "src/backends-web.js"
+    backends.js: "src/backends-atom.js"
     runtimes: "src/runtimes"
-    runtimes.js: "src/runtimes-web.js"
+    runtimes.js: "src/runtimes-atom.js"
     data: "src/data"
     ui: "src/ui"
 
