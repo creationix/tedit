@@ -19,7 +19,7 @@ function domBuilder(json, refs) {
   if (typeof json === 'string') return document.createTextNode(json);
 
   // Pass through html elements and text nodes as-is
-  if (json instanceof HTMLElement || json instanceof Text) return json;
+  if (json instanceof HTMLElement || json instanceof window.Text) return json;
 
   // Stringify any other value types
   if (!Array.isArray(json)) return document.createTextNode(json + "");
@@ -45,13 +45,15 @@ function domBuilder(json, refs) {
         var ref = part.match(REF_MATCH);
         if (refs && ref) refs[ref[0].substr(1)] = node;
         continue;
+      } else if (typeof part === "function") {
+        return domBuilder(part.apply(null, json.slice(i + 1)), refs);
       } else {
         node = document.createDocumentFragment();
       }
     }
 
     // Except the first item if it's an attribute object
-    if (first && typeof part === 'object' && part.__proto__ === Object.prototype) {
+    if (first && typeof part === 'object' && part.constructor === Object) {
       setAttrs(node, part);
     } else {
       node.appendChild(domBuilder(part, refs));
@@ -59,7 +61,7 @@ function domBuilder(json, refs) {
     first = false;
   }
   return node;
-};
+}
 
 function setAttrs(node, attrs) {
   var keys = Object.keys(attrs);
@@ -68,7 +70,7 @@ function setAttrs(node, attrs) {
     var value = attrs[key];
     if (key === "$") {
       value(node);
-    } else if (key === "css") {
+    } else if (key === "css" || key === "style" && value.constructor === Object) {
       setStyle(node.style, value);
     } else if (key.substr(0, 2) === "on") {
       node.addEventListener(key.substr(2), value, false);

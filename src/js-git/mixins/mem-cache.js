@@ -1,7 +1,8 @@
-define("js-git/mixins/mem-cache.js", ["js-git/lib/object-codec.js","js-git/lib/object-codec.js"], function (module, exports) { "use strict";
+define("js-git/mixins/mem-cache.js", ["js-git/lib/object-codec.js","js-git/lib/object-codec.js","bodec.js"], function (module, exports) { "use strict";
 
 var encoders = require('js-git/lib/object-codec.js').encoders;
 var decoders = require('js-git/lib/object-codec.js').decoders;
+var Binary = require('bodec.js').Binary;
 
 var cache = memCache.cache = {};
 module.exports = memCache;
@@ -35,7 +36,6 @@ function memCache(repo) {
     });
   }
 }
-var Binary = typeof Buffer === "function" ? Buffer : Uint8Array;
 function dupe(type, value) {
   if (type === "blob") {
     if (type.length >= 100) return value;

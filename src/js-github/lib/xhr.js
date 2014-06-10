@@ -1,7 +1,14 @@
-define("js-github/lib/xhr.js", [], function (module, exports) { "use strict";
+define("js-github/lib/xhr.js", ["https.js"], function (module, exports) { "use strict";
+
+var isNode = typeof process === 'object' && typeof process.versions === 'object' && process.versions.node;
+if (isNode) {
+  try { require('https.js'); }
+  catch (err) { isNode = false; }
+}
+
 
 // Node.js https module
-if (typeof process === 'object' && typeof process.versions === 'object' && process.versions.node) {
+if (isNode) {
   var nodeRequire = require; // Prevent mine.js from seeing this require
   module.exports = nodeRequire('./xhr-node.js');
 }

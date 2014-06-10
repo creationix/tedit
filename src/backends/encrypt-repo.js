@@ -1,4 +1,4 @@
-define("backends/encrypt-repo.js", ["bodec.js","js-git/lib/defer.js","prefs.js","js-git/mixins/path-to-entry.js","js-git/mixins/mem-cache.js","js-git/mixins/formats.js","js-git/lib/git-fs.js","js-git/mixins/fs-db.js"], function (module, exports) { "use strict";
+define("backends/encrypt-repo.js", ["bodec.js","js-git/lib/defer.js","prefs.js","js-git/mixins/path-to-entry.js","js-git/mixins/mem-cache.js","js-git/mixins/create-tree.js","js-git/mixins/formats.js","js-git/lib/git-fs.js","js-git/mixins/fs-db.js"], function (module, exports) { "use strict";
 var forge = window.forge;//require('forge');
 var bodec = require('bodec.js');
 var defer = require('js-git/lib/defer.js');
@@ -8,6 +8,7 @@ module.exports = function (storage, passphrase) {
 
   require('js-git/mixins/path-to-entry.js')(storage);
   require('js-git/mixins/mem-cache.js')(storage);
+  require('js-git/mixins/create-tree.js')(storage);
   require('js-git/mixins/formats.js')(storage);
 
   // Derive a 32 bit key from the passphrase

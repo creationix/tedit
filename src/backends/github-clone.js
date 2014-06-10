@@ -1,4 +1,4 @@
-define("backends/github-clone.js", ["js-git/lib/modes.js","prefs.js","js-github/mixins/github-db.js","js-git/mixins/read-combiner.js","js-git/mixins/indexed-db.js","backends/encrypt-repo.js","js-git/mixins/sync.js","backends/repo-common.js","prefs.js","ui/dialog.js","data/fs.js","ui/tree.js"], function (module, exports) { "use strict";
+define("backends/github-clone.js", ["js-git/lib/modes.js","prefs.js","js-github/mixins/github-db.js","js-git/mixins/read-combiner.js","backends/encrypt-repo.js","js-git/mixins/indexed-db.js","js-git/mixins/sync.js","js-git/mixins/fall-through.js","backends/repo-common.js","prefs.js","ui/dialog.js","data/fs.js","ui/tree.js"], function (module, exports) { "use strict";
 
 var modes = require('js-git/lib/modes.js');
 var prefs = require('prefs.js');
@@ -19,6 +19,10 @@ exports.createRepo = function (config) {
   require('js-github/mixins/github-db.js')(remote, githubName, githubToken);
   require('js-git/mixins/read-combiner.js')(remote);
 
+  if (config.passphrase) {
+    remote = require('backends/encrypt-repo.js')(remote, config.passphrase);
+  }
+
   var repo = {};
   if (!config.prefix) {
     config.prefix = Date.now().toString(36) + "-" + (Math.random() * 0x100000000).toString(36);
@@ -26,11 +30,8 @@ exports.createRepo = function (config) {
   require('js-git/mixins/indexed-db.js')(repo, config.prefix);
   prefs.save();
 
-  if (config.passphrase) {
-    repo = require('backends/encrypt-repo.js')(repo, config.passphrase);
-  }
-
   require('js-git/mixins/sync.js')(repo, remote);
+  require('js-git/mixins/fall-through.js')(repo, remote);
 
   require('backends/repo-common.js')(repo);
 

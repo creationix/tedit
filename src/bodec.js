@@ -1,9 +1,14 @@
-define("bodec.js", [], function (module, exports) { "use strict";
+define("bodec.js", ["buffer.js"], function (module, exports) { "use strict";
 /*global escape, unescape*/
 
 var isNode = typeof process === 'object' && typeof process.versions === 'object' && process.versions.node;
+if (isNode) {
+  try { require('buffer.js'); }
+  catch (err) { isNode = false; }
+}
 
 if (isNode) {
+
   var nodeRequire = require; // Prevent mine.js from seeing this require
   module.exports = nodeRequire('./bodec-node.js');
 }
@@ -11,6 +16,7 @@ else {
 
   // This file must be served with UTF-8 encoding for the utf8 codec to work.
   module.exports = {
+    Binary: Uint8Array,
     // Utility functions
     isBinary: isBinary,
     create: create,

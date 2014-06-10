@@ -1,15 +1,21 @@
-define("git-sha1.js", [], function (module, exports) { "use strict";
+define("git-sha1.js", ["crypto.js"], function (module, exports) { "use strict";
 
-var shared = new Uint32Array(80);
-var create, crypto;
-if (typeof process === 'object' && typeof process.versions === 'object' && process.versions.node) {
+var isNode = typeof process === 'object' && typeof process.versions === 'object' && process.versions.node;
+if (isNode) {
+  try { require('crypto.js'); }
+  catch (err) { isNode = false; }
+}
+var shared, create, crypto;
+if (isNode) {
   var nodeRequire = require; // Prevent mine.js from seeing this require
   crypto = nodeRequire('crypto');
   create = createNode;
 }
 else {
+  shared = new Uint32Array(80);
   create = createJs;
 }
+
 
 // Input chunks must be either arrays of bytes or "raw" encoded strings
 module.exports = function sha1(buffer) {
