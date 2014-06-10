@@ -1,0 +1,11 @@
+{
+  "name": "tedit",
+  "productName": "Tedit Development Environment",
+  "version": "0.2.17",
+  "description": "An offline enabled development environment that works directly on js-git databases",
+  "main": "app.js",
+  "icons": {
+    "196": "icons/icon-196.png",
+    "128": "icons/icon-128.png"
+  }
+}
