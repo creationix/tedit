@@ -499,7 +499,7 @@ function doSync(row, repo, config, callback) {
       row.call(repo, findCommon, localHead, remoteHead, onResult);
     }
   });
-  row.call(config.ref, repo.fetch, Infinity, function (result) {
+  row.call(config.ref, repo.fetch, 10, function (result) {
     remoteHead = result;
     if (localHead) {
       row.call(repo, findCommon, localHead, remoteHead, onResult);
