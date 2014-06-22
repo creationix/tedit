@@ -43,12 +43,13 @@ function dialog(title, contents, onCancel) {
   }
 }
 
-function alertDialog(title, message) {
+function alertDialog(title, message, callback) {
   var $ = dialog(title, ["p", message], onCancel);
   return $;
 
   function onCancel() {
     $.close();
+    if (callback) callback();
   }
 }
 
