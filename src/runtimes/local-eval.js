@@ -5,6 +5,7 @@ exports.menuItem = {
   action: execFile
 };
 
+var defer = require('js-git/lib/defer');
 var editor = require('ui/editor');
 var tree = require('ui/tree');
 var mine = require('mine');
@@ -68,7 +69,7 @@ function execFile(row) {
       js = js.substring(0, dep.offset) + dep.name + js.substring(dep.offset + len);
     });
     defs[path] = new Function("require", "module", "exports", "__dirname", "__filename", js);
-    check();
+    defer(check);
     var done;
 
     function check(err) {
