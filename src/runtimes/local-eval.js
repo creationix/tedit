@@ -24,8 +24,10 @@ function execFile(row) {
     var path = "vfs:/" + row.path;
     load(path, js, function (err) {
       if (err) row.fail(err);
-      try { fakeRequire(path); }
-      catch (err) { row.fail(err); }
+      defer(function () {
+        try { fakeRequire(path); }
+        catch (err) { row.fail(err); }
+      });
     });
   });
 
@@ -69,7 +71,7 @@ function execFile(row) {
       js = js.substring(0, dep.offset) + dep.name + js.substring(dep.offset + len);
     });
     defs[path] = new Function("require", "module", "exports", "__dirname", "__filename", js);
-    defer(check);
+    check();
     var done;
 
     function check(err) {
