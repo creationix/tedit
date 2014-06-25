@@ -70,8 +70,22 @@ function execFile(row) {
       }
       js = js.substring(0, dep.offset) + dep.name + js.substring(dep.offset + len);
     });
-    defs[path] = new Function("require", "module", "exports", "__dirname", "__filename", js);
-    check();
+    var url = URL.createObjectURL(new Blob([
+      "window[" + JSON.stringify(path) + "](function (require, module, exports, __dirname, __filename) {" + js + "});\n"
+    ], {type: 'application/javascript'}));
+    var old = window.path;
+    if (old) URL.revokeObjectURL(old);
+    window[path] = function (fn) {
+      document.head.removeChild(tag);
+      window[path] = url;
+      defs[path] = fn;
+      check();
+    };
+    var tag = document.createElement('script');
+    tag.setAttribute("charset", "utf-8");
+    tag.setAttribute("src", url);
+    document.head.appendChild(tag);
+
     var done;
 
     function check(err) {
