@@ -1,0 +1,21 @@
+body {
+  background-color: #888;
+  margin: 0;
+}
+#dark, #light {
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  height: 100%;
+  width: 50%;
+}
+#dark {
+  left: 0;
+  right: 50%;
+}
+#light {
+  right: 0;
+  left: 50%;
+}
