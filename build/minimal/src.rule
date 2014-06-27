@@ -4,6 +4,7 @@
   mappings: {
     -- Map to the main source files
     main.js: "src-minimal/main.js"
+    ui: "src-minimal/ui"
 
     -- Map to the external dependencies
     codemirror: "lib/codemirror"
