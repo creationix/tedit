@@ -1,5 +1,6 @@
 html, body {
   height: 100%;
+  touch-action: none;
 }
 body {
   background-color: #666;
@@ -31,7 +32,7 @@ body {
   overflow: hidden;
 }
 .window.maximized {
-  position: normal;
+  position: static;
 }
 
 .window.light {
@@ -68,6 +69,7 @@ body {
   color: #fff;
 }
 .title-bar {
+  touch-action: none;
   -webkit-user-select: none;
   user-select: none;
   position: absolute;
@@ -106,6 +108,7 @@ body {
   background-color: #888;
 }
 .resize {
+  touch-action: none;
   position: absolute;
 }
 .light .resize:hover {

@@ -1,6 +1,7 @@
 /*global CodeMirror domChanger*/
 "use strict";
 
+
 var jkl = '-- Inverted question mark!\n(macro (¿ no yes cond)\n  [[:? cond yes no]]\n)\n\n-- Sample output for 3x3 maze\n\n-- ██████████████\n-- ██      ██  ██\n-- ██  ██████  ██\n-- ██          ██\n-- ██  ██  ██████\n-- ██  ██      ██\n-- ██████████████\n\n(def width 30)\n(def height 30)\n(def size (× width height))\n\n-- Cells point to parent\n(def cells (map (i size) [i null]))\n\n-- Walls flag right and bottom\n(def walls (map (i size) [true true]))\n\n-- Define the sequence of index and right/left\n(def ww (- width 1))\n(def hh (- height 1))\n(def sequence (shuffle (concat\n  (map (i size)\n    (if (< (% i width) ww) [true i])\n  )\n  (map (i size)\n    (if (< (÷ i width) hh) [false i])\n  )\n)))\n\n-- Find the root of a set cell -> cell\n(def (find-root cell)\n  (? (. cell 1) (find-root (. cell 1)) cell)\n)\n\n(for (item sequence)\n  (def i (. item 1))\n  (def root (find-root (. cells i)))\n  (def other (find-root (. cells (+ i (? (. item 0) 1 width)))))\n  (if (≠ (. root 0) (. other 0))\n    (. root 1 other)\n    (. (. walls i) (? (. item 0) 0 1) false)\n  )\n)\n\n(def w (× width 2))\n(def h (× height 2))\n(join "\\n" (map (y (+ h 1))\n  (join "" (map (x (+ w 1))\n    (¿ "  " "██" (or\n      -- Four outer edges are always true\n      (= x 0) (= y 0) (= x w) (= y h)\n      -- Inner cells are more complicated\n      (? (% y 2)\n        (? (% x 2)\n           -- cell middle\n          false\n          -- cell right\n          (. (. walls (+ (÷ (- x 1) 2) (× (÷ y 2) width))) 0)\n        )\n        (? (% x 2)\n          -- cell bottom\n          (. (. walls (+ (÷ x 2) (× (÷ (- y 1) 2) width))) 1)\n          -- cell corner\n          true\n        )\n      )\n    ))\n  ))\n))\n';
 
 domChanger(Desktop, document.body).update();
@@ -55,10 +56,27 @@ function AppWindow(emit, refresh) {
   var maximized = false;
   var dragging = {};
   var id;
-  window.addEventListener("mouseup", onMouseUp);
-  window.addEventListener("mousemove", onMouseMove);
-  window.addEventListener("touchend", onTouchEnd);
-  window.addEventListener("touchmove", onTouchMove);
+  var usePointer = !!window.PointerEvent;
+  if (usePointer) {
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointermove", onPointerMove);
+  }
+  else {
+    window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("touchend", onTouchEnd);
+    window.addEventListener("touchmove", onTouchMove);
+  }
+
+  var northProps = drag(north);
+  var northEastProps = drag(northEast);
+  var eastProps = drag(east);
+  var southEastProps = drag(southEast);
+  var southProps = drag(south);
+  var southWestProps = drag(southWest);
+  var westProps = drag(west);
+  var northWestProps = drag(northWest);
+  var titleBarProps = drag(titleBar);
 
   return {
     render: render,
@@ -66,10 +84,16 @@ function AppWindow(emit, refresh) {
   };
 
   function cleanup() {
-    window.removeEventListener("mouseup", onMouseUp);
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("touchend", onTouchEnd);
-    window.removeEventListener("touchmove", onTouchMove);
+    if (usePointer) {
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointermove", onPointerMove);
+    }
+    else {
+      window.removeEventListener("mouseup", onMouseUp);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchmove", onTouchMove);
+    }
   }
 
   function render(windowWidth, windowHeight, isDark, title, child) {
@@ -115,6 +139,7 @@ function AppWindow(emit, refresh) {
     } : {
       width: width + "px",
       height: height + "px",
+      transform: "translate3d(" + left + "px," + top + "px,0)",
       webkitTransform: "translate3d(" + left + "px," + top + "px,0)",
       // left: left + "px",
       // top: top + "px",
@@ -123,15 +148,15 @@ function AppWindow(emit, refresh) {
         style: style, class: isDark ? "dark" : "light"
       },
       ["article.content", child],
-      [".resize.n", drag(north)],
-      [".resize.ne", drag(northEast)],
-      [".resize.e", drag(east)],
-      [".resize.se", drag(southEast)],
-      [".resize.s", drag(south)],
-      [".resize.sw", drag(southWest)],
-      [".resize.w", drag(west)],
-      [".resize.nw", drag(northWest)],
-      [".title-bar", drag(titleBar), title],
+      [".resize.n", northProps],
+      [".resize.ne", northEastProps],
+      [".resize.e", eastProps],
+      [".resize.se", southEastProps],
+      [".resize.s", southProps],
+      [".resize.sw", southWestProps],
+      [".resize.w", westProps],
+      [".resize.nw", northWestProps],
+      [".title-bar", titleBarProps, title],
       [".max-box", {onclick:onMaxClick}, maximized ? "▼" : "▲"],
       [".close-box", {onclick:onCloseClick},"✖"],
     ];
@@ -146,6 +171,22 @@ function AppWindow(emit, refresh) {
   function onCloseClick(evt) {
     evt.stopPropagation();
     emit("destroy", id);
+  }
+
+  function onPointerMove(evt) {
+    var id = evt.pointerId;
+    if (!dragging[id]) return;
+    evt.preventDefault();
+    evt.stopPropagation();
+    move(id, evt.clientX, evt.clientY);
+  }
+
+  function onPointerUp(evt) {
+    var id = evt.pointerId;
+    if (!dragging[id]) return;
+    evt.preventDefault();
+    evt.stopPropagation();
+    stop(id);
   }
 
   function onTouchMove(evt) {
@@ -195,10 +236,20 @@ function AppWindow(emit, refresh) {
   }
 
   function drag(fn) {
-    return {
+    return usePointer ? {
+      onpointerdown: onPointerDown
+    } : {
       onmousedown: onMouseDown,
       ontouchstart: onTouchStart
     };
+
+    function onPointerDown(evt) {
+      var id = evt.pointerId;
+      if (dragging[id]) return;
+      evt.preventDefault();
+      evt.stopPropagation();
+      start(id, evt.clientX, evt.clientY, fn);
+    }
 
     function onTouchStart(evt) {
       var found = false;
@@ -293,40 +344,39 @@ function AppWindow(emit, refresh) {
 }
 
 function CodeMirrorEditor() {
-  // var code, mode, theme;
-  // var el;
-  // var cm = new CodeMirror(function (root) {
-  //   el = root;
-  // }, {
-  //   keyMap: "sublime",
-  //   // lineNumbers: true,
-  //   rulers: [{ column: 80 }],
-  //   autoCloseBrackets: true,
-  //   matchBrackets: true,
-  //   showCursorWhenSelecting: true,
-  //   styleActiveLine: true,
-  // });
-  // setTimeout(function () {
-  //   cm.refresh();
-  // }, 0);
+  var code, mode, theme;
+  var el;
+  var cm = new CodeMirror(function (root) {
+    el = root;
+  }, {
+    keyMap: "sublime",
+    // lineNumbers: true,
+    rulers: [{ column: 80 }],
+    autoCloseBrackets: true,
+    matchBrackets: true,
+    showCursorWhenSelecting: true,
+    styleActiveLine: true,
+  });
+  setTimeout(function () {
+    cm.refresh();
+  }, 0);
 
   return { render: render };
 
   function render(isDark, props) {
-    // var newTheme = isDark ? "notebook-dark" : "notebook";
-    // if (newTheme !== theme) {
-    //   theme = newTheme;
-    //   cm.setOption("theme", theme);
-    // }
-    // if (props.mode !== mode) {
-    //   mode = props.mode;
-    //   cm.setOption("mode", mode);
-    // }
-    // if (props.code !== code) {
-    //   code = props.code;
-    //   cm.setValue(code);
-    // }
-    return [];
+    var newTheme = isDark ? "notebook-dark" : "notebook";
+    if (newTheme !== theme) {
+      theme = newTheme;
+      cm.setOption("theme", theme);
+    }
+    if (props.mode !== mode) {
+      mode = props.mode;
+      cm.setOption("mode", mode);
+    }
+    if (props.code !== code) {
+      code = props.code;
+      cm.setValue(code);
+    }
     return el;
   }
 }
