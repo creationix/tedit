@@ -64,18 +64,18 @@
 	ref = refs/heads/master
 	prefix = hwuu5m4g-1r4fakt
 	path = lib/codemirror
-[submodule "build/minimal/notebook"]
-	url = git@github.com:creationix/cm-notebook-theme.git
-	ref = refs/heads/master
-	prefix = hwuzsh7k-exv373
-	path = build/minimal/notebook
-[submodule "build/minimal/jackl-mode"]
-	url = git@github.com:creationix/cm-jackl-mode.git
-	ref = refs/heads/master
-	prefix = hwv2zb58-1x7lqso
-	path = build/minimal/jackl-mode
-[submodule "build/minimal/domchanger"]
+[submodule "lib/domchanger"]
 	url = git@github.com:creationix/domchanger.git
 	ref = refs/heads/master
 	prefix = hwwg5aow-g098zo
-	path = build/minimal/domchanger
+	path = lib/domchanger
+[submodule "lib/jackl-mode"]
+	url = git@github.com:creationix/cm-jackl-mode.git
+	ref = refs/heads/master
+	prefix = hwv2zb58-1x7lqso
+	path = lib/jackl-mode
+[submodule "lib/notebook"]
+	url = git@github.com:creationix/cm-notebook-theme.git
+	ref = refs/heads/master
+	prefix = hwuzsh7k-exv373
+	path = lib/notebook
