@@ -2,8 +2,8 @@
   program: "js-compiler"
 
   mappings: {
-    -- Map to the main tedit source files
-    main.js: "build/minimal/app.js"
+    -- Map to the main source files
+    main.js: "src-minimal/main.js"
 
     -- Map to the external dependencies
     codemirror: "lib/codemirror"
