@@ -109,8 +109,8 @@ function AppWindow(emit, refresh) {
     // Manually run constraints that edges must be inside desktop and
     // window must be at least 200x100
     var right = left + width;
-    if (right < 96) right = 96;
-    if (left > windowWidth - 42) left = windowWidth - 42;
+    if (right < 10) right = 10;
+    if (left > windowWidth - 10) left = windowWidth - 10;
     var mid = ((left + right) / 2) | 0;
     if (mid < ((windowWidth / 2) | 0)) {
       if (right < left + 200) right = left + 200;
@@ -127,8 +127,8 @@ function AppWindow(emit, refresh) {
     }
 
     var bottom = top + height;
-    if (top < -10) top = -10;
-    if (top > windowHeight - 42) top = windowHeight - 42;
+    if (bottom < 10) bottom = 10;
+    if (top > windowHeight - 10) top = windowHeight - 10;
     mid = ((top + bottom) / 2) | 0;
     if (mid < ((windowHeight / 2) | 0)) {
       if (bottom < top + 100) bottom = top + 100;
