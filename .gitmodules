@@ -74,3 +74,8 @@
 	ref = refs/heads/master
 	prefix = hwv2zb58-1x7lqso
 	path = build/minimal/jackl-mode
+[submodule "build/minimal/domchanger"]
+	url = git@github.com:creationix/domchanger.git
+	ref = refs/heads/master
+	prefix = hwwg5aow-g098zo
+	path = build/minimal/domchanger
