@@ -34,6 +34,9 @@ body {
 .window.maximized {
   position: static;
 }
+.window.focused {
+  z-index: 10;
+}
 
 .window.light {
   box-shadow: 0 0 7px rgba(0,0,0,0.5);
@@ -102,7 +105,11 @@ body {
   line-height: 32px;
   top: 10px;
   height: 32px;
-  opacity: 0.6;
+  opacity: 0.5;
+}
+
+.focused .max-box, .focused .close-box, .focused .title-bar {
+  opacity: 0.9;
 }
 .close-box:hover, .max-box:hover {
   background-color: #888;

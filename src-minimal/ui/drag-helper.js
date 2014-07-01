@@ -1,9 +1,15 @@
 "use strict";
 var dragging = {};
 
+// Given a move handler, call it while dragging with delta-x and delta-y
+// Supports mouse-events, touch-events and pointer-events.
+// Returns a map of event handlers for use in domchanger
+// Usage: drag(onMove(dx, dy){}) -> props
 module.exports = drag;
 
 var usePointer = !!window.PointerEvent;
+
+// Need global events for up and move since the target often changes.
 if (usePointer) {
   window.addEventListener("pointerup", onPointerUp);
   window.addEventListener("pointermove", onPointerMove);

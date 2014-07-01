@@ -21,8 +21,8 @@ function AppWindow(emit, refresh) {
 
   return { render: render };
 
-  function render(windowWidth, windowHeight, isDark, title, child) {
-    id = child;
+  function render(windowWidth, windowHeight, isDark, props, child) {
+    id = props.id;
 
     if (width === undefined) {
       width = (windowWidth / 2) | 0;
@@ -79,11 +79,12 @@ function AppWindow(emit, refresh) {
       height: height + "px",
       transform: "translate3d(" + left + "px," + top + "px,0)",
       webkitTransform: "translate3d(" + left + "px," + top + "px,0)",
-      // left: left + "px",
-      // top: top + "px",
     };
+    var classes = [isDark ? "dark" : "light"];
+    if (props.focused) classes.push("focused");
     return ["dialog.window", {
-        style: style, class: isDark ? "dark" : "light"
+        onclick: onAnyClick,
+        style: style, class: classes.join(" ")
       },
       ["article.content", child],
       [".resize.n", northProps],
@@ -94,16 +95,21 @@ function AppWindow(emit, refresh) {
       [".resize.sw", southWestProps],
       [".resize.w", westProps],
       [".resize.nw", northWestProps],
-      [".title-bar", titleBarProps, title],
+      [".title-bar", titleBarProps, props.title],
       [".max-box", {onclick:onMaxClick}, maximized ? "▼" : "▲"],
       [".close-box", {onclick:onCloseClick},"✖"],
     ];
+  }
+
+  function onAnyClick(evt) {
+    emit("focus", id);
   }
 
   function onMaxClick(evt) {
     evt.stopPropagation();
     maximized = !maximized;
     refresh();
+    emit("focus", id);
   }
 
   function onCloseClick(evt) {

@@ -79,3 +79,8 @@
 	ref = refs/heads/master
 	prefix = hwuzsh7k-exv373
 	path = lib/notebook
+[submodule "lib/jon-mode"]
+	url = git@github.com:creationix/cm-jon-mode.git
+	ref = refs/heads/master
+	prefix = hwy3vrrd-1vfa1ih
+	path = lib/jon-mode
