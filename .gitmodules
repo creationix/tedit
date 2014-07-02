@@ -84,3 +84,8 @@
 	ref = refs/heads/master
 	prefix = hwy3vrrd-1vfa1ih
 	path = lib/jon-mode
+[submodule "lib/gen-run"]
+	url = git@github.com:creationix/gen-run.git
+	ref = refs/heads/master
+	prefix = hx3rzivy-hezotl
+	path = lib/gen-run

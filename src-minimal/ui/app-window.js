@@ -83,7 +83,7 @@ function AppWindow(emit, refresh) {
     var classes = [isDark ? "dark" : "light"];
     if (props.focused) classes.push("focused");
     return ["dialog.window", {
-        onclick: onAnyClick,
+        onmousedown: onAnyClick, ontouchstart: onAnyClick,
         style: style, class: classes.join(" ")
       },
       ["article.content", child],

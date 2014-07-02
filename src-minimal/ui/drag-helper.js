@@ -33,7 +33,6 @@ function drag(fn) {
     var id = evt.pointerId;
     if (dragging[id]) return;
     evt.preventDefault();
-    evt.stopPropagation();
     start(id, evt.clientX, evt.clientY, fn);
   }
 
@@ -49,14 +48,12 @@ function drag(fn) {
     }
     if (found) {
       evt.preventDefault();
-      evt.stopPropagation();
     }
   }
 
   function onMouseDown(evt) {
     if (dragging.mouse) return;
     evt.preventDefault();
-    evt.stopPropagation();
     start("mouse", evt.clientX, evt.clientY, fn);
   }
 }

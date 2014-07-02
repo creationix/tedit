@@ -11,6 +11,7 @@
     bodec.js: "lib/bodec/bodec.js"
     codemirror: "lib/codemirror"
     domchanger.js: "lib/domchanger/domchanger.js"
+    gen-run.js: "lib/gen-run/run.js"
     git-sha1.js: "lib/git-sha1/git-sha1.js"
     git-tree.js: "lib/git-tree/git-tree.js"
     jackl-mode.js: "lib/jackl-mode/jackl-mode.js"

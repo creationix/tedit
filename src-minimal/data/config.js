@@ -6,7 +6,7 @@ if (!configText) {
   configText = "{\n" +
   "  -- Set global theme:\n" +
   "  -- true for light theme, false for dark\n" +
-  "  darkTheme: false\n" +
+  "  lightTheme: true\n" +
   "}\n";
 }
 
