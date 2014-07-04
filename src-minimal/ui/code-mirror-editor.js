@@ -4,6 +4,8 @@ var CodeMirror = require('codemirror/lib/codemirror');
 require("codemirror/addon/edit/closebrackets");
 require("codemirror/addon/comment/comment");
 require("codemirror/keymap/sublime");
+require("codemirror/addon/hint/anyword-hint");
+require("codemirror/addon/hint/show-hint");
 require('jackl-mode');
 require('jon-mode');
 
@@ -30,6 +32,32 @@ function CodeMirrorEditor(emit) {
 
   cm.on("focus", function () {
     emit("focus", id);
+  });
+
+  var replacements = {
+    "lambda": "λ",
+    "*": "×",
+    "/": "÷",
+    "<=": "≤",
+    ">=": "≥",
+    "!=": "≠",
+  };
+
+  cm.on("change", function (cm, change) {
+    if (mode !== "jackl" || change.text[0] !== " ") return;
+    var type = cm.getTokenTypeAt(change.from);
+    if (type !== "operator" && type !== "builtin") return;
+    var token = cm.getTokenAt(change.from, true);
+    var replacement = replacements[token.string];
+    if (!replacement) return;
+    var line = change.to.line;
+    cm.replaceRange(replacement, {
+      ch: token.start,
+      line: line
+    }, {
+      ch: token.end,
+      line: line
+    });
   });
 
   return { render: render };
