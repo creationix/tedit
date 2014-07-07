@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 /*global ace*/
 
@@ -173,9 +174,34 @@ function updateImage() {
   else $.image.classList.add("zoom");
 }
 
+function setTheme(name, quiet) {
+  var theme = themes[name];
+  document.body.setAttribute("class", "theme-" + (theme.isDark ? "dark" : "light"));
+  editor.renderer.setTheme(theme.theme, function () {
+    require('./applytheme')(theme);
+    if (!quiet) notify(theme.caption);
+  });
+}
+
+function nextTheme() {
+  themeIndex = (themeIndex + 1) % themeNames.length;
+  prefs.set("themeIndex", themeIndex);
+  setTheme(themeNames[themeIndex]);
+}
+
+function prevTheme() {
+  themeIndex = (themeIndex - 1);
+  if (themeIndex < 0) themeIndex += themeNames.length;
+  prefs.set("themeIndex", themeIndex);
+  setTheme(themeNames[themeIndex]);
+}
+
+module.exports = editor;
+
+}());
 
 function jack() {/*
-  [ "Welcome to the Tedit Chrome App alpha preview"
+  [ "Welcome to the Tedit Workspace"
     "This Developement Environment is under heavy development" ]
   -- This file is written in Jack, a new language for kids!
   vars Global-Controls, File-Tree-Controls, Mouse-and-Touch-Controls
@@ -222,28 +248,3 @@ function jack() {/*
   }
 
 */}
-
-
-function setTheme(name, quiet) {
-  var theme = themes[name];
-  document.body.setAttribute("class", "theme-" + (theme.isDark ? "dark" : "light"));
-  editor.renderer.setTheme(theme.theme, function () {
-    require('./applytheme')(theme);
-    if (!quiet) notify(theme.caption);
-  });
-}
-
-function nextTheme() {
-  themeIndex = (themeIndex + 1) % themeNames.length;
-  prefs.set("themeIndex", themeIndex);
-  setTheme(themeNames[themeIndex]);
-}
-
-function prevTheme() {
-  themeIndex = (themeIndex - 1);
-  if (themeIndex < 0) themeIndex += themeNames.length;
-  prefs.set("themeIndex", themeIndex);
-  setTheme(themeNames[themeIndex]);
-}
-
-module.exports = editor;
