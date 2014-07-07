@@ -172,6 +172,8 @@ module.exports = {
 
 });
 
+ace.require(["ace/ext/modelist"], function() {});
+
 ace.define('ace/mode/jackl', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/mode/jack_highlight_rules', 'ace/mode/matching_brace_outdent', 'ace/mode/behaviour/cstyle', 'ace/mode/folding/cstyle'], function(require, exports, module) {
 
 
@@ -785,8 +787,3 @@ oop.inherits(FoldMode, BaseFoldMode);
 }).call(FoldMode.prototype);
 
 });
-
-;
-                (function() {
-                    ace.require(["ace/ext/modelist"], function() {});
-                })();
