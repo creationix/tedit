@@ -13,7 +13,17 @@ var fs = require('data/fs');
 var pathJoin = require('pathjoin');
 var bodec = require('bodec');
 var run = require('gen-run');
-var regenerator = require('regenerator');
+var regenerator;
+
+var needsTransform = true;
+try {
+  if ((function*(){yield true;}).constructor.name === "GeneratorFunction") {
+    needsTransform = false;
+  }
+} catch(err) {}
+if (needsTransform) {
+  regenerator = require('regenerator');
+}
 
 // Preload the API files
 require('api/index');
@@ -76,7 +86,8 @@ function execFile(row) {
       js = js.substring(0, dep.offset) + dep.name + js.substring(dep.offset + len);
     });
     // Allow yield and yield* in any script body!
-    js = "run(function* () {" + regenerator(js) + "});";
+    if (needsTransform) js = regenerator(js);
+    js = "run(function* () {" + js + "});";
     var url = URL.createObjectURL(new Blob([
       "window[" + JSON.stringify(path) + "](function (run, require, module, exports, __dirname, __filename) {" + js + "});\n"
     ], {type: 'application/javascript'}));
