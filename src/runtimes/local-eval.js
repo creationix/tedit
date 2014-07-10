@@ -15,6 +15,9 @@ var bodec = require('bodec');
 var run = require('gen-run');
 var regenerator = require('regenerator');
 
+// Preload the API files
+require('api/index');
+
 function execFile(row) {
 
   var modules = {};
