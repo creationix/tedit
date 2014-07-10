@@ -64,3 +64,8 @@
 	ref = refs/heads/master
 	prefix = hxgkk2pm-xunob4
 	path = lib/tedit-regenerator
+[submodule "lib/gen-run"]
+	url = git@github.com:creationix/gen-run.git
+	ref = refs/heads/master
+	prefix = hxgl6kdw-1g44jf
+	path = lib/gen-run

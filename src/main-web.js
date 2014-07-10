@@ -14,4 +14,6 @@ require('carallel')(setup, function (err) {
   require('ui/global-keys');
 });
 
+// Preload some libs
+require('gen-run');
 require('regenerator');
