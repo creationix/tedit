@@ -25,9 +25,6 @@ if (needsTransform) {
   regenerator = require('regenerator');
 }
 
-// Preload the API files
-require('api/index');
-
 function execFile(row) {
 
   var modules = {};
