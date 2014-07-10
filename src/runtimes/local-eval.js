@@ -17,7 +17,7 @@ var regenerator;
 
 var needsTransform = true;
 try {
-  if ((function*(){yield true;}).constructor.name === "GeneratorFunction") {
+  if (eval("(function*(){}).constructor.name") === "GeneratorFunction") {
     needsTransform = false;
   }
 } catch(err) {}
