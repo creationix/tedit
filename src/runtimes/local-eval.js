@@ -12,6 +12,8 @@ var mine = require('mine');
 var fs = require('data/fs');
 var pathJoin = require('pathjoin');
 var bodec = require('bodec');
+var run = require('gen-run');
+var regenerator = require('regenerator');
 
 function execFile(row) {
 
@@ -40,7 +42,7 @@ function execFile(row) {
       var module = modules[path] = { exports: exports };
       var filename = path.substring(5);
       var dirname = pathJoin(filename, "..");
-      defs[path](fakeRequire, module, exports, dirname, filename);
+      defs[path](run, fakeRequire, module, exports, dirname, filename);
       return module.exports;
     }
     return require(path);
@@ -70,8 +72,10 @@ function execFile(row) {
       }
       js = js.substring(0, dep.offset) + dep.name + js.substring(dep.offset + len);
     });
+    // Allow yield and yield* in any script body!
+    js = "run(function* () {" + regenerator(js) + "});";
     var url = URL.createObjectURL(new Blob([
-      "window[" + JSON.stringify(path) + "](function (require, module, exports, __dirname, __filename) {" + js + "});\n"
+      "window[" + JSON.stringify(path) + "](function (run, require, module, exports, __dirname, __filename) {" + js + "});\n"
     ], {type: 'application/javascript'}));
     var old = window.path;
     if (old) URL.revokeObjectURL(old);
