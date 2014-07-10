@@ -59,3 +59,8 @@
 	url = git@github.com:reworkcss/css.git
 	ref = refs/heads/master
 	path = lib/css
+[submodule "lib/tedit-regenerator"]
+	url = git@github.com:creationix/tedit-regenerator.git
+	ref = refs/heads/master
+	prefix = hxgkk2pm-xunob4
+	path = lib/tedit-regenerator

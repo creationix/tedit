@@ -27,5 +27,6 @@
     pako: "lib/pako/lib"
     pathjoin.js: "lib/pathjoin/pathjoin.js"
     simple-mime.js: "lib/simple-mime/simple-mime.js"
+    regenerator.js: "lib/tedit-regenerator/regenerator-bundle.js"
   }
 }
