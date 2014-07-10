@@ -83,8 +83,8 @@ function execFile(row) {
       js = js.substring(0, dep.offset) + dep.name + js.substring(dep.offset + len);
     });
     // Allow yield and yield* in any script body!
-    if (needsTransform) js = regenerator(js);
     js = "run(function* () {" + js + "});";
+    if (needsTransform) js = regenerator(js);
     var url = URL.createObjectURL(new Blob([
       "window[" + JSON.stringify(path) + "](function (run, require, module, exports, __dirname, __filename) {" + js + "});\n"
     ], {type: 'application/javascript'}));
