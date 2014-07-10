@@ -11,6 +11,7 @@
     runtimes.js: "src/runtimes-web.js"
     data: "src/data"
     ui: "src/ui"
+    api: "src/api"
 
     -- Map to the external dependencies
     http-codec.js: "lib/http-codec/http-codec.js"
