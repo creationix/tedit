@@ -12,6 +12,9 @@
     <link rel="stylesheet" href="style.css" charset="utf-8">
   </head>
   <body>
+    <script>
+      window.hasGenerators = (function*(){yield true})().next().value;
+    </script>
     <script src="regenerator-runtime.js" charset="utf-8"></script>
     <script src="forge/forge.min.js" charset="utf-8"></script>
     <script src="ace/ace.js" charset="utf-8"></script>
