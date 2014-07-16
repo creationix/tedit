@@ -1,5 +1,5 @@
 module.exports = [
-  require('backends/github'),
+  require('backends/github-clone'),
   require('backends/chrome-fs'),
   require('backends/indexed-db'),
 ];
