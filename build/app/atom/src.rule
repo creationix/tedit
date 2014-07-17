@@ -18,6 +18,7 @@
     carallel.js: "lib/carallel/carallel.js"
     css-parse.js: "lib/css/lib/parse/index.js"
     dombuilder.js: "lib/dombuilder/dombuilder.js"
+    gen-run.js: "lib/gen-run/run.js"
     git-sha1.js: "lib/git-sha1/git-sha1.js"
     git-tree.js: "lib/git-tree/git-tree.js"
     jon-parse.js: "lib/jon-parse/jon-parse.js"
@@ -27,5 +28,6 @@
     pako: "lib/pako/lib"
     pathjoin.js: "lib/pathjoin/pathjoin.js"
     simple-mime.js: "lib/simple-mime/simple-mime.js"
+    regenerator.js: "lib/tedit-regenerator/regenerator-bundle.js"
   }
 }

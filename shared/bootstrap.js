@@ -6,6 +6,8 @@
   var ready = {};
   var pending = {};
   var scripts = {};
+  var oldRequire = typeof require === "function" && require;
+  window.oldRequire = oldRequire;
   window.define = define;
   window.require = requireSync;
   window.requireAsync = requireAsync;
@@ -29,7 +31,10 @@
     if (!(/\.[^\/]+$/.test(name))) name += ".js";
     if (name in modules) return modules[name].exports;
     var exports = {};
-    if (!(name in defs)) throw new Error("Unknown module " + name);
+    if (!(name in defs)) {
+      if (oldRequire) return oldRequire(name);
+      throw new Error("Unknown module " + name);
+    }
     var module = modules[name] = {exports:exports};
     if (defs[name].fn(module, exports) !== undefined) throw new Error("Use `module.exports = value`, not `return value`");
     return module.exports;
@@ -37,8 +42,12 @@
 
   // Make sure a module and all it's deps are defined.
   function load(name, callback, chain) {
+    if (oldRequire && name === "remote.js") {
+      return callback();
+    }
     // If it's flagged ready, it's ready
     if (ready[name]) return callback();
+
     // If there is something going on wait for it to finish.
     if (name in pending) return pending[name].push(callback);
     // If the module isn't downloaded yet, start it.
