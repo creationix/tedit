@@ -9,6 +9,7 @@ else if (window.openDatabase) {
 else if (window.localStorage) {
   // backends.push(require('backends/local-storage'));
 // }
+
 // else {
   console.warn("No persistance can be used on this platform");
   // backends.push(require('backends/mem-storage'));

@@ -1,7 +1,7 @@
 "use strict";
 /*global ace*/
 
-var parseCss = require('css-parse');
+var parseCss = require('css/lib/parse/index');
 
 var template = {
   ".tree, div#ace_settingsmenu": {

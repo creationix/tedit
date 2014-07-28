@@ -1,5 +1,5 @@
 "use strict";
-var backends = require('backends');
+var backends = require('./backends.js');
 
 // Initialize the subsystems in parallel for fast boot
 var setup = backends.map(function (backend) {
@@ -9,7 +9,7 @@ var setup = backends.map(function (backend) {
 require('carallel')(setup, function (err) {
   if (err) throw err;
   // Load the main GUI components
-  require('ui/editor');
-  require('ui/slider');
-  require('ui/global-keys');
+  require('./ui/editor.js');
+  require('./ui/slider.js');
+  require('./ui/global-keys.js');
 });
