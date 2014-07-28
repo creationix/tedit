@@ -43,6 +43,7 @@ module.exports = function* (pathToEntry) {
     if (started[path]) return;
     started[path] = true;
     var meta = yield* pathToEntry(path);
+    if (!meta) throw new Error("No such file: " + path);
     var blob = yield meta.repo.loadAs("blob", meta.hash);
     var code = bodec.toUnicode(blob);
     var deps = mine(code);
