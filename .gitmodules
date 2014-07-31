@@ -69,3 +69,6 @@
 	ref = refs/heads/master
 	prefix = hxgl6kdw-1g44jf
 	path = lib/gen-run
+[submodule "lib/codemirror"]
+	path = lib/codemirror
+	url = git://github.com/marijnh/codemirror.git
