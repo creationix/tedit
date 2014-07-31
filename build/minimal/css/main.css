@@ -1,0 +1,176 @@
+html, body {
+  height: 100%;
+  touch-action: none;
+}
+body {
+  background-color: #666;
+  margin: 0;
+  background: url(wallpaper.jpg);
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  overflow: hidden;
+}
+
+/* make notebook themes transparent */
+/*.cm-s-notebook.CodeMirror {background-color:rgba(254, 252, 238, 0.8)}*/
+/*.cm-s-notebook .CodeMirror-activeline-background,*/
+/*.cm-s-notebook .CodeMirror-selected {background: rgba(255,255,255,0.2)}*/
+/*.cm-s-notebook.CodeMirror-focused .CodeMirror-selected {background: rgba(255,255,255,0.7)}*/
+
+/*.cm-s-notebook-dark.CodeMirror {background-color:rgba(31, 29, 27, 0.8)}*/
+/*.cm-s-notebook-dark .CodeMirror-activeline-background,*/
+/*.cm-s-notebook-dark .CodeMirror-selected {background: rgba(0,0,0,0.2)}*/
+/*.cm-s-notebook-dark.CodeMirror-focused .CodeMirror-selected {background: rgba(0,0,0,0.7)}*/
+
+.CodeMirror {
+  font-size: 14pt;
+}
+
+.window {
+  position: absolute;
+  overflow: hidden;
+}
+.window.maximized {
+  position: static;
+}
+.window.focused {
+  z-index: 10;
+}
+
+.window.light {
+  box-shadow: 0 0 7px rgba(0,0,0,0.5);
+}
+.window.dark {
+  box-shadow: 0 0 7px rgba(255,255,255,0.5);
+}
+
+.CodeMirror {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: auto;
+  width: auto;
+}
+
+.content {
+  position: absolute;
+  overflow: auto;
+  top: 42px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+}
+.light .title-bar, .light .close-box, .light .max-box {
+  background-color: #fff;
+  color: #000;
+}
+.dark .title-bar, .dark .close-box, .dark .max-box {
+  background-color: #000;
+  color: #fff;
+}
+.title-bar {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  position: absolute;
+  overflow: hidden;
+  left: 10px;
+  right: 74px;
+  text-align: center;
+  font-family: sans-serif;
+  font-size: 12pt;
+  text-overflow: ellipsis;
+  cursor: move;
+}
+.close-box {
+  right: 10px;
+}
+.max-box {
+  right: 42px;
+}
+.max-box, .close-box {
+  font-size: 12pt;
+  -webkit-user-select: none;
+  user-select: none;
+  position: absolute;
+  overflow: hidden;
+  width: 32px;
+  text-align: center;
+  cursor: pointer;
+}
+.max-box, .close-box, .title-bar {
+  line-height: 32px;
+  top: 10px;
+  height: 32px;
+  opacity: 0.5;
+}
+
+.focused .max-box, .focused .close-box, .focused .title-bar {
+  opacity: 0.9;
+}
+.close-box:hover, .max-box:hover {
+  background-color: #888;
+}
+.resize {
+  touch-action: none;
+  position: absolute;
+}
+.light .resize:hover {
+  background-color: rgba(0,0,0,0.2);
+}
+.dark .resize:hover {
+  background-color: rgba(255,255,255,0.2);
+}
+.resize.n, .resize.ne, .resize.nw, .resize.s, .resize.se, .resize.sw {
+  height: 10px;
+}
+.resize.n, .resize.ne, .resize.nw {
+  top: 0;
+}
+.resize.s, .resize.se, .resize.sw {
+  bottom: 0;
+}
+.resize.ne, .resize.e, .resize.se, .resize.sw, .resize.w, .resize.nw {
+  width: 10px;
+}
+.resize.ne, .resize.e, .resize.se {
+  right: 0;
+}
+.resize.sw, .resize.w, .resize.nw {
+  left: 0;
+}
+.resize.n, .resize.s {
+  left: 10px;
+  right: 10px;
+}
+.resize.w, .resize.e {
+  top: 10px;
+  bottom: 10px;
+}
+.resize.n {cursor: n-resize}
+.resize.ne{cursor: ne-resize}
+.resize.e {cursor: e-resize}
+.resize.se{cursor: se-resize}
+.resize.s {cursor: s-resize}
+.resize.sw{cursor: sw-resize}
+.resize.w{cursor: w-resize}
+.resize.nw{cursor: nw-resize}
+
+::-webkit-scrollbar {
+  background-color: rgba(100,100,100,0.05);
+  width: 1em;
+  height: 1em;
+}
+.ace_editor ::-webkit-scrollbar, .ace_editor ::-webkit-scrollbar-thumb {
+  font-size: 16px;
+}
+::-webkit-scrollbar-thumb {
+  border: solid 3px transparent;
+  box-shadow: inset 0 0 0 .1em rgba(128, 128, 128, 0.2), inset 0 0 .7em .2em rgba(128, 128, 128, 0.2);
+}
+::-webkit-scrollbar-thumb:hover {
+  box-shadow: inset 0 0 0 .1em rgba(128, 128, 128, 0.8), inset 0 0 .7em .2em rgba(128, 128, 128, 0.8);
+}
