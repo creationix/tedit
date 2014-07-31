@@ -30,11 +30,9 @@ module.exports = function* (pathToEntry) {
 
   yield* load(main);
 
-  js = "(" +
-    wrapper.toString()
-      .replace("/*MAIN*/", JSON.stringify(main))
-      .replace("/*DEFS*/", js) +
-    "());\n";
+  var code = wrapper.toString().replace("/*MAIN*/", JSON.stringify(main)).split("/*DEFS*/");
+
+  js = "(" + code[0] + js + code[1] + "());\n";
 
   return [200, {"Content-Type":"application/javascript"}, js];
 
