@@ -75,3 +75,8 @@
 [submodule "lib/cm-notebook-theme"]
 	path = lib/cm-notebook-theme
 	url = git://github.com/creationix/cm-notebook-theme.git
+[submodule "lib/domchanger"]
+	url = git@github.com:creationix/domchanger.git
+	ref = refs/heads/master
+	prefix = hyan5444-pdgcm6
+	path = lib/domchanger
