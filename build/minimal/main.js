@@ -65,8 +65,8 @@ module.exports = function* (pathToEntry) {
       }
     }
     js += JSON.stringify(path) +
-      ": function (module, exports, __dirname, __filename) {" +
-      code + "},\n";
+      ": function (module, exports, __dirname, __filename) {\n" +
+      code + "\n},\n";
   }
 
   function* findLocal(path) {
