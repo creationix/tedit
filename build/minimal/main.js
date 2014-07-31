@@ -32,8 +32,8 @@ module.exports = function* (pathToEntry) {
 
   js = "(" +
     wrapper.toString()
-      .replace("/*DEFS*/", js)
-      .replace("/*MAIN*/", JSON.stringify(main)) +
+      .replace("/*MAIN*/", JSON.stringify(main))
+      .replace("/*DEFS*/", js) +
     "());\n";
 
   return [200, {"Content-Type":"application/javascript"}, js];
