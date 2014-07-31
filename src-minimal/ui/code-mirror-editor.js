@@ -6,8 +6,8 @@ require("codemirror/addon/comment/comment");
 require("codemirror/keymap/sublime");
 require("codemirror/addon/hint/anyword-hint");
 require("codemirror/addon/hint/show-hint");
-require('jackl-mode');
-require('jon-mode');
+require('cm-jackl-mode');
+require('cm-jon-mode');
 
 module.exports = CodeMirrorEditor;
 

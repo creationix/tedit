@@ -80,3 +80,13 @@
 	ref = refs/heads/master
 	prefix = hyan5444-pdgcm6
 	path = lib/domchanger
+[submodule "lib/cm-jackl-mode"]
+	url = git@github.com:creationix/cm-jackl-mode.git
+	ref = refs/heads/master
+	prefix = hyan8noi-kafv26
+	path = lib/cm-jackl-mode
+[submodule "lib/cm-jon-mode"]
+	url = git@github.com:creationix/cm-jon-mode.git
+	ref = refs/heads/master
+	prefix = hyanahkj-1cg9rnm
+	path = lib/cm-jon-mode
