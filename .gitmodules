@@ -72,3 +72,6 @@
 [submodule "lib/codemirror"]
 	path = lib/codemirror
 	url = git://github.com/marijnh/codemirror.git
+[submodule "lib/cm-notebook-theme"]
+	path = lib/cm-notebook-theme
+	url = git://github.com/creationix/cm-notebook-theme.git
