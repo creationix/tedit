@@ -26,7 +26,7 @@ module.exports = function* (pathToEntry) {
 
   var started = {};
   var js = "";
-  var main = "src-minimal/main-web.js";
+  var main = "src-minimal/main.js";
 
   yield* load(main);
 
