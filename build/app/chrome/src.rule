@@ -16,6 +16,7 @@
     bodec.js: "lib/bodec/bodec.js"
     carallel.js: "lib/carallel/carallel.js"
     css-parse.js: "lib/css/lib/parse/index.js"
+    css: "lib/css"
     dombuilder.js: "lib/dombuilder/dombuilder.js"
     git-chrome-fs: "lib/git-chrome-fs"
     gen-run.js: "lib/gen-run/run.js"
