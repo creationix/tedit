@@ -35,12 +35,10 @@ var requireJs = "\n" + (function require(url) {
       callback(message.error, message.result);
     };
     require.cache = {fs: {exports: {
-      readFile: function* readFile(path) {
+      readFile: function readFile(path, callback) {
         var id = require.id++;
         self.postMessage(JSON.stringify({id:id,path:path}));
-        return yield function (callback) {
-          require.callbacks[id] = callback;
-        };
+        require.callbacks[id] = callback;
       }
     }}};
     require.aliases = {
