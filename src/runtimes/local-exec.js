@@ -22,6 +22,7 @@ function jsToUrl(path, js) {
   return (urls[path] = window.URL.createObjectURL(blob));
 }
 
+
 var requireJs = "\n" + (function require(url) {
   /*global self*/
   "use strict";
@@ -36,6 +37,7 @@ var requireJs = "\n" + (function require(url) {
     };
     require.cache = {fs: {exports: {
       readFile: function readFile(path, callback) {
+        if (!callback) return readFile.bind(null, path);
         var id = require.id++;
         self.postMessage(JSON.stringify({id:id,path:path}));
         require.callbacks[id] = callback;
