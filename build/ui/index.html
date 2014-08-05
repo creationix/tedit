@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Tedit</title>
+  <script>
+    // Detect if the runtime supports ES6 generators.
+    try { window.hasgens = eval("(function*(){yield true;})().next().value"); }
+    catch (err) { window.hasgens = false; }
+  </script>
+  <script src="loader.js" async charset="utf-8"></script>
+</head>
+<body></body>
+</html>
