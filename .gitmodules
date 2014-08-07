@@ -90,3 +90,8 @@
 	ref = refs/heads/master
 	prefix = hyanahkj-1cg9rnm
 	path = lib/cm-jon-mode
+[submodule "lib/culvert"]
+	url = git@github.com:creationix/culvert.git
+	ref = refs/heads/master
+	prefix = hyhoryto-jekx0x
+	path = lib/culvert

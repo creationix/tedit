@@ -1,0 +1,40 @@
+
+ul.tree {
+  -moz-user-select: none;
+  user-select: none;
+  padding: 0.1em 0.1em 2em 0.1em;
+  margin: 0;
+  font-family: Ubuntu, sans-serif;
+}
+.tree, .tree ul {
+  margin: 0;
+  padding: 0;
+  line-height: 1.4em;
+  list-style-type: none;
+}
+.tree ul {
+  padding-left: 0.7em;
+}
+.tree li {
+  white-space: nowrap;
+}
+.tree .row {
+  margin-left: -10em;
+  padding-left: 10em;
+  margin-right: -10em;
+  padding-right: 10em;
+  cursor: pointer;
+}
+.tree .tight {
+  margin: 0 -2px 0 -4px;
+}
+.theme-light .row:hover {
+  box-shadow: inset 0 0 0.3em rgba(0,0,0,0.5);
+}
+.theme-dark .row:hover {
+  box-shadow: inset 0 0 0.3em rgba(255,255,255,0.5);
+}
+.theme-dark {
+  background-color: #333;
+  color: #eee;
+}
