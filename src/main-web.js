@@ -13,3 +13,12 @@ require('carallel')(setup, function (err) {
   require('./ui/slider.js');
   require('./ui/global-keys.js');
 });
+
+// Reload the page when appcache detects an update.
+window.addEventListener("load", function () {
+  window.applicationCache.addEventListener('updateready', function() {
+    if (window.applicationCache.status == window.applicationCache.UPDATEREADY) {
+      window.location.reload();
+    }
+  }, false);
+}, false);
