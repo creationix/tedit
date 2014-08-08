@@ -27,7 +27,7 @@
     js-git: "lib/js-git"
     js-github: "lib/js-github"
     mine.js: "lib/mine/mine.js"
-    pako: "lib/pako/lib"
+    pako: "lib/pako"
     pako.js: "lib/pako.js"
     pathjoin.js: "lib/pathjoin/pathjoin.js"
     simple-mime.js: "lib/simple-mime/simple-mime.js"
