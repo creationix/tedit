@@ -1,0 +1,22 @@
+#!js
+
+var pathJoin = require('path').join;
+
+module.exports = function* (pathToEntry) {
+  var files = [
+    "../../shared/tedit-embedded.css",
+    "../../shared/style.css",
+  ];
+  var css = "";
+  for (var i = 0, l = files.length; i < l; ++i) {
+    var path = pathJoin(__dirname, files[i]);
+    var entry = yield* pathToEntry(path);
+    css += "\n/* " + path + " */\n" +
+      (yield entry.repo.loadAs("text", entry.hash));
+  }
+
+  return [200, {
+    "Content-Type": "text/css; charset=utf-8",
+  }, css];
+
+};

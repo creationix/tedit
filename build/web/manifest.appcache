@@ -1,0 +1,45 @@
+#!js
+"use strict";
+var pathJoin = require('path').join;
+var modes = require('js-git/lib/modes');
+var acePath = "lib/ace-builds/src-min-noconflict";
+
+var names = [
+  "index.html",
+  "styles.css",
+  "tedit.js",
+  "regenerator-runtime.js",
+  "icons/icon-128.png",
+  "icons/icon-196.png",
+];
+
+module.exports = function* (pathToEntry, url) {
+  var entry, i, l;
+  var txt = "CACHE MANIFEST\n";
+  for (i = 0, l = names.length; i < l; ++i) {
+    var name = names[i];
+    entry = yield* pathToEntry(pathJoin(__dirname, name));
+    if (!entry || !entry.hash) txt += "#" + name + "\n";
+    else txt += name + "#" + entry.hash + "\n";
+  }
+  var meta = yield* pathToEntry(acePath);
+  var tree = yield meta.repo.loadAs("tree", meta.hash);
+  var keys = Object.keys(tree);
+  for (i = 0, l = keys.length; i < l; ++i) {
+    var key = keys[i];
+    entry = tree[key];
+    // Skip folders and xquery stuff (it's huge)
+    if (entry.mode !== modes.blob || /xquery/.test(key)) {
+      continue;
+    }
+    txt += "ace/" + key + "#" + entry.hash + "\n";
+  }
+
+  txt += "NETWORK:\n*\n";
+
+  return [200,
+    { "Content-Type": "text/cache-manifest" },
+    txt
+  ];
+
+};
