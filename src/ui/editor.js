@@ -202,7 +202,7 @@ module.exports = editor;
 
 function jack() {/*
   [ "Welcome to the Tedit Workspace"
-    "This Developement Environment is under heavy development" ]
+    "This Development Environment is under heavy development" ]
   -- This file is written in Jack, a new language for kids!
   vars Global-Controls, File-Tree-Controls, Mouse-and-Touch-Controls
 
