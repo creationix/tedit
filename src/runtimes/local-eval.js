@@ -74,7 +74,8 @@ function execFile(row) {
     // Allow yield and yield* in any script body!
     js = "run(function* () {" + js + "});";
     if (!window.hasGenerators) {
-      var regenerator = require('regenerator');
+      var regenerator = require('tedit-regenerator/regenerator-bundle');
+      // var regenerator = require('regenerator');
       js = regenerator(js);
     }
     var url = URL.createObjectURL(new Blob([
