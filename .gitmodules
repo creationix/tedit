@@ -95,3 +95,6 @@
 	ref = refs/heads/master
 	prefix = hyhoryto-jekx0x
 	path = lib/culvert
+[submodule "lib/wheaty-cjs-bundler"]
+	path = lib/wheaty-cjs-bundler
+	url = git@github.com:creationix/wheaty-cjs-bundler.git
