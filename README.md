@@ -27,7 +27,7 @@ Visual walkthrough: <https://cloudup.com/cCMNHjdCw6q>
 
  - If you don't have a github token handy, create a new one at <https://github.com/settings/tokens/new>
  - Launch the [pre-built version of Tedit](https://chrome.google.com/webstore/detail/tedit-development-environ/ooekdijbnbbjdfjocaiflnjgoohnblgf) and using the context menu (right-click) in the
-   empty pane to the left, select "Live Mount Github Repo"
+   empty pane to the left, select "Clone Github Repo"
  - Enter `creationix/tedit-app` (or your fork if you want write access) in the first field and paste your token in the last.
  - Right-Click on the `chrome-app` folder in the new tree and select "Live Export to Disk".
  - Select a parent folder (I usually do Desktop) and a name for the target (I like `tedit`).
