@@ -228,7 +228,7 @@ function jack() {/*
     Home: "Jump to top of list"
     End: "Jump to end of list"
     Page-Up: "Go up 10 times"
-    Page-Down: "Go dowm 10 times"
+    Page-Down: "Go down 10 times"
     When-on-folder: {
       Space-or-Enter: "Toggle folder open and close"
     }
