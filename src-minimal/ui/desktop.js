@@ -16,9 +16,9 @@ function Desktop(emit, refresh) {
   var height = window.innerHeight;
   var windows = [
     { id: genId(),
-      title: "bananas/samples/maze.jkl", code: jkl, mode: "jackl" },
-    { id: genId(),
       title: "config.jon", code: config.get(), mode: "jon" },
+    { id: genId(),
+      title: "bananas/samples/maze.jkl", code: jkl, mode: "jackl" },
   ];
 
   return {
