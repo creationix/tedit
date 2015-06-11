@@ -13,6 +13,7 @@ there will be a hosted web version that runs on mobile browsers on tablets.
 
 Install at the Chrome [Web Store](https://chrome.google.com/webstore/detail/tedit-development-environ/ooekdijbnbbjdfjocaiflnjgoohnblgf)
 
+
 ![Tedit Screenshot](http://creationix.com/tedit-0.1.12-1.png)
 
 ## Hacking on Tedit
