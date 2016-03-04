@@ -3,3 +3,5 @@ module.exports = [
   require('backends/chrome-fs'),
   require('backends/indexed-db'),
 ];
+
+//foo
