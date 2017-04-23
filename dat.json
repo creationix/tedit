@@ -1,0 +1,5 @@
+{
+  "title": "Tedit",
+  "description": "An experimental IDE in the browser with Git implemented in JS",
+  "app": { "name": "tedit" }
+}
